@@ -7,7 +7,7 @@
 	"publisher": "yorver",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/Microsoft/vscode-extension-samples"
+		"url": "https://github.com/yorver/rtags-vscode"
 	},
 	"devDependencies": {
 		"@types/mocha": "^2.2.42",
@@ -33,7 +33,6 @@
 		"postinstall": "node ./node_modules/vscode/bin/install"
 	},
 	"dependencies": {
-		"vscode": "^1.1.10",
-		"vscode-languageclient": "^3.4.2"
-	}	
+		"vscode": "^1.1.10"
+	}
 }
