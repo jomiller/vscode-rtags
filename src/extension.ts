@@ -1,7 +1,6 @@
 'use strict';
 
-import { Diagnostic, ExtensionContext, languages, TextDocument, Position, CompletionItemProvider, CompletionItem, WorkspaceSymbolProvider, SymbolInformation,  Uri, TypeDefinitionProvider, Location, ImplementationProvider, DefinitionProvider, ReferenceProvider, ReferenceContext, RenameProvider, ProviderResult, WorkspaceEdit, window, Range, workspace, CodeActionProvider, CodeActionContext, Command, commands, SignatureHelpProvider, SignatureHelp, Definition } from 'vscode';
-import { CompletionItemKind, CancellationToken, DiagnosticSeverity, Disposable } from 'vscode-languageclient';
+import { CompletionItemKind, CancellationToken, DiagnosticSeverity, Disposable, Diagnostic, ExtensionContext, languages, TextDocument, Position, CompletionItemProvider, CompletionItem, WorkspaceSymbolProvider, SymbolInformation,  Uri, TypeDefinitionProvider, Location, ImplementationProvider, DefinitionProvider, ReferenceProvider, ReferenceContext, RenameProvider, ProviderResult, WorkspaceEdit, window, Range, workspace, CodeActionProvider, CodeActionContext, Command, commands, SignatureHelpProvider, SignatureHelp, Definition } from 'vscode';
 import { execFile } from 'child_process'
 import { setTimeout } from 'timers';
 
