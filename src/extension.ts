@@ -1,8 +1,9 @@
 'use strict';
 
-import { CompletionItemKind, CancellationToken, DiagnosticSeverity, Disposable, Diagnostic, ExtensionContext, languages, TextDocument, Position, CompletionItemProvider, CompletionItem, WorkspaceSymbolProvider, SymbolInformation,  Uri, TypeDefinitionProvider, Location, ImplementationProvider, DefinitionProvider, ReferenceProvider, ReferenceContext, RenameProvider, ProviderResult, WorkspaceEdit, window, Range, workspace, CodeActionProvider, CodeActionContext, Command, commands, SignatureHelpProvider, SignatureHelp, Definition } from 'vscode';
+import { CompletionItemKind, CancellationToken, DiagnosticSeverity, Disposable, Diagnostic, ExtensionContext, languages, TextDocument, Position, CompletionItemProvider, WorkspaceSymbolProvider, SymbolInformation,  Uri, TypeDefinitionProvider, Location, ImplementationProvider, DefinitionProvider, ReferenceProvider, ReferenceContext, RenameProvider, ProviderResult, WorkspaceEdit, window, Range, workspace, CodeActionProvider, CodeActionContext, Command, commands, SignatureHelpProvider, SignatureHelp, Definition, CompletionList } from 'vscode';
 import { execFile } from 'child_process'
 import { setTimeout } from 'timers';
+
 
 let dc = languages.createDiagnosticCollection("RTAGS");
 
@@ -23,6 +24,10 @@ function convertKind(kind: string) : CompletionItemKind
 {
 	switch(kind)
 	{
+		case "FieldDecl" :
+			return CompletionItemKind.Field;
+		case "ParmDecl" :
+			return CompletionItemKind.Variable;
 		case "Namespace" :
 			return CompletionItemKind.Module;
 		case "FunctionDecl" :
@@ -41,7 +46,7 @@ function convertKind(kind: string) : CompletionItemKind
 		case "StructDecl" :
 			return CompletionItemKind.Class;
 	}
-	return CompletionItemKind.Text;
+	return CompletionItemKind.Keyword;
 }
 
 function parsePath(path: string) : Location
@@ -55,7 +60,7 @@ function parsePath(path: string) : Location
 function runRC(args: string[],  process: (stdout:string) => any, input? : string )
 : Thenable<any>
 {
-   return new Promise((resolve, reject) =>
+   return new Promise((resolve, _reject) =>
    {
 	   let child = execFile('rc', args,
 		   {
@@ -64,8 +69,9 @@ function runRC(args: string[],  process: (stdout:string) => any, input? : string
 		   (error, output, stderr) => {
 			   if (error)
 			   {
-				   console.log(stderr);
-				   reject();
+				   window.showErrorMessage(stderr);				   
+				   resolve([]);
+				   return;
 			   }
 			   resolve(process(output));
 		   }
@@ -101,34 +107,49 @@ class RTagsCompletionItemProvider
 	}
 
 	provideCompletionItems(document : TextDocument, p : Position, _token : CancellationToken)
-		: Thenable<CompletionItem[]>
+		: Thenable<CompletionList>
 	{
 		const content = document.getText()
 		const path = document.uri.fsPath
-		const unsaved = path + ":" + content.length
+		const unsaved = path + ":" + content.length		
+		const range = document.getWordRangeAtPosition(p);
+				
 		const at = toRtagsPos(document.uri, p);
+		let args = ['--unsaved-file='+unsaved, '--json', 
+		'--synchronous-completions', '-M', '10',
+		 '--code-complete-at', at];
 
+		 if (range)		
+		 {
+			const prefix = document.getText(range);
+			args.push('--code-complete-prefix', prefix);
+		 }
+			 
 		return runRC(
-			['--unsaved-file='+unsaved, '--json',
-			'--synchronous-completions', '-M', '10', '--code-complete-at', at],
-						function(output:string)
+			args,
+				function(output:string)
 				{
 					const o = JSON.parse(output.toString());
 					let result = [];
 
 					for (let c of  o.completions)
 					{
+						let sortText : string = ("00" + result.length.toString()).slice(-2)						
 						result.push(
 							{
 								label: c.completion,
 								kind: convertKind(c.kind),
-								detail:  c.signature
+								detail:  c.signature,
+								sortText : sortText
 							}
 						);
+
+						if (result.length > 20)
+							break;
 					}
-					return result;
+					return new CompletionList(result, result.length < 20);
 				},
-				content
+				content				
 		);
 	}
 
@@ -321,7 +342,17 @@ function processDiagnostics(output:string)
 {
 	if (output.length == 0)
 		return;
-	const o = JSON.parse(output.toString());
+	let o;
+	try 
+	{
+		o = JSON.parse(output.toString());
+	}
+	catch (err)
+	{
+		window.showErrorMessage(output);
+		return;
+	}
+
 	dc.clear();
 	for (var file in o.checkStyle)
 	{
@@ -383,10 +414,19 @@ export function activate(context: ExtensionContext)
 		const unsaved = path + ":" + content.length
 
 		runRC(['--unsaved-file='+unsaved, '--reindex', path],
-		 	(_ : string) : void => { setTimeout(diagnostics, 1000, event.document);},
+		 	(output : string) : void => { 
+				 if (output == 'No matches')
+				 	return;
+				 setTimeout(diagnostics, 1000, event.document);
+				},
 			content)
 	});
 
-	workspace.onDidSaveTextDocument(diagnostics);
+	workspace.onDidSaveTextDocument(
+		(doc) =>
+		{
+			setTimeout(diagnostics, 1000, doc);
+		}
+	);
 }
 
