@@ -1,6 +1,6 @@
 'use strict';
 
-import { CompletionItemKind, CancellationToken, DiagnosticSeverity, Disposable, Diagnostic, ExtensionContext, languages, TextDocument, Position, CompletionItemProvider, WorkspaceSymbolProvider, SymbolInformation,  Uri, TypeDefinitionProvider, Location, ImplementationProvider, DefinitionProvider, ReferenceProvider, ReferenceContext, RenameProvider, ProviderResult, WorkspaceEdit, window, Range, workspace, CodeActionProvider, CodeActionContext, Command, commands, SignatureHelpProvider, SignatureHelp, Definition, CompletionList } from 'vscode';
+import { CompletionItemKind, CancellationToken, DiagnosticSeverity, Disposable, Diagnostic, ExtensionContext, languages, TextDocument, Position, CompletionItemProvider, WorkspaceSymbolProvider, SymbolInformation,  Uri, Location, ImplementationProvider, DefinitionProvider, ReferenceProvider, ReferenceContext, RenameProvider, ProviderResult, WorkspaceEdit, window, Range, workspace, CodeActionProvider, CodeActionContext, Command, commands, SignatureHelpProvider, SignatureHelp, Definition, CompletionList, HoverProvider, Hover, SignatureInformation, TypeDefinitionProvider, DocumentSymbolProvider } from 'vscode';
 import { execFile } from 'child_process'
 import { setTimeout } from 'timers';
 
@@ -8,8 +8,8 @@ import { setTimeout } from 'timers';
 let dc = languages.createDiagnosticCollection("RTAGS");
 
 const RTAGS_MODE = [
-    { language: "cpp", scheme: "file" },
-    { language: "c", scheme: "file" }
+	{ language: "cpp", scheme: "file" },
+	{ language: "c", scheme: "file" }
 ];
 
 var ReferenceType =
@@ -17,7 +17,8 @@ var ReferenceType =
 	DEFINITION : 0,
 	VIRTUALS : 1,
 	REFERENCES : 2,
-	RENAME : 3
+	RENAME : 3,
+	SYMBOL_INFO: 4
 };
 
 function convertKind(kind: string) : CompletionItemKind
@@ -57,11 +58,20 @@ function parsePath(path: string) : Location
 	return new Location(uri,p);
 }
 
-function runRC(args: string[],  process: (stdout:string) => any, input? : string )
+function runRC(args: string[],  process: (stdout:string) => any, doc? : TextDocument )
 : Thenable<any>
 {
    return new Promise((resolve, _reject) =>
-   {
+   {	
+		if (doc && doc.isDirty)
+		{			
+			const content = doc.getText()
+			const path = doc.uri.fsPath
+
+			const unsaved = path + ":" + content.length		
+			args.push('--unsaved-file='+unsaved)
+		}
+
 	   let child = execFile('rc', args,
 		   {
 			   maxBuffer: 4 * 1024*1024
@@ -76,8 +86,9 @@ function runRC(args: string[],  process: (stdout:string) => any, input? : string
 			   resolve(process(output));
 		   }
 	   )
-	   if (input)
-		   child.stdin.write(input)
+
+	   if (doc && doc.isDirty)
+		   child.stdin.write(doc.getText())
    });
 }
 
@@ -85,8 +96,10 @@ class RTagsCompletionItemProvider
 	implements
 	 CompletionItemProvider,
 	 WorkspaceSymbolProvider,
-	 TypeDefinitionProvider,
+	 DocumentSymbolProvider,
+	 HoverProvider,
 	 DefinitionProvider,
+	 TypeDefinitionProvider,
 	 ImplementationProvider,
 	 ReferenceProvider,
 	 RenameProvider	,
@@ -94,29 +107,32 @@ class RTagsCompletionItemProvider
 	 SignatureHelpProvider,
 	 Disposable
 	{
+	
+
 
 	dispose(): void {
-		this.command.dispose();
+		for (let d of this.disposables)
+			d.dispose();
 	}
 
-	command : Disposable;
+	disposables : Disposable[] = [];
 
 	constructor()
 	{
-		this.command = commands.registerCommand(RTagsCompletionItemProvider.commandId, this.runCodeAction, this);
+		this.disposables.push(
+			commands.registerCommand(RTagsCompletionItemProvider.commandId, this.runCodeAction, this)
+		);
+
 	}
 
 	provideCompletionItems(document : TextDocument, p : Position, _token : CancellationToken)
 		: Thenable<CompletionList>
-	{
-		const content = document.getText()
-		const path = document.uri.fsPath
-		const unsaved = path + ":" + content.length		
+	{		
 		const range = document.getWordRangeAtPosition(p);
-				
+		const max_completions:Number = 20;
 		const at = toRtagsPos(document.uri, p);
-		let args = ['--unsaved-file='+unsaved, '--json', 
-		'--synchronous-completions', '-M', '10',
+		let args = ['--json', 
+		'--synchronous-completions', '-M',  max_completions.toString(),
 		 '--code-complete-at', at];
 
 		 if (range)		
@@ -144,26 +160,32 @@ class RTagsCompletionItemProvider
 							}
 						);
 
-						if (result.length > 20)
+						if (result.length == max_completions)
 							break;
 					}
-					return new CompletionList(result, result.length < 20);
+					return new CompletionList(result, result.length >= max_completions);
 				},
-				content				
+				document				
 		);
 	}
 
+	provideDocumentSymbols(doc: TextDocument, _token: CancellationToken): ProviderResult<SymbolInformation[]> {
+		return this.findSymbols("", ["--path-filter", doc.uri.fsPath]);
+	}
 
 	provideWorkspaceSymbols(query: string, _token: CancellationToken): Thenable<SymbolInformation[]>
 	{
 		if (query.length < 3)
 			return null;
-
+		return this.findSymbols(query);
+	}
+	findSymbols(query: string, args : string[] = [])
+	{
 		query += '*'
 		return runRC(
 			['-a', '-K', '-o', '-I',
 			'-F', query,'-M', '30',
-			'--cursor-kind', '--display-name'],
+			'--cursor-kind', '--display-name'].concat(args),
 			function(output:string)
 			{
 				let result = [];
@@ -193,6 +215,7 @@ class RTagsCompletionItemProvider
 	}
 
 	static commandId: string = 'rtags.runCodeAction';
+	static findVirtuals: string = 'rtags.findVirtuals';
 
 	private runCodeAction(document: TextDocument, range: Range, newText:string): any
 	{
@@ -236,20 +259,30 @@ class RTagsCompletionItemProvider
 		return this.getDefinitions(document, position);
 	}
 
-	provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken)
+	provideHover(document: TextDocument, p: Position, _token: CancellationToken): ProviderResult<Hover> 
+	{
+		const at = toRtagsPos(document.uri, p);
+
+		return runRC(['-K',	'-U', at], 
+			(output) => 
+			{				
+				let m = /^Type:(.*)?(=>|$)/gm.exec(output)
+				if (m)								
+					return new Hover(m[1].toString());
+				else 
+					return null;
+			},
+			document
+		);	
+	}
+	
+	provideDefinition(document: TextDocument, position: Position, _token: CancellationToken) :  ProviderResult<Definition>
 	{
 		return this.getDefinitions(document, position);
 	}
-
-	provideDefinition(document: TextDocument, position: Position, _token: CancellationToken) :  ProviderResult<Definition>
-	{
-		return Promise.all([
-			this.getDefinitions(document, position),
-			this.getDefinitions(document, position, ReferenceType.VIRTUALS)]).then(
-			function (values: any[])
-			{
-				return [].concat(...values);
-			});
+	
+	provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken): ProviderResult<Definition> {
+		return this.getDefinitions(document, position, ReferenceType.VIRTUALS);
 	}
 
 	provideReferences(document: TextDocument, position: Position, _context: ReferenceContext, _token: CancellationToken): Thenable<Location[]>
@@ -258,13 +291,10 @@ class RTagsCompletionItemProvider
 	}
 
 	getDefinitions(document: TextDocument, p: Position, type: number = ReferenceType.DEFINITION): Thenable<Location[]>
-	{
-		const content = document.getText()
-		const path = document.uri.fsPath
-		const unsaved = path + ":" + content.length
+	{		
 		const at = toRtagsPos(document.uri, p);
 
-		let args =  ['-K', '--unsaved-file='+unsaved];
+		let args =  ['-K'];
 
 		switch(type)
 		{
@@ -275,7 +305,7 @@ class RTagsCompletionItemProvider
 			case ReferenceType.RENAME:
 				args.push('--rename', '-e', '-r', at); break
 			case ReferenceType.DEFINITION:
-				args.push('-f', at); break;
+				args.push('-f', at); break;		
 		}
 
 		return runRC(args,
@@ -298,7 +328,7 @@ class RTagsCompletionItemProvider
 
 				return result;
 			 },
-			 content);
+			 document);
 	}
 
 	provideRenameEdits(document: TextDocument, position: Position, newName: string, _token: CancellationToken): ProviderResult<WorkspaceEdit>
@@ -328,9 +358,38 @@ class RTagsCompletionItemProvider
 			});
 	}
 
-	provideSignatureHelp(_document: TextDocument, position: Position, _token: CancellationToken): ProviderResult<SignatureHelp> {
-		throw new Error("Method not implemented." + position);
-	}
+	provideSignatureHelp(document: TextDocument, p: Position, _token: CancellationToken): ProviderResult<SignatureHelp> 
+	{
+		const max_completions:Number = 20;
+		const at = toRtagsPos(document.uri, p);
+		let args = ['--json', 
+		'--synchronous-completions', '-M',  max_completions.toString(),
+		'--code-complete-at', at,
+	    '--code-complete-param'];
+
+		return runRC(
+			args,
+				function(output:string)
+				{
+					const o = JSON.parse(output.toString());
+					let result : SignatureInformation[] = [];
+
+					for (let s of  o.signatures)
+					{						
+						result.push(
+							{
+								label : "test",
+								parameters : s.parameters
+							})						
+					}
+					return {
+						signatures: o.signatures,
+						activeSignature: 0,
+						activeParameter: o.activeParameter};
+				},
+				document				
+		);
+	}	
 }
 
 function toRtagsPos(uri: Uri, pos: Position) {
@@ -339,7 +398,7 @@ function toRtagsPos(uri: Uri, pos: Position) {
 }
 
 function processDiagnostics(output:string)
-{
+{	
 	if (output.length == 0)
 		return;
 	let o;
@@ -395,10 +454,12 @@ export function activate(context: ExtensionContext)
 	let r = new RTagsCompletionItemProvider;
 	context.subscriptions.push(
 		r
-		,languages.registerCompletionItemProvider(RTAGS_MODE, r)
+		,languages.registerCompletionItemProvider(RTAGS_MODE, r, '.', ':', '>')
 		,languages.registerWorkspaceSymbolProvider(r)
-		,languages.registerTypeDefinitionProvider(RTAGS_MODE, r)
+		,languages.registerDocumentSymbolProvider(RTAGS_MODE, r)
+		,languages.registerHoverProvider(RTAGS_MODE, r)
 		,languages.registerDefinitionProvider(RTAGS_MODE, r)
+		,languages.registerTypeDefinitionProvider(RTAGS_MODE, r)
 		,languages.registerImplementationProvider(RTAGS_MODE, r)
 		,languages.registerReferenceProvider(RTAGS_MODE, r)
 		,languages.registerRenameProvider(RTAGS_MODE, r)
@@ -406,20 +467,15 @@ export function activate(context: ExtensionContext)
 		,languages.registerSignatureHelpProvider(RTAGS_MODE, r, '(', ',')
 	);
 
-
 	workspace.onDidChangeTextDocument(function(event)
 	{
-		const path = event.document.uri.fsPath
-		const content = event.document.getText()
-		const unsaved = path + ":" + content.length
-
-		runRC(['--unsaved-file='+unsaved, '--reindex', path],
+		runRC(['--reindex', event.document.uri.fsPath],
 		 	(output : string) : void => { 
 				 if (output == 'No matches')
 				 	return;
 				 setTimeout(diagnostics, 1000, event.document);
 				},
-			content)
+			event.document)
 	});
 
 	workspace.onDidSaveTextDocument(
