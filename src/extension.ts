@@ -1,8 +1,8 @@
 'use strict';
 
-import { CompletionItemKind, CancellationToken, DiagnosticSeverity, Disposable, Diagnostic, ExtensionContext, languages, TextDocument, Position, CompletionItemProvider, WorkspaceSymbolProvider, SymbolInformation,  Uri, Location, ImplementationProvider, DefinitionProvider, ReferenceProvider, ReferenceContext, RenameProvider, ProviderResult, WorkspaceEdit, window, Range, workspace, CodeActionProvider, CodeActionContext, Command, commands, SignatureHelpProvider, SignatureHelp, Definition, CompletionList, HoverProvider, Hover, SignatureInformation, TypeDefinitionProvider, DocumentSymbolProvider } from 'vscode';
-import { execFile } from 'child_process'
-import { setTimeout } from 'timers';
+import { CompletionItemKind, CancellationToken, DiagnosticSeverity, Disposable, Diagnostic, ExtensionContext, languages, TextDocument, Position, CompletionItemProvider, WorkspaceSymbolProvider, SymbolInformation,  Uri, Location, ImplementationProvider, DefinitionProvider, ReferenceProvider, ReferenceContext, RenameProvider, ProviderResult, WorkspaceEdit, window, Range, workspace, CodeActionProvider, CodeActionContext, Command, commands, SignatureHelpProvider, SignatureHelp, Definition, CompletionList, HoverProvider, Hover, SignatureInformation, TypeDefinitionProvider, DocumentSymbolProvider, TreeDataProvider, TreeItem, EventEmitter, Event, TreeItemCollapsibleState } from 'vscode';
+import { execFile, spawn } from 'child_process'
+import { setTimeout, clearTimeout } from 'timers';
 
 
 let dc = languages.createDiagnosticCollection("RTAGS");
@@ -92,6 +92,148 @@ function runRC(args: string[],  process: (stdout:string) => any, doc? : TextDocu
    });
 }
 
+function getCallers(document: TextDocument, uri: Uri, p: Position): Thenable<Caller[]>
+{
+	const at = toRtagsPos(uri, p);
+
+	let args =  ['-K', '-o', '--containing-function-location', '-r', at, '--json'];
+	
+	return runRC(args,
+			function(output:string)
+			{
+			let result : Caller[] =  [];
+
+			const o = JSON.parse(output.toString());
+				
+					
+			try {
+				for (let c of o)
+				{
+					let containerLocation = parsePath(c.cfl);
+					let doc = workspace.textDocuments.find(
+						(v, _i) => { return v.uri.fsPath == containerLocation.uri.fsPath }
+					)
+					result.push(
+						{
+							location:parsePath(c.loc),
+							containerName : c.cf.trim(),
+							containerLocation : containerLocation,
+							document : doc,
+							context: c.ctx.trim()
+						});
+				}			
+			}
+			catch (err)
+			{
+				return result;
+			}
+
+			return result;
+			},
+			document);
+}
+
+function getDefinitions(document: TextDocument, p: Position, type: number = ReferenceType.DEFINITION): Thenable<Location[]>
+{		
+	const at = toRtagsPos(document.uri, p);
+
+	let args =  ['-K'];
+
+	switch(type)
+	{
+		case ReferenceType.VIRTUALS:
+			args.push('-k', '-r', at); break;
+		case ReferenceType.REFERENCES:
+			args.push('-r', at); break;
+		case ReferenceType.RENAME:
+			args.push('--rename', '-e', '-r', at); break
+		case ReferenceType.DEFINITION:
+			args.push('-f', at); break;		
+	}
+
+	return runRC(args,
+			function(output:string)
+			{
+			let result : Location[] =  [];
+			try {
+				for (let line of output.toString().split("\n"))
+				{
+					if (line == '')
+						continue;
+					let [location] = line.split("\t", 1);
+					result.push(parsePath(location));
+				}
+			}
+			catch (err)
+			{
+				return result;
+			}
+
+			return result;
+			},
+			document);
+}
+
+class Caller 
+{	
+	location : Location;
+	containerName : string;
+	containerLocation : Location;
+	document : TextDocument;
+	context: string;
+}
+
+class CallHierarchy
+	implements TreeDataProvider<Caller>
+{
+	
+	private _onDidChangeTreeData: EventEmitter<Caller | null> = new EventEmitter<Caller | null>();
+	readonly onDidChangeTreeData: Event<Caller | null> = this._onDidChangeTreeData.event;
+	//onDidChangeTreeData :
+
+	getTreeItem(caller: Caller): TreeItem | Thenable<TreeItem> {
+		let ti = new TreeItem(caller.containerName + " : " + caller.context , TreeItemCollapsibleState.Collapsed);
+		ti.contextValue = "rtagsLocation"
+		// ti.command = {
+        //     command: 'rtags.selectLocation',
+        //     title: '',
+        //     arguments: [
+        //         caller
+        //     ]
+        // };
+		return ti;
+	}
+	
+	getChildren(node?: Caller): ProviderResult<Caller[]> 
+	{
+		const list : Caller[] = []
+		if (!node)
+		{
+			let pos = window.activeTextEditor.selection.active
+			let doc = window.activeTextEditor.document
+			let loc = new Location(doc.uri, pos);
+			list.push(
+			{
+				location: loc,
+				containerLocation : loc,
+				containerName: doc.getText(doc.getWordRangeAtPosition(pos)),
+				document: doc,
+				context: ""
+			})
+			return list;			
+		}
+
+		return getCallers(node.document, node.containerLocation.uri, node.containerLocation.range.start);				
+	}
+
+	refresh(): void 
+	{			
+		this._onDidChangeTreeData.fire();		
+	}
+	
+
+}
+
 class RTagsCompletionItemProvider
 	implements
 	 CompletionItemProvider,
@@ -177,14 +319,14 @@ class RTagsCompletionItemProvider
 	{
 		if (query.length < 3)
 			return null;
-		return this.findSymbols(query);
+		return this.findSymbols(query, ['-M', '30']);
 	}
 	findSymbols(query: string, args : string[] = [])
 	{
 		query += '*'
 		return runRC(
 			['-a', '-K', '-o', '-I',
-			'-F', query,'-M', '30',
+			'-F', query,
 			'--cursor-kind', '--display-name'].concat(args),
 			function(output:string)
 			{
@@ -193,7 +335,7 @@ class RTagsCompletionItemProvider
 				{
 					const [path, _, name, kind, container] = line.split(/\t+/);
 					void(_);
-					if (name === undefined || name.length < 3)
+					if (name === undefined || convertKind(kind) == CompletionItemKind.Keyword )
 						continue;
 
 					const location = parsePath(path);
@@ -256,7 +398,7 @@ class RTagsCompletionItemProvider
 	}
 	provideImplementation(document: TextDocument, position: Position, _token: CancellationToken)
 	{
-		return this.getDefinitions(document, position);
+		return getDefinitions(document, position);
 	}
 
 	provideHover(document: TextDocument, p: Position, _token: CancellationToken): ProviderResult<Hover> 
@@ -278,58 +420,17 @@ class RTagsCompletionItemProvider
 	
 	provideDefinition(document: TextDocument, position: Position, _token: CancellationToken) :  ProviderResult<Definition>
 	{
-		return this.getDefinitions(document, position);
+		return getDefinitions(document, position);
 	}
 	
 	provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken): ProviderResult<Definition> {
-		return this.getDefinitions(document, position, ReferenceType.VIRTUALS);
+		return getDefinitions(document, position, ReferenceType.VIRTUALS);
 	}
 
 	provideReferences(document: TextDocument, position: Position, _context: ReferenceContext, _token: CancellationToken): Thenable<Location[]>
 	{
-		return this.getDefinitions(document, position, ReferenceType.REFERENCES);
-	}
-
-	getDefinitions(document: TextDocument, p: Position, type: number = ReferenceType.DEFINITION): Thenable<Location[]>
-	{		
-		const at = toRtagsPos(document.uri, p);
-
-		let args =  ['-K'];
-
-		switch(type)
-		{
-			case ReferenceType.VIRTUALS:
-				args.push('-k', '-r', at); break;
-			case ReferenceType.REFERENCES:
-				args.push('-r', at); break;
-			case ReferenceType.RENAME:
-				args.push('--rename', '-e', '-r', at); break
-			case ReferenceType.DEFINITION:
-				args.push('-f', at); break;		
-		}
-
-		return runRC(args,
-			 function(output:string)
-			 {
-				let result : Location[] =  [];
-				try {
-					for (let line of output.toString().split("\n"))
-					{
-						if (line == '')
-							continue;
-						let [location] = line.split("\t", 1);
-						result.push(parsePath(location));
-					}
-				}
-				catch (err)
-				{
-					return result;
-				}
-
-				return result;
-			 },
-			 document);
-	}
+		return getDefinitions(document, position, ReferenceType.REFERENCES);
+	}	
 
 	provideRenameEdits(document: TextDocument, position: Position, newName: string, _token: CancellationToken): ProviderResult<WorkspaceEdit>
 	{
@@ -346,7 +447,7 @@ class RTagsCompletionItemProvider
 		let diff = wr.end.character - wr.start.character;
 
 		let edits : WorkspaceEdit = new WorkspaceEdit;
-		return this.getDefinitions(document, position, ReferenceType.RENAME).then(
+		return getDefinitions(document, position, ReferenceType.RENAME).then(
 			function(results)
 			{
 				for (let r of results)
@@ -390,6 +491,38 @@ class RTagsCompletionItemProvider
 				document				
 		);
 	}	
+
+	getJsonObject(data: string) : string
+	{		
+		let end : number;
+		while ((end = data.indexOf('\n')) != -1)
+		{
+			processDiagnostics(data.slice(0, end));
+			data = data.substr(end + 1)
+		}
+
+		return data.trim();
+	}
+
+	unprocessedDiagnostics : string = "";
+	listenToDiagnostics()
+	{		
+		const rc = spawn('rc', ['-m', '--json', '-b'])
+		rc.stdout.on('data',
+			(data) => {
+				this.unprocessedDiagnostics = this.getJsonObject(
+					this.unprocessedDiagnostics + data.toString()
+				) 				
+			});
+		
+		rc.on("exit", (_code, _signal) => 
+		{ 
+			dc.clear();
+			this.unprocessedDiagnostics = "";
+			window.showErrorMessage("Diagnostics stopped. restarting")
+			setTimeout(	this.listenToDiagnostics, 1000);
+		});
+	}
 }
 
 function toRtagsPos(uri: Uri, pos: Position) {
@@ -397,9 +530,9 @@ function toRtagsPos(uri: Uri, pos: Position) {
 	return at;
 }
 
-function processDiagnostics(output:string)
+function processDiagnostics(output: string)
 {	
-	if (output.length == 0)
+	if (output.trim().length == 0)
 		return;
 	let o;
 	try 
@@ -408,11 +541,11 @@ function processDiagnostics(output:string)
 	}
 	catch (err)
 	{
-		window.showErrorMessage(output);
+		window.showErrorMessage("Diagnostics parse error: " + output.toString());
 		return;
 	}
-
-	dc.clear();
+	
+	//dc.clear();
 	for (var file in o.checkStyle)
 	{
 		if (!o.checkStyle.hasOwnProperty(file))
@@ -443,10 +576,19 @@ function diagnostics(document: TextDocument)
 {
 	const path = document.uri.fsPath
 
-	runRC(
-	[ '--json', '--synchronous-diagnostics', '--diagnose', path],
-		(output) => { processDiagnostics(output);}
-	);
+	runRC( [ '--json', '--diagnose', path], (_) => {}	);
+}
+
+
+function reindex(doc : TextDocument)
+{
+	runRC(['--reindex', doc.uri.fsPath],
+		(output : string) : void => { 
+				if (output == 'No matches')
+				return;
+				setTimeout(diagnostics, 1000, doc);
+			},
+		doc)
 }
 
 export function activate(context: ExtensionContext)
@@ -467,22 +609,30 @@ export function activate(context: ExtensionContext)
 		,languages.registerSignatureHelpProvider(RTAGS_MODE, r, '(', ',')
 	);
 
-	workspace.onDidChangeTextDocument(function(event)
+	var timerId : NodeJS.Timer = null;
+	workspace.onDidChangeTextDocument((event) => 
 	{
-		runRC(['--reindex', event.document.uri.fsPath],
-		 	(output : string) : void => { 
-				 if (output == 'No matches')
-				 	return;
-				 setTimeout(diagnostics, 1000, event.document);
-				},
-			event.document)
+		if (timerId)
+			clearTimeout(timerId);
+		
+		timerId = setTimeout(() => {
+			reindex(event.document) 	
+			timerId = null;
+		}, 1000);		 
 	});
 
-	workspace.onDidSaveTextDocument(
-		(doc) =>
-		{
-			setTimeout(diagnostics, 1000, doc);
-		}
-	);
+	workspace.onDidSaveTextDocument( (doc) => {	reindex(doc) } );
+
+	r.listenToDiagnostics();
+
+	let ch = new CallHierarchy
+	window.registerTreeDataProvider('rtagsCallHierarchy', ch);
+	commands.registerCommand('rtags.callhierarcy', () => ch.refresh());
+	commands.registerCommand('rtags.selectLocation', (caller) => { 
+		window.showTextDocument(caller.containerLocation.uri, {
+			selection: caller.location.range
+		})
+		});
+	//commands.registerCommand('rtags.callhierarcy', )
 }
 

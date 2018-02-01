@@ -3,7 +3,7 @@
 	"description": "Rtags client",
 	"author": "yorver",
 	"license": "MIT",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"publisher": "yorver",
 	"repository": {
 		"type": "git",
@@ -34,5 +34,39 @@
 	},
 	"dependencies": {
 		"vscode": "^1.1.10"
+	},
+	"contributes": {
+		"commands": [
+			{
+				"command": "rtags.callhierarcy",
+				"title": "Call Hierarchy"
+			},
+			{
+				"command": "rtags.selectLocation",
+				"title": "Go to location"
+			}
+		],
+		"views": {
+			"explorer": [
+				{
+					"id": "rtagsCallHierarchy",
+					"name": "CallHierarchy"
+				}
+			]
+		},
+		"menus": {
+			"editor/context": [
+				{
+					"command": "rtags.callhierarcy",
+					"name": "CallHierarchy"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "rtags.selectLocation",
+					"when": "viewItem == rtagsLocation && view==rtagsCallHierarchy"
+				}
+			]
+		}
 	}
 }
