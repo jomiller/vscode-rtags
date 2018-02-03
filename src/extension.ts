@@ -288,11 +288,10 @@ class RTagsCompletionItemProvider
 				function(output:string)
 				{
 					const o = JSON.parse(output.toString());
-					let result = [];
-
+					let result = [];					
 					for (let c of  o.completions)
-					{
-						let sortText : string = ("00" + result.length.toString()).slice(-2)						
+					{				
+						let sortText : string = ("00" + c.priority.toString()).slice(-2)	
 						result.push(
 							{
 								label: c.completion,
