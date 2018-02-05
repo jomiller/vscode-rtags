@@ -311,7 +311,23 @@ class RTagsCompletionItemProvider
 	}
 
 	provideDocumentSymbols(doc: TextDocument, _token: CancellationToken): ProviderResult<SymbolInformation[]> {
-		return this.findSymbols("", ["--path-filter", doc.uri.fsPath]);
+		return this.findSymbols("", ["--path-filter", doc.uri.fsPath],
+			(kind : CompletionItemKind) => 
+				{ 
+					switch(kind)
+					{
+						case CompletionItemKind.Class:
+						case CompletionItemKind.Function:
+						case CompletionItemKind.Method:
+						case CompletionItemKind.Enum:
+						case CompletionItemKind.Operator:
+						case CompletionItemKind.Interface:
+						case CompletionItemKind.Field:
+						case CompletionItemKind.Constructor:
+							return true;
+					}
+					return false;
+				});
 	}
 
 	provideWorkspaceSymbols(query: string, _token: CancellationToken): Thenable<SymbolInformation[]>
@@ -320,7 +336,7 @@ class RTagsCompletionItemProvider
 			return null;
 		return this.findSymbols(query, ['-M', '30']);
 	}
-	findSymbols(query: string, args : string[] = [])
+	findSymbols(query: string, args : string[] = [], filter? : (kind: CompletionItemKind) => boolean)
 	{
 		query += '*'
 		return runRC(
@@ -334,19 +350,21 @@ class RTagsCompletionItemProvider
 				{
 					const [path, _, name, kind, container] = line.split(/\t+/);
 					void(_);
-					if (name === undefined || convertKind(kind) == CompletionItemKind.Keyword )
+					if (name === undefined  )
 						continue;
-
+					const localKind = convertKind(kind)
+					if (filter && !filter(localKind))
+						continue;
 					const location = parsePath(path);
 
 					//line.split( /:|function:/).map(function(x:string) {return String.prototype.trim.apply(x)});
-
+					
 					result.push(
 						{
 							name: name,
 							containerName: container,
 							location: location,
-							kind: convertKind(kind)
+							kind: localKind
 						}
 					);
 				}
@@ -571,21 +589,35 @@ function processDiagnostics(output: string)
 	}
 }
 
-function diagnostics(document: TextDocument)
+function diagnostics(uri: Uri)
 {
-	const path = document.uri.fsPath
+	const path = uri.fsPath
 
 	runRC( [ '--json', '--diagnose', path], (_) => {}	);
 }
 
 
+function reindexUri(uri : Uri)
+{	
+	runRC(['--reindex', uri.fsPath],
+		(output : string) : void => { 
+				if (output == 'No matches')
+				return;
+				setTimeout(diagnostics, 1000, uri);
+			},
+		)
+}
+
 function reindex(doc : TextDocument)
 {
+	if (languages.match(RTAGS_MODE, doc) == 0)
+		return;
+
 	runRC(['--reindex', doc.uri.fsPath],
 		(output : string) : void => { 
 				if (output == 'No matches')
 				return;
-				setTimeout(diagnostics, 1000, doc);
+				setTimeout(diagnostics, 1000, doc.uri);
 			},
 		doc)
 }
@@ -593,6 +625,8 @@ function reindex(doc : TextDocument)
 export function activate(context: ExtensionContext)
 {
 	let r = new RTagsCompletionItemProvider;
+	let ch = new CallHierarchy;
+
 	context.subscriptions.push(
 		r
 		,languages.registerCompletionItemProvider(RTAGS_MODE, r, '.', ':', '>')
@@ -605,7 +639,15 @@ export function activate(context: ExtensionContext)
 		,languages.registerReferenceProvider(RTAGS_MODE, r)
 		,languages.registerRenameProvider(RTAGS_MODE, r)
 		,languages.registerCodeActionsProvider(RTAGS_MODE, r)
-		,languages.registerSignatureHelpProvider(RTAGS_MODE, r, '(', ',')
+		,languages.registerSignatureHelpProvider(RTAGS_MODE, r, '(', ',')		
+		,window.registerTreeDataProvider('rtagsCallHierarchy', ch)
+		,commands.registerCommand('rtags.reindex', (uri) => {reindexUri(uri)})
+		,commands.registerCommand('rtags.callhierarcy', () => ch.refresh())
+		,commands.registerCommand('rtags.selectLocation', (caller) => {			
+			window.showTextDocument(caller.containerLocation.uri, {
+				selection: caller.location.range
+			})
+			})
 	);
 
 	var timerId : NodeJS.Timer = null;
@@ -624,14 +666,8 @@ export function activate(context: ExtensionContext)
 
 	r.listenToDiagnostics();
 
-	let ch = new CallHierarchy
-	window.registerTreeDataProvider('rtagsCallHierarchy', ch);
-	commands.registerCommand('rtags.callhierarcy', () => ch.refresh());
-	commands.registerCommand('rtags.selectLocation', (caller) => { 
-		window.showTextDocument(caller.containerLocation.uri, {
-			selection: caller.location.range
-		})
-		});
+	
+
 	//commands.registerCommand('rtags.callhierarcy', )
 }
 

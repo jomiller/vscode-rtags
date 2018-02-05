@@ -3,7 +3,7 @@
 	"description": "Rtags client",
 	"author": "yorver",
 	"license": "MIT",
-	"version": "0.0.4",
+	"version": "0.1.1",
 	"publisher": "yorver",
 	"repository": {
 		"type": "git",
@@ -42,10 +42,14 @@
 				"title": "Call Hierarchy"
 			},
 			{
+				"command": "rtags.reindex",
+				"title": "Reindex file"
+			},
+			{
 				"command": "rtags.selectLocation",
 				"title": "Go to location"
 			}
-		],
+		],		
 		"views": {
 			"explorer": [
 				{
@@ -55,6 +59,12 @@
 			]
 		},
 		"menus": {
+			"explorer/context": [
+				{
+					"command": "rtags.reindex",
+					"name": "Reindex"
+				}
+			],
 			"editor/context": [
 				{
 					"command": "rtags.callhierarcy",
