@@ -48,6 +48,10 @@
 			{
 				"command": "rtags.selectLocation",
 				"title": "Go to location"
+			},
+			{
+				"command": "rtags.addproject",
+				"title": "Add project"
 			}
 		],		
 		"views": {
@@ -58,11 +62,16 @@
 				}
 			]
 		},
-		"menus": {
+		"menus": {						
 			"explorer/context": [
 				{
 					"command": "rtags.reindex",
 					"name": "Reindex"
+				},
+				{
+					"command": "rtags.addproject",
+					"name": "Add rtags project",
+					"when": "explorerResourceIsFolder"
 				}
 			],
 			"editor/context": [

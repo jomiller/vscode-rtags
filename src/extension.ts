@@ -101,34 +101,30 @@ function getCallers(document: TextDocument, uri: Uri, p: Position): Thenable<Cal
 	return runRC(args,
 			function(output:string)
 			{
-			let result : Caller[] =  [];
+				let result: Caller[] = [];
 
-			const o = JSON.parse(output.toString());
-				
-					
-			try {
-				for (let c of o)
-				{
-					let containerLocation = parsePath(c.cfl);
-					let doc = workspace.textDocuments.find(
-						(v, _i) => { return v.uri.fsPath == containerLocation.uri.fsPath }
-					)
-					result.push(
-						{
-							location:parsePath(c.loc),
-							containerName : c.cf.trim(),
-							containerLocation : containerLocation,
-							document : doc,
-							context: c.ctx.trim()
-						});
-				}			
-			}
-			catch (err)
-			{
+				const o = JSON.parse(output.toString());
+
+				for (let c of o) {
+					try {
+						let containerLocation = parsePath(c.cfl);
+						let doc = workspace.textDocuments.find(
+							(v, _i) => { return v.uri.fsPath == containerLocation.uri.fsPath }
+						)
+						result.push(
+							{
+								location: parsePath(c.loc),
+								containerName: c.cf.trim(),
+								containerLocation: containerLocation,
+								document: doc,
+								context: c.ctx.trim()
+							});
+					}
+					catch (err) {
+					}
+				}
+
 				return result;
-			}
-
-			return result;
 			},
 			document);
 }
@@ -608,6 +604,16 @@ function reindexUri(uri : Uri)
 		)
 }
 
+
+function addProjectUri(uri : Uri)
+{	
+	runRC(['-J', uri.fsPath],
+		(output : string) : void => { 
+				window.showInformationMessage(output);				
+			},
+		)
+}
+
 function reindex(doc : TextDocument)
 {
 	if (languages.match(RTAGS_MODE, doc) == 0)
@@ -641,6 +647,7 @@ export function activate(context: ExtensionContext)
 		,languages.registerCodeActionsProvider(RTAGS_MODE, r)
 		,languages.registerSignatureHelpProvider(RTAGS_MODE, r, '(', ',')		
 		,window.registerTreeDataProvider('rtagsCallHierarchy', ch)
+		,commands.registerCommand('rtags.addproject', (uri) => {addProjectUri(uri)})
 		,commands.registerCommand('rtags.reindex', (uri) => {reindexUri(uri)})
 		,commands.registerCommand('rtags.callhierarcy', () => ch.refresh())
 		,commands.registerCommand('rtags.selectLocation', (caller) => {			
