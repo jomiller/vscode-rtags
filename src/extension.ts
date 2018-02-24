@@ -62,13 +62,13 @@ function runRC(args: string[],  process: (stdout:string) => any, doc? : TextDocu
 : Thenable<any>
 {
    return new Promise((resolve, _reject) =>
-   {	
+   {
 		if (doc && doc.isDirty)
-		{			
+		{
 			const content = doc.getText()
 			const path = doc.uri.fsPath
 
-			const unsaved = path + ":" + content.length		
+			const unsaved = path + ":" + content.length
 			args.push('--unsaved-file='+unsaved)
 		}
 
@@ -79,7 +79,7 @@ function runRC(args: string[],  process: (stdout:string) => any, doc? : TextDocu
 		   (error, output, stderr) => {
 			   if (error)
 			   {
-				   window.showErrorMessage(stderr);				   
+				   window.showErrorMessage(stderr);
 				   resolve([]);
 				   return;
 			   }
@@ -97,7 +97,7 @@ function getCallers(document: TextDocument, uri: Uri, p: Position): Thenable<Cal
 	const at = toRtagsPos(uri, p);
 
 	let args =  ['-K', '-o', '--containing-function-location', '-r', at, '--json'];
-	
+
 	return runRC(args,
 			function(output:string)
 			{
@@ -130,7 +130,7 @@ function getCallers(document: TextDocument, uri: Uri, p: Position): Thenable<Cal
 }
 
 function getDefinitions(document: TextDocument, p: Position, type: number = ReferenceType.DEFINITION): Thenable<Location[]>
-{		
+{
 	const at = toRtagsPos(document.uri, p);
 
 	let args =  ['-K'];
@@ -144,7 +144,7 @@ function getDefinitions(document: TextDocument, p: Position, type: number = Refe
 		case ReferenceType.RENAME:
 			args.push('--rename', '-e', '-r', at); break
 		case ReferenceType.DEFINITION:
-			args.push('-f', at); break;		
+			args.push('-f', at); break;
 	}
 
 	return runRC(args,
@@ -170,8 +170,8 @@ function getDefinitions(document: TextDocument, p: Position, type: number = Refe
 			document);
 }
 
-class Caller 
-{	
+class Caller
+{
 	location : Location;
 	containerName : string;
 	containerLocation : Location;
@@ -182,7 +182,7 @@ class Caller
 class CallHierarchy
 	implements TreeDataProvider<Caller>
 {
-	
+
 	private _onDidChangeTreeData: EventEmitter<Caller | null> = new EventEmitter<Caller | null>();
 	readonly onDidChangeTreeData: Event<Caller | null> = this._onDidChangeTreeData.event;
 	//onDidChangeTreeData :
@@ -199,8 +199,8 @@ class CallHierarchy
         // };
 		return ti;
 	}
-	
-	getChildren(node?: Caller): ProviderResult<Caller[]> 
+
+	getChildren(node?: Caller): ProviderResult<Caller[]>
 	{
 		const list : Caller[] = []
 		if (!node)
@@ -216,17 +216,17 @@ class CallHierarchy
 				document: doc,
 				context: ""
 			})
-			return list;			
+			return list;
 		}
 
-		return getCallers(node.document, node.containerLocation.uri, node.containerLocation.range.start);				
+		return getCallers(node.document, node.containerLocation.uri, node.containerLocation.range.start);
 	}
 
-	refresh(): void 
-	{			
-		this._onDidChangeTreeData.fire();		
+	refresh(): void
+	{
+		this._onDidChangeTreeData.fire();
 	}
-	
+
 
 }
 
@@ -245,7 +245,7 @@ class RTagsCompletionItemProvider
 	 SignatureHelpProvider,
 	 Disposable
 	{
-	
+
 
 
 	dispose(): void {
@@ -265,29 +265,29 @@ class RTagsCompletionItemProvider
 
 	provideCompletionItems(document : TextDocument, p : Position, _token : CancellationToken)
 		: Thenable<CompletionList>
-	{		
+	{
 		const range = document.getWordRangeAtPosition(p);
 		const max_completions:Number = 20;
 		const at = toRtagsPos(document.uri, p);
-		let args = ['--json', 
+		let args = ['--json',
 		'--synchronous-completions', '-M',  max_completions.toString(),
 		 '--code-complete-at', at];
 
-		 if (range)		
+		 if (range)
 		 {
 			const prefix = document.getText(range);
 			args.push('--code-complete-prefix', prefix);
 		 }
-			 
+
 		return runRC(
 			args,
 				function(output:string)
 				{
 					const o = JSON.parse(output.toString());
-					let result = [];					
+					let result = [];
 					for (let c of  o.completions)
-					{				
-						let sortText : string = ("00" + c.priority.toString()).slice(-2)	
+					{
+						let sortText : string = ("00" + c.priority.toString()).slice(-2)
 						result.push(
 							{
 								label: c.completion,
@@ -302,14 +302,14 @@ class RTagsCompletionItemProvider
 					}
 					return new CompletionList(result, result.length >= max_completions);
 				},
-				document				
+				document
 		);
 	}
 
 	provideDocumentSymbols(doc: TextDocument, _token: CancellationToken): ProviderResult<SymbolInformation[]> {
 		return this.findSymbols("", ["--path-filter", doc.uri.fsPath],
-			(kind : CompletionItemKind) => 
-				{ 
+			(kind : CompletionItemKind) =>
+				{
 					switch(kind)
 					{
 						case CompletionItemKind.Class:
@@ -354,7 +354,7 @@ class RTagsCompletionItemProvider
 					const location = parsePath(path);
 
 					//line.split( /:|function:/).map(function(x:string) {return String.prototype.trim.apply(x)});
-					
+
 					result.push(
 						{
 							name: name,
@@ -414,28 +414,28 @@ class RTagsCompletionItemProvider
 		return getDefinitions(document, position);
 	}
 
-	provideHover(document: TextDocument, p: Position, _token: CancellationToken): ProviderResult<Hover> 
+	provideHover(document: TextDocument, p: Position, _token: CancellationToken): ProviderResult<Hover>
 	{
 		const at = toRtagsPos(document.uri, p);
 
-		return runRC(['-K',	'-U', at], 
-			(output) => 
-			{				
+		return runRC(['-K',	'-U', at],
+			(output) =>
+			{
 				let m = /^Type:(.*)?(=>|$)/gm.exec(output)
-				if (m)								
+				if (m)
 					return new Hover(m[1].toString());
-				else 
+				else
 					return null;
 			},
 			document
-		);	
+		);
 	}
-	
+
 	provideDefinition(document: TextDocument, position: Position, _token: CancellationToken) :  ProviderResult<Definition>
 	{
 		return getDefinitions(document, position);
 	}
-	
+
 	provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken): ProviderResult<Definition> {
 		return getDefinitions(document, position, ReferenceType.VIRTUALS);
 	}
@@ -443,7 +443,7 @@ class RTagsCompletionItemProvider
 	provideReferences(document: TextDocument, position: Position, _context: ReferenceContext, _token: CancellationToken): Thenable<Location[]>
 	{
 		return getDefinitions(document, position, ReferenceType.REFERENCES);
-	}	
+	}
 
 	provideRenameEdits(document: TextDocument, position: Position, newName: string, _token: CancellationToken): ProviderResult<WorkspaceEdit>
 	{
@@ -472,11 +472,11 @@ class RTagsCompletionItemProvider
 			});
 	}
 
-	provideSignatureHelp(document: TextDocument, p: Position, _token: CancellationToken): ProviderResult<SignatureHelp> 
+	provideSignatureHelp(document: TextDocument, p: Position, _token: CancellationToken): ProviderResult<SignatureHelp>
 	{
 		const max_completions:Number = 20;
 		const at = toRtagsPos(document.uri, p);
-		let args = ['--json', 
+		let args = ['--json',
 		'--synchronous-completions', '-M',  max_completions.toString(),
 		'--code-complete-at', at,
 	    '--code-complete-param'];
@@ -489,24 +489,24 @@ class RTagsCompletionItemProvider
 					let result : SignatureInformation[] = [];
 
 					for (let s of  o.signatures)
-					{						
+					{
 						result.push(
 							{
 								label : "test",
 								parameters : s.parameters
-							})						
+							})
 					}
 					return {
 						signatures: o.signatures,
 						activeSignature: 0,
 						activeParameter: o.activeParameter};
 				},
-				document				
+				document
 		);
-	}	
+	}
 
 	getJsonObject(data: string) : string
-	{		
+	{
 		let end : number;
 		while ((end = data.indexOf('\n')) != -1)
 		{
@@ -519,21 +519,29 @@ class RTagsCompletionItemProvider
 
 	unprocessedDiagnostics : string = "";
 	listenToDiagnostics()
-	{		
+	{
 		const rc = spawn('rc', ['-m', '--json', '-b'])
 		rc.stdout.on('data',
 			(data) => {
-				this.unprocessedDiagnostics = this.getJsonObject(
-					this.unprocessedDiagnostics + data.toString()
-				) 				
+				try
+				{
+					this.unprocessedDiagnostics = this.getJsonObject(
+						this.unprocessedDiagnostics + data.toString()
+					)
+				}
+				catch(_err)
+				{
+					this.unprocessedDiagnostics = '';
+				}
+
 			});
-		
-		rc.on("exit", (_code, _signal) => 
-		{ 
+
+		rc.on("exit", (_code, _signal) =>
+		{
 			dc.clear();
 			this.unprocessedDiagnostics = "";
 			window.showErrorMessage("Diagnostics stopped. restarting")
-			setTimeout(	this.listenToDiagnostics, 1000);
+			setTimeout( () =>	this.listenToDiagnostics(), 10000);
 		});
 	}
 }
@@ -544,11 +552,11 @@ function toRtagsPos(uri: Uri, pos: Position) {
 }
 
 function processDiagnostics(output: string)
-{	
+{
 	if (output.trim().length == 0)
 		return;
 	let o;
-	try 
+	try
 	{
 		o = JSON.parse(output.toString());
 	}
@@ -557,7 +565,7 @@ function processDiagnostics(output: string)
 		window.showErrorMessage("Diagnostics parse error: " + output.toString());
 		return;
 	}
-	
+
 	//dc.clear();
 	for (var file in o.checkStyle)
 	{
@@ -594,9 +602,9 @@ function diagnostics(uri: Uri)
 
 
 function reindexUri(uri : Uri)
-{	
+{
 	runRC(['--reindex', uri.fsPath],
-		(output : string) : void => { 
+		(output : string) : void => {
 				if (output == 'No matches')
 				return;
 				setTimeout(diagnostics, 1000, uri);
@@ -606,10 +614,10 @@ function reindexUri(uri : Uri)
 
 
 function addProjectUri(uri : Uri)
-{	
+{
 	runRC(['-J', uri.fsPath],
-		(output : string) : void => { 
-				window.showInformationMessage(output);				
+		(output : string) : void => {
+				window.showInformationMessage(output);
 			},
 		)
 }
@@ -620,7 +628,7 @@ function reindex(doc : TextDocument)
 		return;
 
 	runRC(['--reindex', doc.uri.fsPath],
-		(output : string) : void => { 
+		(output : string) : void => {
 				if (output == 'No matches')
 				return;
 				setTimeout(diagnostics, 1000, doc.uri);
@@ -645,12 +653,12 @@ export function activate(context: ExtensionContext)
 		,languages.registerReferenceProvider(RTAGS_MODE, r)
 		,languages.registerRenameProvider(RTAGS_MODE, r)
 		,languages.registerCodeActionsProvider(RTAGS_MODE, r)
-		,languages.registerSignatureHelpProvider(RTAGS_MODE, r, '(', ',')		
+		,languages.registerSignatureHelpProvider(RTAGS_MODE, r, '(', ',')
 		,window.registerTreeDataProvider('rtagsCallHierarchy', ch)
 		,commands.registerCommand('rtags.addproject', (uri) => {addProjectUri(uri)})
 		,commands.registerCommand('rtags.reindex', (uri) => {reindexUri(uri)})
 		,commands.registerCommand('rtags.callhierarcy', () => ch.refresh())
-		,commands.registerCommand('rtags.selectLocation', (caller) => {			
+		,commands.registerCommand('rtags.selectLocation', (caller) => {
 			window.showTextDocument(caller.containerLocation.uri, {
 				selection: caller.location.range
 			})
@@ -658,22 +666,22 @@ export function activate(context: ExtensionContext)
 	);
 
 	var timerId : NodeJS.Timer = null;
-	workspace.onDidChangeTextDocument((event) => 
+	workspace.onDidChangeTextDocument((event) =>
 	{
 		if (timerId)
 			clearTimeout(timerId);
-		
+
 		timerId = setTimeout(() => {
-			reindex(event.document) 	
+			reindex(event.document)
 			timerId = null;
-		}, 1000);		 
+		}, 1000);
 	});
 
 	workspace.onDidSaveTextDocument( (doc) => {	reindex(doc) } );
 
 	r.listenToDiagnostics();
 
-	
+
 
 	//commands.registerCommand('rtags.callhierarcy', )
 }
