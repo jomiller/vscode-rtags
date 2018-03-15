@@ -2,8 +2,8 @@
 	"name": "rtags-client",
 	"description": "Rtags client",
 	"author": "yorver",
-	"license": "MIT",
-	"version": "0.1.1",
+	"license": "GPL",
+	"version": "0.3.0",
 	"publisher": "yorver",
 	"repository": {
 		"type": "git",

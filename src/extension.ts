@@ -1,6 +1,6 @@
 'use strict';
 
-import { CompletionItemKind, CancellationToken, DiagnosticSeverity, Disposable, Diagnostic, ExtensionContext, languages, TextDocument, Position, CompletionItemProvider, WorkspaceSymbolProvider, SymbolInformation,  Uri, Location, ImplementationProvider, DefinitionProvider, ReferenceProvider, ReferenceContext, RenameProvider, ProviderResult, WorkspaceEdit, window, Range, workspace, CodeActionProvider, CodeActionContext, Command, commands, SignatureHelpProvider, SignatureHelp, Definition, CompletionList, HoverProvider, Hover, SignatureInformation, TypeDefinitionProvider, DocumentSymbolProvider, TreeDataProvider, TreeItem, EventEmitter, Event, TreeItemCollapsibleState } from 'vscode';
+import { CompletionItemKind, CancellationToken, DiagnosticSeverity, Disposable, Diagnostic, ExtensionContext, languages, TextDocument, Position, CompletionItemProvider, WorkspaceSymbolProvider, SymbolInformation,  Uri, Location, ImplementationProvider, DefinitionProvider, ReferenceProvider, ReferenceContext, RenameProvider, ProviderResult, WorkspaceEdit, window, Range, workspace, CodeActionProvider, CodeActionContext, Command, commands, SignatureHelpProvider, SignatureHelp, Definition, CompletionList, HoverProvider, Hover, SignatureInformation, TypeDefinitionProvider, DocumentSymbolProvider, TreeDataProvider, TreeItem, EventEmitter, Event, TreeItemCollapsibleState, SnippetString } from 'vscode';
 import { execFile, spawn } from 'child_process'
 import { setTimeout, clearTimeout } from 'timers';
 
@@ -288,12 +288,25 @@ class RTagsCompletionItemProvider
 					for (let c of  o.completions)
 					{
 						let sortText : string = ("00" + c.priority.toString()).slice(-2)
+						let kind = convertKind(c.kind);
+						let insert = new SnippetString();
+						switch(kind)
+						{
+							case CompletionItemKind.Method:
+							case CompletionItemKind.Function:							
+								insert = new SnippetString(c.completion + '($1)')
+								break;
+							default:
+								insert = new SnippetString(c.completion)
+						}
+
 						result.push(
 							{
 								label: c.completion,
-								kind: convertKind(c.kind),
+								kind: kind,
 								detail:  c.signature,
-								sortText : sortText
+								sortText : sortText,
+								insertText : insert
 							}
 						);
 
