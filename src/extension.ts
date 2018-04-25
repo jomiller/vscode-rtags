@@ -267,7 +267,7 @@ class RTagsCompletionItemProvider
 		: Thenable<CompletionList>
 	{
 		const word_range = document.getWordRangeAtPosition(p);
-		const range = new Range(word_range.start, p);
+		const range = word_range ? new Range(word_range.start, p) : null;
 		const max_completions:Number = 20;
 		const at = toRtagsPos(document.uri, p);
 		let args = ['--json',
