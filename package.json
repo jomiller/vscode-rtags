@@ -3,7 +3,7 @@
 	"description": "Rtags client",
 	"author": "yorver",
 	"license": "GPL",
-	"version": "0.3.0",
+	"version": "0.4.0",
 	"publisher": "yorver",
 	"repository": {
 		"type": "git",
