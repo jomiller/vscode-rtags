@@ -12,4 +12,3 @@ The extension provides C++
 * symbol renaming
 * code action (fix its)
 * type definition provider (go to definition)
-

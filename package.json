@@ -75,19 +75,18 @@
     "scripts": {
         "vscode:prepublish": "npm run compile",
         "compile": "tsc -p ./",
-        "watch": "tsc -watch -p ./",
+        "watch": "tsc --watch -p ./",
         "update-vscode": "node ./node_modules/vscode/bin/install",
         "postinstall": "node ./node_modules/vscode/bin/install",
         "test": "npm run compile && node ./node_modules/vscode/bin/test"
     },
+    "dependencies": {
+        "vscode": "^1.1.10"
+    },
     "devDependencies": {
         "typescript": "^2.5.2",
-        "vscode": "^1.1.10",
         "tslint": "^5.8.0",
         "@types/mocha": "^2.2.42",
         "@types/node": "^6.0.88"
-    },
-    "dependencies": {
-        "vscode": "^1.1.10"
     }
 }

@@ -2,17 +2,18 @@
     "compilerOptions": {
         "module": "commonjs",
         "moduleResolution": "node",
-        "target": "es6",
+        "target": "ES2016",
         "lib": [
             "es2016"
         ],
         "sourceMap": true,
         "rootDir": "src",
         "outDir": "out",
-        "strict": false,
+        "strict": true,
         "noUnusedLocals": true,
         "noUnusedParameters": true,
         "noImplicitAny": true,
+        "noImplicitThis": true,
         "noImplicitReturns": true,
         "noFallthroughCasesInSwitch": true
     },
