@@ -1,5 +1,5 @@
 # README
-## This is the README for the "rtags client" 
+## This is the README for the "rtags client"
 -------------------
 
 This extension provides an interface to the excellent rtags server (https://github.com/Andersbakken/rtags).

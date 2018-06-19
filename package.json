@@ -1,91 +1,93 @@
 {
-	"name": "rtags-client",
-	"description": "Rtags client",
-	"author": "yorver",
-	"license": "GPL",
-	"version": "0.4.0",
-	"publisher": "yorver",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/yorver/rtags-vscode"
-	},
-	"devDependencies": {
-		"@types/mocha": "^2.2.42",
-		"@types/node": "^6.0.88",
-		"typescript": "^2.5.2",
-		"vscode": "^1.1.10"
-	},
-	"engines": {
-		"vscode": "^1.16.0"
-	},
-	"categories": [
-		"Other"
-	],
-	"activationEvents": [
-		"onLanguage:cpp"
-	],
-	"main": "./out/src/extension",
-	"scripts": {
-		"vscode:prepublish": "tsc -p ./",
-		"compile": "tsc -p ./",
-		"watch": "tsc -w -p ./",
-		"update-vscode": "node ./node_modules/vscode/bin/install",
-		"postinstall": "node ./node_modules/vscode/bin/install"
-	},
-	"dependencies": {
-		"vscode": "^1.1.10"
-	},
-	"contributes": {
-		"commands": [
-			{
-				"command": "rtags.callhierarcy",
-				"title": "Call Hierarchy"
-			},
-			{
-				"command": "rtags.reindex",
-				"title": "Reindex file"
-			},
-			{
-				"command": "rtags.selectLocation",
-				"title": "Go to location"
-			},
-			{
-				"command": "rtags.addproject",
-				"title": "Add project"
-			}
-		],		
-		"views": {
-			"explorer": [
-				{
-					"id": "rtagsCallHierarchy",
-					"name": "CallHierarchy"
-				}
-			]
-		},
-		"menus": {						
-			"explorer/context": [
-				{
-					"command": "rtags.reindex",
-					"name": "Reindex"
-				},
-				{
-					"command": "rtags.addproject",
-					"name": "Add rtags project",
-					"when": "explorerResourceIsFolder"
-				}
-			],
-			"editor/context": [
-				{
-					"command": "rtags.callhierarcy",
-					"name": "CallHierarchy"
-				}
-			],
-			"view/item/context": [
-				{
-					"command": "rtags.selectLocation",
-					"when": "viewItem == rtagsLocation && view==rtagsCallHierarchy"
-				}
-			]
-		}
-	}
+    "name": "rtags-client",
+    "description": "Rtags client",
+    "author": "yorver",
+    "license": "GPL-3.0-or-later",
+    "version": "0.4.0",
+    "publisher": "jomiller",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/jomiller/rtags-vscode"
+    },
+    "engines": {
+        "vscode": "^1.16.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onLanguage:cpp"
+    ],
+    "main": "./out/extension",
+    "contributes": {
+        "commands": [
+            {
+                "command": "rtags.callhierarcy",
+                "title": "Call Hierarchy"
+            },
+            {
+                "command": "rtags.reindex",
+                "title": "Reindex file"
+            },
+            {
+                "command": "rtags.selectLocation",
+                "title": "Go to location"
+            },
+            {
+                "command": "rtags.addproject",
+                "title": "Add project"
+            }
+        ],
+        "views": {
+            "explorer": [
+                {
+                    "id": "rtagsCallHierarchy",
+                    "name": "CallHierarchy"
+                }
+            ]
+        },
+        "menus": {
+            "explorer/context": [
+                {
+                    "command": "rtags.reindex",
+                    "name": "Reindex"
+                },
+                {
+                    "command": "rtags.addproject",
+                    "name": "Add rtags project",
+                    "when": "explorerResourceIsFolder"
+                }
+            ],
+            "editor/context": [
+                {
+                    "command": "rtags.callhierarcy",
+                    "name": "CallHierarchy"
+                }
+            ],
+            "view/item/context": [
+                {
+                    "command": "rtags.selectLocation",
+                    "when": "viewItem == rtagsLocation && view==rtagsCallHierarchy"
+                }
+            ]
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "update-vscode": "node ./node_modules/vscode/bin/install",
+        "postinstall": "node ./node_modules/vscode/bin/install",
+        "test": "npm run compile && node ./node_modules/vscode/bin/test"
+    },
+    "devDependencies": {
+        "typescript": "^2.5.2",
+        "vscode": "^1.1.10",
+        "tslint": "^5.8.0",
+        "@types/mocha": "^2.2.42",
+        "@types/node": "^6.0.88"
+    },
+    "dependencies": {
+        "vscode": "^1.1.10"
+    }
 }
