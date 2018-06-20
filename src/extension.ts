@@ -5,10 +5,10 @@ import { commands, languages, window, workspace, CancellationToken, CodeActionCo
          Diagnostic, DiagnosticSeverity, Disposable, DocumentSymbolProvider, Event, EventEmitter, ExtensionContext,
          Hover, HoverProvider, ImplementationProvider, Location, Position, ProviderResult, Range, ReferenceContext,
          ReferenceProvider, RenameProvider, SignatureHelp, SignatureHelpProvider, SignatureInformation, SnippetString,
-         SymbolInformation, SymbolKind, TextDocument, TreeDataProvider, TreeItem, TreeItemCollapsibleState,
-         TypeDefinitionProvider, Uri, WorkspaceEdit, WorkspaceSymbolProvider } from 'vscode';
+         SymbolInformation, SymbolKind, TextDocument, TextDocumentChangeEvent, TreeDataProvider, TreeItem,
+         TreeItemCollapsibleState, TypeDefinitionProvider, Uri, WorkspaceEdit, WorkspaceSymbolProvider } from 'vscode';
 
-import { execFile, spawn } from 'child_process';
+import { execFile, ExecFileOptions, spawn } from 'child_process';
 import { setTimeout, clearTimeout } from 'timers';
 
 let diagnosticCollection = languages.createDiagnosticCollection("RTAGS");
@@ -120,41 +120,46 @@ function parsePath(path: string) : Location
     return new Location(uri, p);
 }
 
-function runRc(args: string[],  process: (stdout: string) => any, doc?: TextDocument) : Thenable<any>
+function runRc(args: string[], process: (stdout: string) => any, doc?: TextDocument) : Thenable<any>
 {
-   return new Promise((resolve, _reject) : void =>
-   {
-        if (doc && doc.isDirty)
+    let executor =
+        (resolve: (value?: any) => any, _reject: (reason?: any) => any) : void =>
         {
-            const content = doc.getText();
-            const path = doc.uri.fsPath;
+            if (doc && doc.isDirty)
+            {
+                const content = doc.getText();
+                const path = doc.uri.fsPath;
 
-            const unsaved = path + ':' + content.length;
-            args.push("--unsaved-file=" + unsaved);
-        }
+                const unsaved = path + ':' + content.length;
+                args.push("--unsaved-file=" + unsaved);
+            }
 
-       let child = execFile("rc",
-                            args,
-                            {
-                                maxBuffer: 4 * 1024 * 1024
-                            },
-                            (error: Error, stdout: string, stderr: string) : void =>
-                            {
-                                if (error)
-                                {
-                                    window.showErrorMessage(stderr);
-                                    resolve([]);
-                                    return;
-                                }
-                                resolve(process(stdout));
-                            }
-       );
+            let options: ExecFileOptions =
+            {
+                maxBuffer: 4 * 1024 * 1024
+            };
 
-       if (doc && doc.isDirty)
-       {
-           child.stdin.write(doc.getText());
-       }
-   });
+            let callback =
+                (error: Error, stdout: string, stderr: string) : void =>
+                {
+                    if (error)
+                    {
+                        window.showErrorMessage(stderr);
+                        resolve([]);
+                        return;
+                    }
+                    resolve(process(stdout));
+                };
+
+            let child = execFile("rc", args, options, callback);
+
+            if (doc && doc.isDirty)
+            {
+                child.stdin.write(doc.getText());
+            }
+        };
+
+    return new Promise(executor);
 }
 
 function getCallers(document: TextDocument | undefined, uri: Uri, p: Position) : Thenable<Caller[]>
@@ -163,39 +168,40 @@ function getCallers(document: TextDocument | undefined, uri: Uri, p: Position) :
 
     let args = ["-K", "-o", "--containing-function-location", "-r", at, "--json"];
 
-    return runRc(args,
-                 (output: string) : Caller[] =>
-                 {
-                     let result: Caller[] = [];
+    let process =
+        (output: string) : Caller[] =>
+        {
+            let result: Caller[] = [];
 
-                     const o = JSON.parse(output.toString());
+            const o = JSON.parse(output.toString());
 
-                     for (let c of o)
-                     {
-                         try
-                         {
-                             let containerLocation = parsePath(c.cfl);
-                             let doc = workspace.textDocuments.find(
-                                 (v, _i) => { return (v.uri.fsPath === containerLocation.uri.fsPath); });
+            for (let c of o)
+            {
+                try
+                {
+                    let containerLocation = parsePath(c.cfl);
+                    let doc = workspace.textDocuments.find(
+                        (v, _i) => { return (v.uri.fsPath === containerLocation.uri.fsPath); });
 
-                             let caller : Caller =
-                             {
-                                location: parsePath(c.loc),
-                                containerName: c.cf.trim(),
-                                containerLocation: containerLocation,
-                                document: doc,
-                                context: c.ctx.trim()
-                             };
-                             result.push(caller);
-                         }
-                         catch (err)
-                         {
-                         }
-                     }
+                    let caller: Caller =
+                    {
+                        location: parsePath(c.loc),
+                        containerName: c.cf.trim(),
+                        containerLocation: containerLocation,
+                        document: doc,
+                        context: c.ctx.trim()
+                    };
+                    result.push(caller);
+                }
+                catch (_err)
+                {
+                }
+            }
 
-                     return result;
-                 },
-                 document);
+            return result;
+        };
+
+    return runRc(args, process, document);
 }
 
 function getDefinitions(document: TextDocument, p: Position, type: number = ReferenceType.Definition) :
@@ -203,51 +209,52 @@ function getDefinitions(document: TextDocument, p: Position, type: number = Refe
 {
     const at = toRtagsPos(document.uri, p);
 
-    let args =  ["-K"];
+    let args = ["-K"];
 
     switch (type)
     {
         case ReferenceType.Virtuals:
-            args.push('-k', '-r', at);
+            args.push("-k", "-r", at);
             break;
 
         case ReferenceType.References:
-            args.push('-r', at);
+            args.push("-r", at);
             break;
 
         case ReferenceType.Rename:
-            args.push('--rename', '-e', '-r', at);
+            args.push("--rename", "-e", "-r", at);
             break;
 
         case ReferenceType.Definition:
-            args.push('-f', at);
+            args.push("-f", at);
             break;
     }
 
-    return runRc(args,
-                 (output: string) : Location[] =>
-                 {
-                     let result: Location[] = [];
-                     try
-                     {
-                         for (let line of output.toString().split("\n"))
-                         {
-                             if (!line)
-                             {
-                                 continue;
-                             }
-                             let [location] = line.split("\t", 1);
-                             result.push(parsePath(location));
-                         }
-                     }
-                     catch (err)
-                     {
-                         return result;
-                     }
+    let process =
+        (output: string) : Location[] =>
+        {
+            let result: Location[] = [];
+            try
+            {
+                for (let line of output.toString().split("\n"))
+                {
+                    if (!line)
+                    {
+                        continue;
+                    }
+                    let [location] = line.split("\t", 1);
+                    result.push(parsePath(location));
+                }
+            }
+            catch (_err)
+            {
+                return result;
+            }
 
-                     return result;
-                 },
-                 document);
+            return result;
+        };
+
+    return runRc(args, process, document);
 }
 
 interface Caller
@@ -290,7 +297,7 @@ class CallHierarchy implements TreeDataProvider<Caller>
                 let doc = editor.document;
                 let loc = new Location(doc.uri, pos);
 
-                let caller : Caller =
+                let caller: Caller =
                 {
                     location: loc,
                     containerLocation : loc,
@@ -321,7 +328,7 @@ class RTagsCompletionItemProvider implements
     TypeDefinitionProvider,
     ImplementationProvider,
     ReferenceProvider,
-    RenameProvider	,
+    RenameProvider,
     CodeActionProvider,
     SignatureHelpProvider,
     Disposable
@@ -359,74 +366,76 @@ class RTagsCompletionItemProvider implements
             at
         ];
 
-         if (range)
-         {
-            const prefix = document.getText(range);
-            args.push("--code-complete-prefix", prefix);
-         }
+        if (range)
+        {
+           const prefix = document.getText(range);
+           args.push("--code-complete-prefix", prefix);
+        }
 
-        return runRc(args,
-                     (output: string) : CompletionList =>
-                     {
-                         const o = JSON.parse(output.toString());
-                         let result: CompletionItem[] = [];
-                         for (let c of o.completions)
-                         {
-                             let sortText: string = ("00" + c.priority.toString()).slice(-2);
-                             let kind = toCompletionItemKind(c.kind);
-                             let insert = new SnippetString();
-                             switch (kind)
-                             {
-                                 case CompletionItemKind.Method:
-                                 case CompletionItemKind.Function:
-                                     insert = new SnippetString(c.completion + '($1)');
-                                     break;
+        let process =
+            (output: string) : CompletionList =>
+            {
+                const o = JSON.parse(output.toString());
+                let result: CompletionItem[] = [];
+                for (let c of o.completions)
+                {
+                    let sortText: string = ("00" + c.priority.toString()).slice(-2);
+                    let kind = toCompletionItemKind(c.kind);
+                    let insert = new SnippetString();
+                    switch (kind)
+                    {
+                        case CompletionItemKind.Method:
+                        case CompletionItemKind.Function:
+                            insert = new SnippetString(c.completion + "($1)");
+                            break;
 
-                                 default:
-                                     insert = new SnippetString(c.completion);
-                                     break;
-                             }
+                        default:
+                            insert = new SnippetString(c.completion);
+                            break;
+                    }
 
-                             let item: CompletionItem =
-                             {
-                                 label: c.completion,
-                                 kind: kind,
-                                 detail:  c.signature,
-                                 sortText: sortText,
-                                 insertText: insert
-                             };
-                             result.push(item);
+                    let item: CompletionItem =
+                    {
+                        label: c.completion,
+                        kind: kind,
+                        detail:  c.signature,
+                        sortText: sortText,
+                        insertText: insert
+                    };
+                    result.push(item);
 
-                             if (result.length === maxCompletions)
-                             {
-                                 break;
-                             }
-                         }
-                         return new CompletionList(result, result.length >= maxCompletions);
-                     },
-                     document);
+                    if (result.length === maxCompletions)
+                    {
+                        break;
+                    }
+                }
+                return new CompletionList(result, result.length >= maxCompletions);
+            };
+
+        return runRc(args, process, document);
     }
 
     provideDocumentSymbols(doc: TextDocument, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
     {
-        return this.findSymbols("",
-                                ["--path-filter", doc.uri.fsPath],
-                                (kind?: SymbolKind) : boolean =>
-                                {
-                                    switch (kind)
-                                    {
-                                        case SymbolKind.Enum:
-                                        case SymbolKind.Class:
-                                        case SymbolKind.Interface:
-                                        case SymbolKind.Constructor:
-                                        case SymbolKind.Method:
-                                        case SymbolKind.Function:
-                                        case SymbolKind.Field:
-                                        case SymbolKind.Operator:
-                                            return true;
-                                    }
-                                    return false;
-                                });
+        let filter =
+            (kind?: SymbolKind) : boolean =>
+            {
+                switch (kind)
+                {
+                    case SymbolKind.Enum:
+                    case SymbolKind.Class:
+                    case SymbolKind.Interface:
+                    case SymbolKind.Constructor:
+                    case SymbolKind.Method:
+                    case SymbolKind.Function:
+                    case SymbolKind.Field:
+                    case SymbolKind.Operator:
+                        return true;
+                }
+                return false;
+            };
+
+        return this.findSymbols("", ["--path-filter", doc.uri.fsPath], filter);
     }
 
     provideWorkspaceSymbols(query: string, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
@@ -442,38 +451,42 @@ class RTagsCompletionItemProvider implements
         Thenable<SymbolInformation[]>
     {
         query += '*';
+
+        let process =
+            (output: string) : SymbolInformation[] =>
+            {
+                let result: SymbolInformation[] = [];
+                for (let line of output.split("\n"))
+                {
+                    let [path, unused, name, kind, container] = line.split(/\t+/);
+                    unused = unused;
+                    if (!name)
+                    {
+                        continue;
+                    }
+                    const localKind = toSymbolKind(kind);
+                    if (filter && !filter(localKind))
+                    {
+                        continue;
+                    }
+                    const location = parsePath(path);
+
+                    //line.split(/:|function:/).map((x: string) => { return String.prototype.trim.apply(x); });
+
+                    let symbolInfo: SymbolInformation =
+                    {
+                        name: name,
+                        containerName: container,
+                        location: location,
+                        kind: <SymbolKind>localKind
+                    };
+                    result.push(symbolInfo);
+                }
+                return result;
+            };
+
         return runRc(["-a", "-K", "-o", "-I", "-F", query, "--cursor-kind", "--display-name"].concat(args),
-                     (output: string) =>
-                     {
-                         let result: SymbolInformation[] = [];
-                         for (let line of output.split("\n"))
-                         {
-                             let [path, unused, name, kind, container] = line.split(/\t+/);
-                             unused = unused;
-                             if (!name)
-                             {
-                                 continue;
-                             }
-                             const localKind = toSymbolKind(kind);
-                             if (filter && !filter(localKind))
-                             {
-                                 continue;
-                             }
-                             const location = parsePath(path);
-
-                             //line.split(/:|function:/).map((x: string) => { return String.prototype.trim.apply(x); });
-
-                             let symbolInfo: SymbolInformation =
-                             {
-                                 name: name,
-                                 containerName: container,
-                                 location: location,
-                                 kind: <SymbolKind>localKind
-                             };
-                             result.push(symbolInfo);
-                         }
-                         return result;
-                     });
+                     process);
     }
 
     static commandId: string = "rtags.runCodeAction";
@@ -489,11 +502,10 @@ class RTagsCompletionItemProvider implements
     provideCodeActions(document: TextDocument, _range: Range, _context: CodeActionContext, _token: CancellationToken) :
         ProviderResult<Command[]>
     {
-        return runRc(
-            ['--fixits', document.fileName],
-            function(output:string)
+        let process =
+            (output: string) : Command[] =>
             {
-                let result : Command[] = [];
+                let result: Command[] = [];
                 for (let l of output.split('\n'))
                 {
                     if (l.trim().length === 0)
@@ -509,30 +521,33 @@ class RTagsCompletionItemProvider implements
                     {
                         continue;
                     }
-                    result.push(
-                        {
-                            command : RTagsCompletionItemProvider.commandId,
-                            title : "Replace with " + replace,
-                            arguments : [document, range, replace]
-                        }
-                    );
+
+                    let command: Command =
+                    {
+                        command: RTagsCompletionItemProvider.commandId,
+                        title: "Replace with " + replace,
+                        arguments: [document, range, replace]
+                    };
+                    result.push(command);
                 }
                 return result;
-            }
-        );
+            };
+
+        return runRc(["--fixits", document.fileName], process);
     }
 
-    provideImplementation(document: TextDocument, position: Position, _token: CancellationToken)
+    provideImplementation(document: TextDocument, position: Position, _token: CancellationToken) :
+        ProviderResult<Definition>
     {
         return getDefinitions(document, position);
     }
 
-    provideHover(document: TextDocument, p: Position, _token: CancellationToken): ProviderResult<Hover>
+    provideHover(document: TextDocument, p: Position, _token: CancellationToken) : ProviderResult<Hover>
     {
         const at = toRtagsPos(document.uri, p);
 
-        return runRc(['-K',	'-U', at],
-            (output) =>
+        let process =
+            (output: string) : Hover | null =>
             {
                 let m = /^Type:(.*)?(=>|$)/gm.exec(output);
                 if (m)
@@ -540,33 +555,37 @@ class RTagsCompletionItemProvider implements
                     return new Hover(m[1].toString());
                 }
                 return null;
-            },
-            document
-        );
+            };
+
+        return runRc(["-K",	"-U", at], process, document);
     }
 
-    provideDefinition(document: TextDocument, position: Position, _token: CancellationToken) :  ProviderResult<Definition>
+    provideDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
+        ProviderResult<Definition>
     {
         return getDefinitions(document, position);
     }
 
-    provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken): ProviderResult<Definition>
+    provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
+        ProviderResult<Definition>
     {
         return getDefinitions(document, position, ReferenceType.Virtuals);
     }
 
-    provideReferences(document: TextDocument, position: Position, _context: ReferenceContext, _token: CancellationToken): ProviderResult<Location[]>
+    provideReferences(document: TextDocument, position: Position, _context: ReferenceContext, _token: CancellationToken) :
+        ProviderResult<Location[]>
     {
         return getDefinitions(document, position, ReferenceType.References);
     }
 
-    provideRenameEdits(document: TextDocument, position: Position, newName: string, _token: CancellationToken): ProviderResult<WorkspaceEdit>
+    provideRenameEdits(document: TextDocument, position: Position, newName: string, _token: CancellationToken) :
+        ProviderResult<WorkspaceEdit>
     {
         for (let doc of workspace.textDocuments)
         {
-            if (doc.languageId === 'cpp' && doc.isDirty)
+            if ((doc.languageId === "cpp") && doc.isDirty)
             {
-                window.showInformationMessage("Save all cpp files first before renaming");
+                window.showInformationMessage("Save all .cpp files first before renaming");
                 return null;
             }
         }
@@ -575,8 +594,9 @@ class RTagsCompletionItemProvider implements
         let diff = wr ? (wr.end.character - wr.start.character) : undefined;
 
         let edits : WorkspaceEdit = new WorkspaceEdit;
-        return getDefinitions(document, position, ReferenceType.Rename).then(
-            function(results)
+
+        let resolve =
+            (results: Location[]) : WorkspaceEdit =>
             {
                 for (let r of results)
                 {
@@ -584,45 +604,58 @@ class RTagsCompletionItemProvider implements
                     edits.replace(r.uri, new Range(r.range.start, end), newName);
                 }
                 return edits;
-            });
+            };
+
+        return getDefinitions(document, position, ReferenceType.Rename).then(resolve);
     }
 
-    provideSignatureHelp(document: TextDocument, p: Position, _token: CancellationToken): ProviderResult<SignatureHelp>
+    provideSignatureHelp(document: TextDocument, p: Position, _token: CancellationToken) :
+        ProviderResult<SignatureHelp>
     {
-        const max_completions:Number = 20;
+        const maxCompletions = 20;
         const at = toRtagsPos(document.uri, p);
-        let args = ['--json',
-        '--synchronous-completions', '-M',  max_completions.toString(),
-        '--code-complete-at', at,
-        '--code-complete-param'];
+        let args =
+        [
+            "--json",
+            "--synchronous-completions",
+            "-M",
+             maxCompletions.toString(),
+            "--code-complete-at",
+            at
+        ];
 
-        return runRc(
-            args,
-                function(output:string)
+        let process =
+            (output: string) : SignatureHelp =>
+            {
+                const o = JSON.parse(output.toString());
+                let result: SignatureInformation[] = [];
+
+                for (let s of o.signatures)
                 {
-                    const o = JSON.parse(output.toString());
-                    let result : SignatureInformation[] = [];
-
-                    for (let s of  o.signatures)
+                    let signatureInfo: SignatureInformation =
                     {
-                        result.push(
-                            {
-                                label : "test",
-                                parameters : s.parameters
-                            });
-                    }
-                    return {
-                        signatures: o.signatures,
-                        activeSignature: 0,
-                        activeParameter: o.activeParameter};
-                },
-                document
-        );
+                        label: "test",
+                        parameters: s.parameters
+                    };
+                    result.push(signatureInfo);
+                }
+
+                // FIXME: result not used
+                let signatureHelp: SignatureHelp =
+                {
+                    signatures: o.signatures,
+                    activeSignature: 0,
+                    activeParameter: o.activeParameter
+                };
+                return signatureHelp;
+            };
+
+        return runRc(args, process, document);
     }
 
     getJsonObject(data: string) : string
     {
-        let end : number;
+        let end: number;
         while ((end = data.indexOf('\n')) !== -1)
         {
             processDiagnostics(data.slice(0, end));
@@ -632,42 +665,43 @@ class RTagsCompletionItemProvider implements
         return data.trim();
     }
 
-    unprocessedDiagnostics : string = "";
+    unprocessedDiagnostics: string = "";
 
-    listenToDiagnostics()
+    listenToDiagnostics() : void
     {
-        const rc = spawn('rc', ['-m', '--json', '-b']);
-        rc.stdout.on('data',
-            (data) => {
-                try
-                {
-                    this.unprocessedDiagnostics = this.getJsonObject(
-                        this.unprocessedDiagnostics + data.toString()
-                    );
-                }
-                catch(_err)
-                {
-                    this.unprocessedDiagnostics = '';
-                }
+        const rc = spawn("rc", ["-m", "--json", "-b"]);
+        rc.stdout.on("data",
+                     (data: string) : void =>
+                     {
+                         try
+                         {
+                             this.unprocessedDiagnostics = this.getJsonObject(
+                                 this.unprocessedDiagnostics + data.toString());
+                         }
+                         catch (_err)
+                         {
+                             this.unprocessedDiagnostics = "";
+                         }
+                     });
 
-            });
-
-        rc.on("exit", (_code, _signal) =>
-        {
-            diagnosticCollection.clear();
-            this.unprocessedDiagnostics = "";
-            window.showErrorMessage("Diagnostics stopped. restarting");
-            setTimeout( () =>	this.listenToDiagnostics(), 10000);
-        });
+        rc.on("exit",
+              (_code: number, _signal: string) : void =>
+              {
+                  diagnosticCollection.clear();
+                  this.unprocessedDiagnostics = "";
+                  window.showErrorMessage("Diagnostics stopped. restarting");
+                  setTimeout(() => { this.listenToDiagnostics(); }, 10000);
+              });
     }
 }
 
-function toRtagsPos(uri: Uri, pos: Position) {
-    const at = uri.fsPath + ':' + (pos.line+1) + ':' + (pos.character+1);
+function toRtagsPos(uri: Uri, pos: Position) : string
+{
+    const at = uri.fsPath + ':' + (pos.line + 1) + ':' + (pos.character + 1);
     return at;
 }
 
-function processDiagnostics(output: string)
+function processDiagnostics(output: string) : void
 {
     if (output.trim().length === 0)
     {
@@ -678,88 +712,87 @@ function processDiagnostics(output: string)
     {
         o = JSON.parse(output.toString());
     }
-    catch (err)
+    catch (_err)
     {
         window.showErrorMessage("Diagnostics parse error: " + output.toString());
         return;
     }
 
     //diagnosticCollection.clear();
-    for (var file in o.checkStyle)
+    for (let file in o.checkStyle)
     {
         if (!o.checkStyle.hasOwnProperty(file))
         {
             continue;
         }
 
-        let diags : Diagnostic[] = [];
+        let diags: Diagnostic[] = [];
         let uri = Uri.file(file);
 
         for (let d of o.checkStyle[file])
         {
-            let p = new Position(d.line-1, d.column-1);
-            diags.push
-            (
-                {
-                    message : d.message,
-                    range : new Range(p,p),
-                    severity : DiagnosticSeverity.Error,
-                    source : 'rtags',
-                    code: 0
-                }
-            );
+            let p = new Position(d.line - 1, d.column - 1);
+
+            let diag: Diagnostic =
+            {
+                message: d.message,
+                range: new Range(p, p),
+                severity: DiagnosticSeverity.Error,
+                source: "rtags",
+                code: 0
+            };
+            diags.push(diag);
         }
         diagnosticCollection.set(uri, diags);
     }
 }
 
-function diagnostics(uri: Uri)
+function diagnostics(uri: Uri) : void
 {
     const path = uri.fsPath;
 
-    runRc( [ '--json', '--diagnose', path], (_) => {}	);
+    runRc(["--json", "--diagnose", path], (_) => {});
 }
 
-
-function reindexUri(uri : Uri)
+function reindexUri(uri: Uri) : void
 {
-    runRc(['--reindex', uri.fsPath],
-        (output : string) : void => {
-                if (output === 'No matches')
-                {
-                    return;
-                }
-                setTimeout(diagnostics, 1000, uri);
-            },
-        );
+    runRc(["--reindex", uri.fsPath],
+          (output: string) : void =>
+          {
+              if (output === "No matches")
+              {
+                  return;
+              }
+              setTimeout(diagnostics, 1000, uri);
+          });
 }
 
-
-function addProjectUri(uri : Uri)
+function addProjectUri(uri: Uri) : void
 {
-    runRc(['-J', uri.fsPath],
-        (output : string) : void => {
-                window.showInformationMessage(output);
-            },
-        );
+    runRc(["-J", uri.fsPath],
+          (output: string) : void =>
+          {
+              window.showInformationMessage(output);
+          });
 }
 
-function reindex(doc : TextDocument)
+function reindex(doc: TextDocument) : void
 {
     if (languages.match(RtagsMode, doc) === 0)
     {
         return;
     }
 
-    runRc(['--reindex', doc.uri.fsPath],
-        (output : string) : void => {
-                if (output === 'No matches')
-                {
-                    return;
-                }
-                setTimeout(diagnostics, 1000, doc.uri);
-            },
-        doc);
+    runRc(["--reindex", doc.uri.fsPath],
+          (output: string) : void =>
+          {
+              if (output === "No matches")
+              {
+                  return;
+              }
+              setTimeout(diagnostics, 1000, doc.uri);
+          },
+          doc);
 }
 
 export function activate(context: ExtensionContext)
@@ -768,47 +801,47 @@ export function activate(context: ExtensionContext)
     let ch = new CallHierarchy;
 
     context.subscriptions.push(
-        r
-        ,languages.registerCompletionItemProvider(RtagsMode, r, '.', ':', '>')
-        ,languages.registerWorkspaceSymbolProvider(r)
-        ,languages.registerDocumentSymbolProvider(RtagsMode, r)
-        ,languages.registerHoverProvider(RtagsMode, r)
-        ,languages.registerDefinitionProvider(RtagsMode, r)
-        ,languages.registerTypeDefinitionProvider(RtagsMode, r)
-        ,languages.registerImplementationProvider(RtagsMode, r)
-        ,languages.registerReferenceProvider(RtagsMode, r)
-        ,languages.registerRenameProvider(RtagsMode, r)
-        ,languages.registerCodeActionsProvider(RtagsMode, r)
-        ,languages.registerSignatureHelpProvider(RtagsMode, r, '(', ',')
-        ,window.registerTreeDataProvider('rtagsCallHierarchy', ch)
-        ,commands.registerCommand('rtags.addproject', (uri) => { addProjectUri(uri); })
-        ,commands.registerCommand('rtags.reindex', (uri) => { reindexUri(uri); })
-        ,commands.registerCommand('rtags.callhierarcy', () => ch.refresh())
-        ,commands.registerCommand('rtags.selectLocation', (caller) => {
-            window.showTextDocument(caller.containerLocation.uri, {
-                selection: caller.location.range
-            });
-            })
-    );
+        r,
+        languages.registerCompletionItemProvider(RtagsMode, r, '.', ':', '>'),
+        languages.registerWorkspaceSymbolProvider(r),
+        languages.registerDocumentSymbolProvider(RtagsMode, r),
+        languages.registerHoverProvider(RtagsMode, r),
+        languages.registerDefinitionProvider(RtagsMode, r),
+        languages.registerTypeDefinitionProvider(RtagsMode, r),
+        languages.registerImplementationProvider(RtagsMode, r),
+        languages.registerReferenceProvider(RtagsMode, r),
+        languages.registerRenameProvider(RtagsMode, r),
+        languages.registerCodeActionsProvider(RtagsMode, r),
+        languages.registerSignatureHelpProvider(RtagsMode, r, '(', ','),
+        window.registerTreeDataProvider("rtagsCallHierarchy", ch),
+        commands.registerCommand("rtags.addproject", (uri: Uri) => { addProjectUri(uri); }),
+        commands.registerCommand("rtags.reindex", (uri: Uri) => { reindexUri(uri); }),
+        commands.registerCommand("rtags.callhierarchy", () => { ch.refresh(); }),
+        commands.registerCommand("rtags.selectLocation",
+                                 (caller: Caller) : void =>
+                                 {
+                                     window.showTextDocument(caller.containerLocation.uri,
+                                                             {selection: caller.location.range});
+                                 }));
 
     let timerId : NodeJS.Timer | null = null;
-    workspace.onDidChangeTextDocument((event) =>
-    {
-        if (timerId)
+    workspace.onDidChangeTextDocument(
+        (event: TextDocumentChangeEvent) : void =>
         {
-            clearTimeout(timerId);
-        }
+            if (timerId)
+            {
+                clearTimeout(timerId);
+            }
 
-        timerId = setTimeout(() => {
-            reindex(event.document);
-            timerId = null;
-        }, 1000);
-    });
+            timerId = setTimeout(() =>
+                                 {
+                                     reindex(event.document);
+                                     timerId = null;
+                                 },
+                                 1000);
+        });
 
-    workspace.onDidSaveTextDocument( (doc) => {	reindex(doc); } );
+    workspace.onDidSaveTextDocument((doc: TextDocument) => { reindex(doc); });
 
     r.listenToDiagnostics();
-
-    //commands.registerCommand('rtags.callhierarcy', )
 }
-

@@ -22,7 +22,7 @@
     "contributes": {
         "commands": [
             {
-                "command": "rtags.callhierarcy",
+                "command": "rtags.callhierarchy",
                 "title": "Call Hierarchy"
             },
             {
@@ -60,7 +60,7 @@
             ],
             "editor/context": [
                 {
-                    "command": "rtags.callhierarcy",
+                    "command": "rtags.callhierarchy",
                     "name": "CallHierarchy"
                 }
             ],
