@@ -1,90 +1,153 @@
 'use strict';
 
-import { CompletionItemKind, CancellationToken, DiagnosticSeverity, Disposable, Diagnostic, ExtensionContext, languages, TextDocument, Position, CompletionItemProvider, WorkspaceSymbolProvider, SymbolInformation,  Uri, Location, ImplementationProvider, DefinitionProvider, ReferenceProvider, ReferenceContext, RenameProvider, ProviderResult, WorkspaceEdit, window, Range, workspace, CodeActionProvider, CodeActionContext, Command, commands, SignatureHelpProvider, SignatureHelp, Definition, CompletionList, HoverProvider, Hover, SignatureInformation, TypeDefinitionProvider, DocumentSymbolProvider, TreeDataProvider, TreeItem, EventEmitter, Event, TreeItemCollapsibleState, SnippetString } from 'vscode';
+import { commands, languages, window, workspace, CancellationToken, CodeActionContext, CodeActionProvider, Command,
+         CompletionItem, CompletionItemKind, CompletionItemProvider, CompletionList, Definition, DefinitionProvider,
+         Diagnostic, DiagnosticSeverity, Disposable, DocumentSymbolProvider, Event, EventEmitter, ExtensionContext,
+         Hover, HoverProvider, ImplementationProvider, Location, Position, ProviderResult, Range, ReferenceContext,
+         ReferenceProvider, RenameProvider, SignatureHelp, SignatureHelpProvider, SignatureInformation, SnippetString,
+         SymbolInformation, SymbolKind, TextDocument, TreeDataProvider, TreeItem, TreeItemCollapsibleState,
+         TypeDefinitionProvider, Uri, WorkspaceEdit, WorkspaceSymbolProvider } from 'vscode';
+
 import { execFile, spawn } from 'child_process';
 import { setTimeout, clearTimeout } from 'timers';
 
+let diagnosticCollection = languages.createDiagnosticCollection("RTAGS");
 
-let dc = languages.createDiagnosticCollection("RTAGS");
-
-const RTAGS_MODE = [
+const RtagsMode =
+[
     { language: "cpp", scheme: "file" },
-    { language: "c", scheme: "file" }
+    { language: "c",   scheme: "file" }
 ];
 
-var ReferenceType =
+enum ReferenceType
 {
-    DEFINITION : 0,
-    VIRTUALS : 1,
-    REFERENCES : 2,
-    RENAME : 3,
-    SYMBOL_INFO: 4
-};
+    Definition,
+    Virtuals,
+    References,
+    Rename,
+    SymbolInfo
+}
 
-function convertKind(kind: string) : CompletionItemKind
+function toCompletionItemKind(kind: string) : CompletionItemKind
 {
-    switch(kind)
+    switch (kind)
     {
-        case "FieldDecl" :
-            return CompletionItemKind.Field;
-        case "ParmDecl" :
-            return CompletionItemKind.Variable;
-        case "Namespace" :
+        case "Namespace":
             return CompletionItemKind.Module;
-        case "FunctionDecl" :
-            return CompletionItemKind.Function;
-        case "VarDecl" :
-            return CompletionItemKind.Variable;
-        case "CXXMethod" :
-            return CompletionItemKind.Method;
-        case "CXXDestructor" :
-            return CompletionItemKind.Constructor;
-        case "CXXConstructor" :
-            return CompletionItemKind.Constructor;
-        case "EnumDecl" :
+
+        case "EnumDecl":
             return CompletionItemKind.Enum;
-        case "ClassDecl" :
-        case "StructDecl" :
+
+        case "EnumConstantDecl":
+            return CompletionItemKind.EnumMember;
+
+        case "ClassDecl":
+        case "StructDecl":
             return CompletionItemKind.Class;
+
+        case "CXXConstructor":
+            return CompletionItemKind.Constructor;
+
+        case "CXXDestructor":
+            return CompletionItemKind.Constructor;
+
+        case "CXXMethod":
+            return CompletionItemKind.Method;
+
+        case "FunctionDecl":
+            return CompletionItemKind.Function;
+
+        case "FieldDecl":
+            return CompletionItemKind.Field;
+
+        case "ParmDecl":
+            return CompletionItemKind.Variable;
+
+        case "VarDecl":
+            return CompletionItemKind.Variable;
     }
+
     return CompletionItemKind.Keyword;
+}
+
+function toSymbolKind(kind: string) : SymbolKind | undefined
+{
+    switch (kind)
+    {
+        case "Namespace":
+            return SymbolKind.Namespace;
+
+        case "EnumDecl":
+            return SymbolKind.Enum;
+
+        case "EnumConstantDecl":
+            return SymbolKind.EnumMember;
+
+        case "ClassDecl":
+        case "StructDecl":
+            return SymbolKind.Class;
+
+        case "CXXConstructor":
+            return SymbolKind.Constructor;
+
+        case "CXXDestructor":
+            return SymbolKind.Constructor;
+
+        case "CXXMethod":
+            return SymbolKind.Method;
+
+        case "FunctionDecl":
+            return SymbolKind.Function;
+
+        case "FieldDecl":
+            return SymbolKind.Field;
+
+        case "ParmDecl":
+            return SymbolKind.Variable;
+
+        case "VarDecl":
+            return SymbolKind.Variable;
+    }
+
+    return undefined;
 }
 
 function parsePath(path: string) : Location
 {
     let [file, l, c] = path.split(':');
-    let p : Position = new Position(parseInt(l) - 1, parseInt(c) - 1);
+    let p = new Position(parseInt(l) - 1, parseInt(c) - 1);
     let uri = Uri.file(file);
-    return new Location(uri,p);
+    return new Location(uri, p);
 }
 
-function runRC(args: string[],  process: (stdout:string) => any, doc? : TextDocument )
-: Thenable<any>
+function runRc(args: string[],  process: (stdout: string) => any, doc?: TextDocument) : Thenable<any>
 {
-   return new Promise((resolve, _reject) =>
+   return new Promise((resolve, _reject) : void =>
    {
         if (doc && doc.isDirty)
         {
             const content = doc.getText();
             const path = doc.uri.fsPath;
 
-            const unsaved = path + ":" + content.length;
-            args.push('--unsaved-file='+unsaved);
+            const unsaved = path + ':' + content.length;
+            args.push("--unsaved-file=" + unsaved);
         }
 
-       let child = execFile('rc', args,
-           {
-               maxBuffer: 4 * 1024*1024
-           },
-           (error, output, stderr) => {
-               if (error)
-               {
-                   window.showErrorMessage(stderr);
-                   resolve([]);
-                   return;
-               }
-               resolve(process(output));
-           }
+       let child = execFile("rc",
+                            args,
+                            {
+                                maxBuffer: 4 * 1024 * 1024
+                            },
+                            (error: Error, stdout: string, stderr: string) : void =>
+                            {
+                                if (error)
+                                {
+                                    window.showErrorMessage(stderr);
+                                    resolve([]);
+                                    return;
+                                }
+                                resolve(process(stdout));
+                            }
        );
 
        if (doc && doc.isDirty)
@@ -94,109 +157,120 @@ function runRC(args: string[],  process: (stdout:string) => any, doc? : TextDocu
    });
 }
 
-function getCallers(document: TextDocument, uri: Uri, p: Position): Thenable<Caller[]>
+function getCallers(document: TextDocument | undefined, uri: Uri, p: Position) : Thenable<Caller[]>
 {
     const at = toRtagsPos(uri, p);
 
-    let args =  ['-K', '-o', '--containing-function-location', '-r', at, '--json'];
+    let args = ["-K", "-o", "--containing-function-location", "-r", at, "--json"];
 
-    return runRC(args,
-            function(output:string)
-            {
-                let result: Caller[] = [];
+    return runRc(args,
+                 (output: string) : Caller[] =>
+                 {
+                     let result: Caller[] = [];
 
-                const o = JSON.parse(output.toString());
+                     const o = JSON.parse(output.toString());
 
-                for (let c of o) {
-                    try {
-                        let containerLocation = parsePath(c.cfl);
-                        let doc = workspace.textDocuments.find(
-                            (v, _i) => { return (v.uri.fsPath === containerLocation.uri.fsPath); }
-                        );
-                        result.push(
-                            {
+                     for (let c of o)
+                     {
+                         try
+                         {
+                             let containerLocation = parsePath(c.cfl);
+                             let doc = workspace.textDocuments.find(
+                                 (v, _i) => { return (v.uri.fsPath === containerLocation.uri.fsPath); });
+
+                             let caller : Caller =
+                             {
                                 location: parsePath(c.loc),
                                 containerName: c.cf.trim(),
                                 containerLocation: containerLocation,
                                 document: doc,
                                 context: c.ctx.trim()
-                            });
-                    }
-                    catch (err) {
-                    }
-                }
+                             };
+                             result.push(caller);
+                         }
+                         catch (err)
+                         {
+                         }
+                     }
 
-                return result;
-            },
-            document);
+                     return result;
+                 },
+                 document);
 }
 
-function getDefinitions(document: TextDocument, p: Position, type: number = ReferenceType.DEFINITION): Thenable<Location[]>
+function getDefinitions(document: TextDocument, p: Position, type: number = ReferenceType.Definition) :
+    Thenable<Location[]>
 {
     const at = toRtagsPos(document.uri, p);
 
-    let args =  ['-K'];
+    let args =  ["-K"];
 
-    switch(type)
+    switch (type)
     {
-        case ReferenceType.VIRTUALS:
-            args.push('-k', '-r', at); break;
-        case ReferenceType.REFERENCES:
-            args.push('-r', at); break;
-        case ReferenceType.RENAME:
-            args.push('--rename', '-e', '-r', at); break;
-        case ReferenceType.DEFINITION:
-            args.push('-f', at); break;
+        case ReferenceType.Virtuals:
+            args.push('-k', '-r', at);
+            break;
+
+        case ReferenceType.References:
+            args.push('-r', at);
+            break;
+
+        case ReferenceType.Rename:
+            args.push('--rename', '-e', '-r', at);
+            break;
+
+        case ReferenceType.Definition:
+            args.push('-f', at);
+            break;
     }
 
-    return runRC(args,
-            function(output:string)
-            {
-            let result : Location[] =  [];
-            try {
-                for (let line of output.toString().split("\n"))
-                {
-                    if (line === '')
-                    {
-                        continue;
-                    }
-                    let [location] = line.split("\t", 1);
-                    result.push(parsePath(location));
-                }
-            }
-            catch (err)
-            {
-                return result;
-            }
+    return runRc(args,
+                 (output: string) : Location[] =>
+                 {
+                     let result: Location[] = [];
+                     try
+                     {
+                         for (let line of output.toString().split("\n"))
+                         {
+                             if (!line)
+                             {
+                                 continue;
+                             }
+                             let [location] = line.split("\t", 1);
+                             result.push(parsePath(location));
+                         }
+                     }
+                     catch (err)
+                     {
+                         return result;
+                     }
 
-            return result;
-            },
-            document);
+                     return result;
+                 },
+                 document);
 }
 
-class Caller
+interface Caller
 {
-    location : Location;
-    containerName : string;
-    containerLocation : Location;
-    document : TextDocument;
+    location: Location;
+    containerName: string;
+    containerLocation: Location;
+    document?: TextDocument;
     context: string;
 }
 
-class CallHierarchy
-    implements TreeDataProvider<Caller>
+class CallHierarchy implements TreeDataProvider<Caller>
 {
-
     private _onDidChangeTreeData: EventEmitter<Caller | null> = new EventEmitter<Caller | null>();
     readonly onDidChangeTreeData: Event<Caller | null> = this._onDidChangeTreeData.event;
-    //onDidChangeTreeData :
 
-    getTreeItem(caller: Caller): TreeItem | Thenable<TreeItem> {
-        let ti = new TreeItem(caller.containerName + " : " + caller.context , TreeItemCollapsibleState.Collapsed);
+    getTreeItem(caller: Caller) : TreeItem | Thenable<TreeItem>
+    {
+        let ti = new TreeItem(caller.containerName + " : " + caller.context, TreeItemCollapsibleState.Collapsed);
         ti.contextValue = "rtagsLocation";
         // ti.command = {
-        //     command: 'rtags.selectLocation',
-        //     title: '',
+        //     command: "rtags.selectLocation",
+        //     title: "",
         //     arguments: [
         //         caller
         //     ]
@@ -204,211 +278,218 @@ class CallHierarchy
         return ti;
     }
 
-    getChildren(node?: Caller): ProviderResult<Caller[]>
+    getChildren(node?: Caller) : ProviderResult<Caller[]>
     {
-        const list : Caller[] = [];
+        const list: Caller[] = [];
         if (!node)
         {
-            let pos = window.activeTextEditor.selection.active;
-            let doc = window.activeTextEditor.document;
-            let loc = new Location(doc.uri, pos);
-            list.push(
+            let editor = window.activeTextEditor;
+            if (editor)
             {
-                location: loc,
-                containerLocation : loc,
-                containerName: doc.getText(doc.getWordRangeAtPosition(pos)),
-                document: doc,
-                context: ""
-            });
+                let pos = editor.selection.active;
+                let doc = editor.document;
+                let loc = new Location(doc.uri, pos);
+
+                let caller : Caller =
+                {
+                    location: loc,
+                    containerLocation : loc,
+                    containerName: doc.getText(doc.getWordRangeAtPosition(pos)),
+                    document: doc,
+                    context: ""
+                };
+                list.push(caller);
+            }
             return list;
         }
 
         return getCallers(node.document, node.containerLocation.uri, node.containerLocation.range.start);
     }
 
-    refresh(): void
+    refresh() : void
     {
         this._onDidChangeTreeData.fire();
     }
-
-
 }
 
-class RTagsCompletionItemProvider
-    implements
-     CompletionItemProvider,
-     WorkspaceSymbolProvider,
-     DocumentSymbolProvider,
-     HoverProvider,
-     DefinitionProvider,
-     TypeDefinitionProvider,
-     ImplementationProvider,
-     ReferenceProvider,
-     RenameProvider	,
-     CodeActionProvider,
-     SignatureHelpProvider,
-     Disposable
+class RTagsCompletionItemProvider implements
+    CompletionItemProvider,
+    WorkspaceSymbolProvider,
+    DocumentSymbolProvider,
+    HoverProvider,
+    DefinitionProvider,
+    TypeDefinitionProvider,
+    ImplementationProvider,
+    ReferenceProvider,
+    RenameProvider	,
+    CodeActionProvider,
+    SignatureHelpProvider,
+    Disposable
+{
+    dispose() : void
     {
-
-
-
-    dispose(): void {
         for (let d of this.disposables)
         {
             d.dispose();
         }
     }
 
-    disposables : Disposable[] = [];
+    disposables: Disposable[] = [];
 
     constructor()
     {
         this.disposables.push(
-            commands.registerCommand(RTagsCompletionItemProvider.commandId, this.runCodeAction, this)
-        );
-
+            commands.registerCommand(RTagsCompletionItemProvider.commandId, this.runCodeAction, this));
     }
 
-    provideCompletionItems(document : TextDocument, p : Position, _token : CancellationToken)
-        : Thenable<CompletionList>
+    provideCompletionItems(document: TextDocument, p: Position, _token: CancellationToken) :
+        ProviderResult<CompletionItem[] | CompletionList>
     {
-        const word_range = document.getWordRangeAtPosition(p);
-        const range = word_range ? new Range(word_range.start, p) : null;
-        const max_completions:Number = 20;
+        const wordRange = document.getWordRangeAtPosition(p);
+        const range = wordRange ? new Range(wordRange.start, p) : null;
+        const maxCompletions = 20;
         const at = toRtagsPos(document.uri, p);
-        let args = ['--json',
-        '--synchronous-completions', '-M',  max_completions.toString(),
-         '--code-complete-at', at];
+        let args =
+        [
+            "--json",
+            "--synchronous-completions",
+            "-M",
+            maxCompletions.toString(),
+            "--code-complete-at",
+            at
+        ];
 
          if (range)
          {
             const prefix = document.getText(range);
-            args.push('--code-complete-prefix', prefix);
+            args.push("--code-complete-prefix", prefix);
          }
 
-        return runRC(
-            args,
-                function(output:string)
-                {
-                    const o = JSON.parse(output.toString());
-                    let result = [];
-                    for (let c of  o.completions)
-                    {
-                        let sortText : string = ("00" + c.priority.toString()).slice(-2);
-                        let kind = convertKind(c.kind);
-                        let insert = new SnippetString();
-                        switch(kind)
-                        {
-                            case CompletionItemKind.Method:
-                            case CompletionItemKind.Function:
-                                insert = new SnippetString(c.completion + '($1)');
-                                break;
-                            default:
-                                insert = new SnippetString(c.completion);
-                        }
+        return runRc(args,
+                     (output: string) : CompletionList =>
+                     {
+                         const o = JSON.parse(output.toString());
+                         let result: CompletionItem[] = [];
+                         for (let c of o.completions)
+                         {
+                             let sortText: string = ("00" + c.priority.toString()).slice(-2);
+                             let kind = toCompletionItemKind(c.kind);
+                             let insert = new SnippetString();
+                             switch (kind)
+                             {
+                                 case CompletionItemKind.Method:
+                                 case CompletionItemKind.Function:
+                                     insert = new SnippetString(c.completion + '($1)');
+                                     break;
 
-                        result.push(
-                            {
-                                label: c.completion,
-                                kind: kind,
-                                detail:  c.signature,
-                                sortText : sortText,
-                                insertText : insert
-                            }
-                        );
+                                 default:
+                                     insert = new SnippetString(c.completion);
+                                     break;
+                             }
 
-                        if (result.length === max_completions)
-                        {
-                            break;
-                        }
-                    }
-                    return new CompletionList(result, result.length >= max_completions);
-                },
-                document
-        );
+                             let item: CompletionItem =
+                             {
+                                 label: c.completion,
+                                 kind: kind,
+                                 detail:  c.signature,
+                                 sortText: sortText,
+                                 insertText: insert
+                             };
+                             result.push(item);
+
+                             if (result.length === maxCompletions)
+                             {
+                                 break;
+                             }
+                         }
+                         return new CompletionList(result, result.length >= maxCompletions);
+                     },
+                     document);
     }
 
-    provideDocumentSymbols(doc: TextDocument, _token: CancellationToken): ProviderResult<SymbolInformation[]> {
-        return this.findSymbols("", ["--path-filter", doc.uri.fsPath],
-            (kind : CompletionItemKind) =>
-                {
-                    switch(kind)
-                    {
-                        case CompletionItemKind.Class:
-                        case CompletionItemKind.Function:
-                        case CompletionItemKind.Method:
-                        case CompletionItemKind.Enum:
-                        case CompletionItemKind.Operator:
-                        case CompletionItemKind.Interface:
-                        case CompletionItemKind.Field:
-                        case CompletionItemKind.Constructor:
-                            return true;
-                    }
-                    return false;
-                });
+    provideDocumentSymbols(doc: TextDocument, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
+    {
+        return this.findSymbols("",
+                                ["--path-filter", doc.uri.fsPath],
+                                (kind?: SymbolKind) : boolean =>
+                                {
+                                    switch (kind)
+                                    {
+                                        case SymbolKind.Enum:
+                                        case SymbolKind.Class:
+                                        case SymbolKind.Interface:
+                                        case SymbolKind.Constructor:
+                                        case SymbolKind.Method:
+                                        case SymbolKind.Function:
+                                        case SymbolKind.Field:
+                                        case SymbolKind.Operator:
+                                            return true;
+                                    }
+                                    return false;
+                                });
     }
 
-    provideWorkspaceSymbols(query: string, _token: CancellationToken): Thenable<SymbolInformation[]>
+    provideWorkspaceSymbols(query: string, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
     {
         if (query.length < 3)
         {
-            return null;
+            return [];
         }
-        return this.findSymbols(query, ['-M', '30']);
+        return this.findSymbols(query, ["-M", "30"]);
     }
-    findSymbols(query: string, args : string[] = [], filter? : (kind: CompletionItemKind) => boolean)
+
+    findSymbols(query: string, args: string[] = [], filter?: (kind?: SymbolKind) => boolean) :
+        Thenable<SymbolInformation[]>
     {
         query += '*';
-        return runRC(
-            ['-a', '-K', '-o', '-I',
-            '-F', query,
-            '--cursor-kind', '--display-name'].concat(args),
-            function(output:string)
-            {
-                let result = [];
-                for (let line of output.split("\n"))
-                {
-                    const [path, _, name, kind, container] = line.split(/\t+/);
-                    if (name === undefined)
-                    {
-                        continue;
-                    }
-                    const localKind = convertKind(kind);
-                    if (filter && !filter(localKind))
-                    {
-                        continue;
-                    }
-                    const location = parsePath(path);
+        return runRc(["-a", "-K", "-o", "-I", "-F", query, "--cursor-kind", "--display-name"].concat(args),
+                     (output: string) =>
+                     {
+                         let result: SymbolInformation[] = [];
+                         for (let line of output.split("\n"))
+                         {
+                             let [path, unused, name, kind, container] = line.split(/\t+/);
+                             unused = unused;
+                             if (!name)
+                             {
+                                 continue;
+                             }
+                             const localKind = toSymbolKind(kind);
+                             if (filter && !filter(localKind))
+                             {
+                                 continue;
+                             }
+                             const location = parsePath(path);
 
-                    //line.split( /:|function:/).map(function(x:string) {return String.prototype.trim.apply(x)});
+                             //line.split(/:|function:/).map((x: string) => { return String.prototype.trim.apply(x); });
 
-                    result.push(
-                        {
-                            name: name,
-                            containerName: container,
-                            location: location,
-                            kind: localKind
-                        }
-                    );
-                }
-                return result;
-            }
-        );
+                             let symbolInfo: SymbolInformation =
+                             {
+                                 name: name,
+                                 containerName: container,
+                                 location: location,
+                                 kind: <SymbolKind>localKind
+                             };
+                             result.push(symbolInfo);
+                         }
+                         return result;
+                     });
     }
 
-    static commandId: string = 'rtags.runCodeAction';
-    static findVirtuals: string = 'rtags.findVirtuals';
+    static commandId: string = "rtags.runCodeAction";
+    static findVirtuals: string = "rtags.findVirtuals";
 
-    private runCodeAction(document: TextDocument, range: Range, newText:string): any
+    private runCodeAction(document: TextDocument, range: Range, newText: string) : any
     {
         let edit = new WorkspaceEdit();
         edit.replace(document.uri, range, newText);
         return workspace.applyEdit(edit);
     }
 
-    provideCodeActions(document: TextDocument, _range: Range, _context: CodeActionContext, _token: CancellationToken): ProviderResult<Command[]>
+    provideCodeActions(document: TextDocument, _range: Range, _context: CodeActionContext, _token: CancellationToken) :
+        ProviderResult<Command[]>
     {
-        return runRC(
+        return runRc(
             ['--fixits', document.fileName],
             function(output:string)
             {
@@ -440,6 +521,7 @@ class RTagsCompletionItemProvider
             }
         );
     }
+
     provideImplementation(document: TextDocument, position: Position, _token: CancellationToken)
     {
         return getDefinitions(document, position);
@@ -449,7 +531,7 @@ class RTagsCompletionItemProvider
     {
         const at = toRtagsPos(document.uri, p);
 
-        return runRC(['-K',	'-U', at],
+        return runRc(['-K',	'-U', at],
             (output) =>
             {
                 let m = /^Type:(.*)?(=>|$)/gm.exec(output);
@@ -468,13 +550,14 @@ class RTagsCompletionItemProvider
         return getDefinitions(document, position);
     }
 
-    provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken): ProviderResult<Definition> {
-        return getDefinitions(document, position, ReferenceType.VIRTUALS);
+    provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken): ProviderResult<Definition>
+    {
+        return getDefinitions(document, position, ReferenceType.Virtuals);
     }
 
-    provideReferences(document: TextDocument, position: Position, _context: ReferenceContext, _token: CancellationToken): Thenable<Location[]>
+    provideReferences(document: TextDocument, position: Position, _context: ReferenceContext, _token: CancellationToken): ProviderResult<Location[]>
     {
-        return getDefinitions(document, position, ReferenceType.REFERENCES);
+        return getDefinitions(document, position, ReferenceType.References);
     }
 
     provideRenameEdits(document: TextDocument, position: Position, newName: string, _token: CancellationToken): ProviderResult<WorkspaceEdit>
@@ -489,10 +572,10 @@ class RTagsCompletionItemProvider
         }
 
         let wr = document.getWordRangeAtPosition(position);
-        let diff = wr.end.character - wr.start.character;
+        let diff = wr ? (wr.end.character - wr.start.character) : undefined;
 
         let edits : WorkspaceEdit = new WorkspaceEdit;
-        return getDefinitions(document, position, ReferenceType.RENAME).then(
+        return getDefinitions(document, position, ReferenceType.Rename).then(
             function(results)
             {
                 for (let r of results)
@@ -513,7 +596,7 @@ class RTagsCompletionItemProvider
         '--code-complete-at', at,
         '--code-complete-param'];
 
-        return runRC(
+        return runRc(
             args,
                 function(output:string)
                 {
@@ -550,6 +633,7 @@ class RTagsCompletionItemProvider
     }
 
     unprocessedDiagnostics : string = "";
+
     listenToDiagnostics()
     {
         const rc = spawn('rc', ['-m', '--json', '-b']);
@@ -570,7 +654,7 @@ class RTagsCompletionItemProvider
 
         rc.on("exit", (_code, _signal) =>
         {
-            dc.clear();
+            diagnosticCollection.clear();
             this.unprocessedDiagnostics = "";
             window.showErrorMessage("Diagnostics stopped. restarting");
             setTimeout( () =>	this.listenToDiagnostics(), 10000);
@@ -600,7 +684,7 @@ function processDiagnostics(output: string)
         return;
     }
 
-    //dc.clear();
+    //diagnosticCollection.clear();
     for (var file in o.checkStyle)
     {
         if (!o.checkStyle.hasOwnProperty(file))
@@ -625,7 +709,7 @@ function processDiagnostics(output: string)
                 }
             );
         }
-        dc.set(uri, diags);
+        diagnosticCollection.set(uri, diags);
     }
 }
 
@@ -633,13 +717,13 @@ function diagnostics(uri: Uri)
 {
     const path = uri.fsPath;
 
-    runRC( [ '--json', '--diagnose', path], (_) => {}	);
+    runRc( [ '--json', '--diagnose', path], (_) => {}	);
 }
 
 
 function reindexUri(uri : Uri)
 {
-    runRC(['--reindex', uri.fsPath],
+    runRc(['--reindex', uri.fsPath],
         (output : string) : void => {
                 if (output === 'No matches')
                 {
@@ -653,7 +737,7 @@ function reindexUri(uri : Uri)
 
 function addProjectUri(uri : Uri)
 {
-    runRC(['-J', uri.fsPath],
+    runRc(['-J', uri.fsPath],
         (output : string) : void => {
                 window.showInformationMessage(output);
             },
@@ -662,12 +746,12 @@ function addProjectUri(uri : Uri)
 
 function reindex(doc : TextDocument)
 {
-    if (languages.match(RTAGS_MODE, doc) === 0)
+    if (languages.match(RtagsMode, doc) === 0)
     {
         return;
     }
 
-    runRC(['--reindex', doc.uri.fsPath],
+    runRc(['--reindex', doc.uri.fsPath],
         (output : string) : void => {
                 if (output === 'No matches')
                 {
@@ -685,17 +769,17 @@ export function activate(context: ExtensionContext)
 
     context.subscriptions.push(
         r
-        ,languages.registerCompletionItemProvider(RTAGS_MODE, r, '.', ':', '>')
+        ,languages.registerCompletionItemProvider(RtagsMode, r, '.', ':', '>')
         ,languages.registerWorkspaceSymbolProvider(r)
-        ,languages.registerDocumentSymbolProvider(RTAGS_MODE, r)
-        ,languages.registerHoverProvider(RTAGS_MODE, r)
-        ,languages.registerDefinitionProvider(RTAGS_MODE, r)
-        ,languages.registerTypeDefinitionProvider(RTAGS_MODE, r)
-        ,languages.registerImplementationProvider(RTAGS_MODE, r)
-        ,languages.registerReferenceProvider(RTAGS_MODE, r)
-        ,languages.registerRenameProvider(RTAGS_MODE, r)
-        ,languages.registerCodeActionsProvider(RTAGS_MODE, r)
-        ,languages.registerSignatureHelpProvider(RTAGS_MODE, r, '(', ',')
+        ,languages.registerDocumentSymbolProvider(RtagsMode, r)
+        ,languages.registerHoverProvider(RtagsMode, r)
+        ,languages.registerDefinitionProvider(RtagsMode, r)
+        ,languages.registerTypeDefinitionProvider(RtagsMode, r)
+        ,languages.registerImplementationProvider(RtagsMode, r)
+        ,languages.registerReferenceProvider(RtagsMode, r)
+        ,languages.registerRenameProvider(RtagsMode, r)
+        ,languages.registerCodeActionsProvider(RtagsMode, r)
+        ,languages.registerSignatureHelpProvider(RtagsMode, r, '(', ',')
         ,window.registerTreeDataProvider('rtagsCallHierarchy', ch)
         ,commands.registerCommand('rtags.addproject', (uri) => { addProjectUri(uri); })
         ,commands.registerCommand('rtags.reindex', (uri) => { reindexUri(uri); })
@@ -707,7 +791,7 @@ export function activate(context: ExtensionContext)
             })
     );
 
-    var timerId : NodeJS.Timer = null;
+    let timerId : NodeJS.Timer | null = null;
     workspace.onDidChangeTextDocument((event) =>
     {
         if (timerId)
@@ -724,8 +808,6 @@ export function activate(context: ExtensionContext)
     workspace.onDidSaveTextDocument( (doc) => {	reindex(doc); } );
 
     r.listenToDiagnostics();
-
-
 
     //commands.registerCommand('rtags.callhierarcy', )
 }
