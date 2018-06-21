@@ -410,7 +410,7 @@ class CallHierarchy implements TreeDataProvider<Caller>
                 let caller: Caller =
                 {
                     location: loc,
-                    containerLocation : loc,
+                    containerLocation: loc,
                     containerName: doc.getText(doc.getWordRangeAtPosition(pos)),
                     document: doc,
                     context: ""
@@ -571,25 +571,7 @@ class RTagsCompletionItemProvider implements
 
     provideDocumentSymbols(doc: TextDocument, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
     {
-        let filter =
-            (kind?: SymbolKind) : boolean =>
-            {
-                switch (kind)
-                {
-                    case SymbolKind.Enum:
-                    case SymbolKind.Class:
-                    case SymbolKind.Interface:
-                    case SymbolKind.Constructor:
-                    case SymbolKind.Method:
-                    case SymbolKind.Function:
-                    case SymbolKind.Field:
-                    case SymbolKind.Operator:
-                        return true;
-                }
-                return false;
-            };
-
-        return this.findSymbols("", ["--path-filter", doc.uri.fsPath], filter);
+        return this.findSymbols("", ["--path-filter", doc.uri.fsPath]);
     }
 
     provideWorkspaceSymbols(query: string, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
@@ -663,7 +645,7 @@ class RTagsCompletionItemProvider implements
                     let [line, col] = pos.split(':');
                     let start = new Position(parseInt(line) - 1, parseInt(col) - 1);
                     let end = start.translate(0, parseInt(size));
-                    let range : Range = new Range(start, end);
+                    let range: Range = new Range(start, end);
                     if (_range.start.line !== start.line)
                     {
                         continue;
@@ -698,7 +680,7 @@ class RTagsCompletionItemProvider implements
         let wr = document.getWordRangeAtPosition(position);
         let diff = wr ? (wr.end.character - wr.start.character) : undefined;
 
-        let edits : WorkspaceEdit = new WorkspaceEdit;
+        let edits: WorkspaceEdit = new WorkspaceEdit;
 
         let resolve =
             (results: Location[]) : WorkspaceEdit =>
@@ -741,8 +723,7 @@ class RTagsCompletionItemProvider implements
               });
     }
 
-    private findSymbols(query: string, args: string[] = [], filter?: (kind?: SymbolKind) => boolean) :
-        Thenable<SymbolInformation[]>
+    private findSymbols(query: string, args: string[] = []) : Thenable<SymbolInformation[]>
     {
         query += '*';
 
@@ -759,7 +740,7 @@ class RTagsCompletionItemProvider implements
                         continue;
                     }
                     const localKind = toSymbolKind(kind);
-                    if (filter && !filter(localKind))
+                    if (!localKind)
                     {
                         continue;
                     }
