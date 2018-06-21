@@ -68,7 +68,7 @@
             "view/item/context": [
                 {
                     "command": "rtags.selectLocation",
-                    "when": "viewItem == rtagsLocation && view==rtagsCallHierarchy"
+                    "when": "viewItem == rtagsLocation && view == rtagsCallHierarchy"
                 }
             ]
         }

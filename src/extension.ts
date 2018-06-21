@@ -2,18 +2,17 @@
 
 import { commands, languages, window, workspace, CancellationToken, CodeActionContext, CodeActionProvider, Command,
          CompletionItem, CompletionItemKind, CompletionItemProvider, CompletionList, Definition, DefinitionProvider,
-         Diagnostic, DiagnosticSeverity, Disposable, DocumentSymbolProvider, Event, EventEmitter, ExtensionContext,
-         Hover, HoverProvider, ImplementationProvider, Location, Position, ProviderResult, Range, ReferenceContext,
-         ReferenceProvider, RenameProvider, SignatureHelp, SignatureHelpProvider, SignatureInformation, SnippetString,
-         SymbolInformation, SymbolKind, TextDocument, TextDocumentChangeEvent, TreeDataProvider, TreeItem,
-         TreeItemCollapsibleState, TypeDefinitionProvider, Uri, WorkspaceEdit, WorkspaceSymbolProvider } from 'vscode';
+         Diagnostic, DiagnosticCollection, DiagnosticSeverity, Disposable, DocumentSymbolProvider, Event, EventEmitter,
+         ExtensionContext, Hover, HoverProvider, ImplementationProvider, Location, Position, ProviderResult, Range,
+         ReferenceContext, ReferenceProvider, RenameProvider, SignatureHelp, SignatureHelpProvider,
+         SignatureInformation, SnippetString, SymbolInformation, SymbolKind, TextDocument, TextDocumentChangeEvent,
+         TreeDataProvider, TreeItem, TreeItemCollapsibleState, TypeDefinitionProvider, Uri, WorkspaceEdit,
+         WorkspaceSymbolProvider } from 'vscode';
 
 import { execFile, ExecFileOptions, spawn } from 'child_process';
 import { setTimeout, clearTimeout } from 'timers';
 
 type Nullable<T> = T | null;
-
-let diagnosticCollection = languages.createDiagnosticCollection("RTAGS");
 
 const RtagsSelector =
 [
@@ -164,59 +163,13 @@ function runRc(args: string[], process: (stdout: string) => any, doc?: TextDocum
     return new Promise(executor);
 }
 
-function toRtagsPos(uri: Uri, pos: Position) : string
+function toRtagsPosition(uri: Uri, pos: Position) : string
 {
     const at = uri.fsPath + ':' + (pos.line + 1) + ':' + (pos.character + 1);
     return at;
 }
 
-function processDiagnostics(output: string) : void
-{
-    if (output.trim().length === 0)
-    {
-        return;
-    }
-    let o;
-    try
-    {
-        o = JSON.parse(output.toString());
-    }
-    catch (_err)
-    {
-        window.showErrorMessage("Diagnostics parse error: " + output.toString());
-        return;
-    }
-
-    //diagnosticCollection.clear();
-    for (let file in o.checkStyle)
-    {
-        if (!o.checkStyle.hasOwnProperty(file))
-        {
-            continue;
-        }
-
-        let diags: Diagnostic[] = [];
-        let uri = Uri.file(file);
-
-        for (let d of o.checkStyle[file])
-        {
-            let p = new Position(d.line - 1, d.column - 1);
-
-            let diag: Diagnostic =
-            {
-                message: d.message,
-                range: new Range(p, p),
-                severity: DiagnosticSeverity.Error,
-                source: "rtags",
-                code: 0
-            };
-            diags.push(diag);
-        }
-        diagnosticCollection.set(uri, diags);
-    }
-}
-
-function diagnostics(uri: Uri) : void
+function diagnose(uri: Uri) : void
 {
     const path = uri.fsPath;
 
@@ -241,7 +194,7 @@ function reindexUri(uri: Uri) : void
               {
                   return;
               }
-              setTimeout(diagnostics, 1000, uri);
+              setTimeout(diagnose, 1000, uri);
           });
 }
 
@@ -259,14 +212,14 @@ function reindex(doc: TextDocument) : void
               {
                   return;
               }
-              setTimeout(diagnostics, 1000, doc.uri);
+              setTimeout(diagnose, 1000, doc.uri);
           },
           doc);
 }
 
 function getCallers(document: TextDocument | undefined, uri: Uri, p: Position) : Thenable<Caller[]>
 {
-    const at = toRtagsPos(uri, p);
+    const at = toRtagsPosition(uri, p);
 
     let args =
     [
@@ -317,7 +270,7 @@ function getCallers(document: TextDocument | undefined, uri: Uri, p: Position) :
 function getDefinitions(document: TextDocument, p: Position, type: number = ReferenceType.Definition) :
     Thenable<Location[]>
 {
-    const at = toRtagsPos(document.uri, p);
+    const at = toRtagsPosition(document.uri, p);
 
     let args = ["--absolute-path"];
 
@@ -378,20 +331,10 @@ interface Caller
 
 class CallHierarchy implements TreeDataProvider<Caller>
 {
-    private _onDidChangeTreeData: EventEmitter<Nullable<Caller>> = new EventEmitter<Nullable<Caller>>();
-    readonly onDidChangeTreeData: Event<Nullable<Caller>> = this._onDidChangeTreeData.event;
-
     getTreeItem(caller: Caller) : TreeItem | Thenable<TreeItem>
     {
         let ti = new TreeItem(caller.containerName + " : " + caller.context, TreeItemCollapsibleState.Collapsed);
         ti.contextValue = "rtagsLocation";
-        // ti.command = {
-        //     command: "rtags.selectLocation",
-        //     title: "",
-        //     arguments: [
-        //         caller
-        //     ]
-        // };
         return ti;
     }
 
@@ -425,8 +368,11 @@ class CallHierarchy implements TreeDataProvider<Caller>
 
     refresh() : void
     {
-        this._onDidChangeTreeData.fire();
+        this.onDidChangeEmitter.fire();
     }
+
+    private onDidChangeEmitter: EventEmitter<Nullable<Caller>> = new EventEmitter<Nullable<Caller>>();
+    readonly onDidChangeTreeData: Event<Nullable<Caller>> = this.onDidChangeEmitter.event;
 }
 
 class RTagsCompletionItemProvider implements
@@ -445,7 +391,10 @@ class RTagsCompletionItemProvider implements
 {
     constructor()
     {
+        this.diagnosticCollection = languages.createDiagnosticCollection("RTAGS");
+
         this.disposables.push(
+            this.diagnosticCollection,
             commands.registerCommand(RTagsCompletionItemProvider.commandId, this.runCodeAction, this));
     }
 
@@ -463,7 +412,7 @@ class RTagsCompletionItemProvider implements
         const wordRange = document.getWordRangeAtPosition(p);
         const range = wordRange ? new Range(wordRange.start, p) : null;
         const maxCompletions = 20;
-        const at = toRtagsPos(document.uri, p);
+        const at = toRtagsPosition(document.uri, p);
 
         let args =
         [
@@ -528,7 +477,7 @@ class RTagsCompletionItemProvider implements
         ProviderResult<SignatureHelp>
     {
         const maxCompletions = 20;
-        const at = toRtagsPos(document.uri, p);
+        const at = toRtagsPosition(document.uri, p);
 
         let args =
         [
@@ -612,7 +561,7 @@ class RTagsCompletionItemProvider implements
 
     provideHover(document: TextDocument, p: Position, _token: CancellationToken) : ProviderResult<Hover>
     {
-        const at = toRtagsPos(document.uri, p);
+        const at = toRtagsPosition(document.uri, p);
 
         let process =
             (output: string) : Nullable<Hover> =>
@@ -670,9 +619,9 @@ class RTagsCompletionItemProvider implements
     {
         for (let doc of workspace.textDocuments)
         {
-            if ((doc.languageId === "cpp") && doc.isDirty)
+            if (((doc.languageId === "cpp") || (doc.languageId === "c")) && doc.isDirty)
             {
-                window.showInformationMessage("Save all .cpp files first before renaming");
+                window.showInformationMessage("Save all source files first before renaming");
                 return null;
             }
         }
@@ -696,7 +645,7 @@ class RTagsCompletionItemProvider implements
         return getDefinitions(document, position, ReferenceType.Rename).then(resolve);
     }
 
-    listenToDiagnostics() : void
+    startDiagnostics() : void
     {
         const rc = spawn("rc", ["--json", "--diagnostics", "--code-completion-enabled"]);
         rc.stdout.on("data",
@@ -704,7 +653,7 @@ class RTagsCompletionItemProvider implements
                      {
                          try
                          {
-                             this.unprocessedDiagnostics = this.getJsonObject(
+                             this.unprocessedDiagnostics = this.processDiagnostics(
                                  this.unprocessedDiagnostics + data.toString());
                          }
                          catch (_err)
@@ -716,10 +665,10 @@ class RTagsCompletionItemProvider implements
         rc.on("exit",
               (_code: number, _signal: string) : void =>
               {
-                  diagnosticCollection.clear();
+                  this.diagnosticCollection.clear();
                   this.unprocessedDiagnostics = "";
                   window.showErrorMessage("Diagnostics stopped; restarting");
-                  setTimeout(() => { this.listenToDiagnostics(); }, 10000);
+                  setTimeout(() => { this.startDiagnostics(); }, 10000);
               });
     }
 
@@ -779,21 +728,67 @@ class RTagsCompletionItemProvider implements
         return workspace.applyEdit(edit);
     }
 
-    private getJsonObject(data: string) : string
+    private processDiagnostics(data: string) : string
     {
         let end: number;
         while ((end = data.indexOf('\n')) !== -1)
         {
-            processDiagnostics(data.slice(0, end));
+            this.processDiagnosticsLine(data.slice(0, end));
             data = data.substr(end + 1);
         }
 
         return data.trim();
     }
 
+    private processDiagnosticsLine(output: string) : void
+    {
+        if (output.trim().length === 0)
+        {
+            return;
+        }
+        let o;
+        try
+        {
+            o = JSON.parse(output.toString());
+        }
+        catch (_err)
+        {
+            window.showErrorMessage("Diagnostics parse error: " + output.toString());
+            return;
+        }
+
+        for (let file in o.checkStyle)
+        {
+            if (!o.checkStyle.hasOwnProperty(file))
+            {
+                continue;
+            }
+
+            let diags: Diagnostic[] = [];
+            let uri = Uri.file(file);
+
+            for (let d of o.checkStyle[file])
+            {
+                let p = new Position(d.line - 1, d.column - 1);
+
+                let diag: Diagnostic =
+                {
+                    message: d.message,
+                    range: new Range(p, p),
+                    severity: DiagnosticSeverity.Error,
+                    source: "rtags",
+                    code: 0
+                };
+                diags.push(diag);
+            }
+            this.diagnosticCollection.set(uri, diags);
+        }
+    }
+
     private static readonly commandId: string = "rtags.runCodeAction";
 
     private disposables: Disposable[] = [];
+    private diagnosticCollection: DiagnosticCollection;
     private unprocessedDiagnostics: string = "";
 }
 
@@ -845,5 +840,5 @@ export function activate(context: ExtensionContext)
 
     workspace.onDidSaveTextDocument((doc) => { reindex(doc); });
 
-    r.listenToDiagnostics();
+    r.startDiagnostics();
 }
