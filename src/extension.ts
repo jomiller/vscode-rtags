@@ -176,7 +176,7 @@ function diagnose(uri: Uri) : void
     runRc(["--json", "--diagnose", path], (_) => {});
 }
 
-function addProjectUri(uri: Uri) : void
+function addProject(uri: Uri) : void
 {
     runRc(["--load-compile-commands", uri.fsPath],
           (output: string) : void =>
@@ -185,8 +185,31 @@ function addProjectUri(uri: Uri) : void
           });
 }
 
-function reindexUri(uri: Uri) : void
+function isTextDocument(file: TextDocument | Uri) : file is TextDocument
 {
+    return ((<TextDocument>file).uri !== undefined);
+}
+
+function reindex(file: TextDocument | Uri) : void
+{
+    let doc: TextDocument | undefined = undefined;
+    let uri: Uri;
+
+    if (isTextDocument(file))
+    {
+        doc = file;
+        uri = doc.uri;
+
+        if (languages.match(RtagsSelector, doc) === 0)
+        {
+            return;
+        }
+    }
+    else
+    {
+        uri = file;
+    }
+
     runRc(["--reindex", uri.fsPath],
           (output: string) : void =>
           {
@@ -195,24 +218,6 @@ function reindexUri(uri: Uri) : void
                   return;
               }
               setTimeout(diagnose, 1000, uri);
-          });
-}
-
-function reindex(doc: TextDocument) : void
-{
-    if (languages.match(RtagsSelector, doc) === 0)
-    {
-        return;
-    }
-
-    runRc(["--reindex", doc.uri.fsPath],
-          (output: string) : void =>
-          {
-              if (output === "No matches")
-              {
-                  return;
-              }
-              setTimeout(diagnose, 1000, doc.uri);
           },
           doc);
 }
@@ -329,8 +334,18 @@ interface Caller
     context: string;
 }
 
-class CallHierarchy implements TreeDataProvider<Caller>
+class CallHierarchy implements TreeDataProvider<Caller>, Disposable
 {
+    constructor()
+    {
+        this.provider = window.registerTreeDataProvider("rtagsCallHierarchy", this);
+    }
+
+    dispose() : void
+    {
+        this.provider.dispose();
+    }
+
     getTreeItem(caller: Caller) : TreeItem | Thenable<TreeItem>
     {
         let ti = new TreeItem(caller.containerName + " : " + caller.context, TreeItemCollapsibleState.Collapsed);
@@ -371,6 +386,7 @@ class CallHierarchy implements TreeDataProvider<Caller>
         this.onDidChangeEmitter.fire();
     }
 
+    private provider: Disposable;
     private onDidChangeEmitter: EventEmitter<Nullable<Caller>> = new EventEmitter<Nullable<Caller>>();
     readonly onDidChangeTreeData: Event<Nullable<Caller>> = this.onDidChangeEmitter.event;
 }
@@ -799,6 +815,7 @@ export function activate(context: ExtensionContext)
 
     context.subscriptions.push(
         r,
+        ch,
         languages.registerCompletionItemProvider(RtagsSelector, r, '.', ':', '>'),
         languages.registerSignatureHelpProvider(RtagsSelector, r, '(', ','),
         languages.registerDocumentSymbolProvider(RtagsSelector, r),
@@ -810,9 +827,8 @@ export function activate(context: ExtensionContext)
         languages.registerHoverProvider(RtagsSelector, r),
         languages.registerCodeActionsProvider(RtagsSelector, r),
         languages.registerRenameProvider(RtagsSelector, r),
-        window.registerTreeDataProvider("rtagsCallHierarchy", ch),
-        commands.registerCommand("rtags.addproject", (uri) => { addProjectUri(uri); }),
-        commands.registerCommand("rtags.reindex", (uri) => { reindexUri(uri); }),
+        commands.registerCommand("rtags.addproject", (uri) => { addProject(uri); }),
+        commands.registerCommand("rtags.reindex", (uri) => { reindex(uri); }),
         commands.registerCommand("rtags.callhierarchy", () => { ch.refresh(); }),
         commands.registerCommand("rtags.selectLocation",
                                  (caller: Caller) : void =>
