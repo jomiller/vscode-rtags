@@ -2,32 +2,19 @@
 
 import { commands, languages, window, workspace, CancellationToken, CodeActionContext, CodeActionProvider, Command,
          CompletionItem, CompletionItemKind, CompletionItemProvider, CompletionList, Definition, DefinitionProvider,
-         Diagnostic, DiagnosticCollection, DiagnosticSeverity, Disposable, DocumentSymbolProvider, Event, EventEmitter,
-         ExtensionContext, Hover, HoverProvider, ImplementationProvider, Location, Position, ProviderResult, Range,
-         ReferenceContext, ReferenceProvider, RenameProvider, SignatureHelp, SignatureHelpProvider,
-         SignatureInformation, SnippetString, SymbolInformation, SymbolKind, TextDocument, TextDocumentChangeEvent,
-         TreeDataProvider, TreeItem, TreeItemCollapsibleState, TypeDefinitionProvider, Uri, WorkspaceEdit,
-         WorkspaceSymbolProvider } from 'vscode';
+         Diagnostic, DiagnosticCollection, DiagnosticSeverity, Disposable, DocumentSymbolProvider, ExtensionContext,
+         Hover, HoverProvider, ImplementationProvider, Location, Position, ProviderResult, Range, ReferenceContext,
+         ReferenceProvider, RenameProvider, SignatureHelp, SignatureHelpProvider, SignatureInformation, SnippetString,
+         SymbolInformation, SymbolKind, TextDocument, TextDocumentChangeEvent, TypeDefinitionProvider, Uri,
+         WorkspaceEdit, WorkspaceSymbolProvider } from 'vscode';
 
-import { execFile, ExecFileOptions, spawn } from 'child_process';
+import { spawn } from 'child_process';
 import { setTimeout, clearTimeout } from 'timers';
 
-type Nullable<T> = T | null;
+import { Nullable, RtagsSelector, ReferenceType, parsePath, toRtagsPosition, runRc, addProject, reindex }
+         from './rtagsUtil';
 
-const RtagsSelector =
-[
-    { language: "cpp", scheme: "file" },
-    { language: "c",   scheme: "file" }
-];
-
-enum ReferenceType
-{
-    Definition,
-    Virtuals,
-    References,
-    Rename,
-    SymbolInfo
-}
+import { Caller, CallHierarchy } from './callHierarchy';
 
 function toCompletionItemKind(kind: string) : CompletionItemKind
 {
@@ -113,165 +100,6 @@ function toSymbolKind(kind: string) : SymbolKind | undefined
     return undefined;
 }
 
-function parsePath(path: string) : Location
-{
-    let [file, l, c] = path.split(':');
-    let p = new Position(parseInt(l) - 1, parseInt(c) - 1);
-    let uri = Uri.file(file);
-    return new Location(uri, p);
-}
-
-function runRc(args: string[], process: (stdout: string) => any, doc?: TextDocument) : Thenable<any>
-{
-    let executor =
-        (resolve: (value?: any) => any, _reject: (reason?: any) => any) : void =>
-        {
-            if (doc && doc.isDirty)
-            {
-                const content = doc.getText();
-                const path = doc.uri.fsPath;
-
-                const unsaved = path + ':' + content.length;
-                args.push("--unsaved-file=" + unsaved);
-            }
-
-            let options: ExecFileOptions =
-            {
-                maxBuffer: 4 * 1024 * 1024
-            };
-
-            let callback =
-                (error: Error, stdout: string, stderr: string) : void =>
-                {
-                    if (error)
-                    {
-                        window.showErrorMessage(stderr);
-                        resolve([]);
-                        return;
-                    }
-                    resolve(process(stdout));
-                };
-
-            let child = execFile("rc", args, options, callback);
-
-            if (doc && doc.isDirty)
-            {
-                child.stdin.write(doc.getText());
-            }
-        };
-
-    return new Promise(executor);
-}
-
-function toRtagsPosition(uri: Uri, pos: Position) : string
-{
-    const at = uri.fsPath + ':' + (pos.line + 1) + ':' + (pos.character + 1);
-    return at;
-}
-
-function diagnose(uri: Uri) : void
-{
-    const path = uri.fsPath;
-
-    runRc(["--json", "--diagnose", path], (_) => {});
-}
-
-function addProject(uri: Uri) : void
-{
-    runRc(["--load-compile-commands", uri.fsPath],
-          (output: string) : void =>
-          {
-              window.showInformationMessage(output);
-          });
-}
-
-function isTextDocument(file: TextDocument | Uri) : file is TextDocument
-{
-    return ((<TextDocument>file).uri !== undefined);
-}
-
-function reindex(file: TextDocument | Uri) : void
-{
-    let doc: TextDocument | undefined = undefined;
-    let uri: Uri;
-
-    if (isTextDocument(file))
-    {
-        doc = file;
-        uri = doc.uri;
-
-        if (languages.match(RtagsSelector, doc) === 0)
-        {
-            return;
-        }
-    }
-    else
-    {
-        uri = file;
-    }
-
-    runRc(["--reindex", uri.fsPath],
-          (output: string) : void =>
-          {
-              if (output === "No matches")
-              {
-                  return;
-              }
-              setTimeout(diagnose, 1000, uri);
-          },
-          doc);
-}
-
-function getCallers(document: TextDocument | undefined, uri: Uri, p: Position) : Thenable<Caller[]>
-{
-    const at = toRtagsPosition(uri, p);
-
-    let args =
-    [
-        "--json",
-        "--absolute-path",
-        "--containing-function",
-        "--containing-function-location",
-        "--references",
-        at
-    ];
-
-    let process =
-        (output: string) : Caller[] =>
-        {
-            let result: Caller[] = [];
-
-            const o = JSON.parse(output.toString());
-
-            for (let c of o)
-            {
-                try
-                {
-                    let containerLocation = parsePath(c.cfl);
-                    let doc = workspace.textDocuments.find(
-                        (v, _i) => { return (v.uri.fsPath === containerLocation.uri.fsPath); });
-
-                    let caller: Caller =
-                    {
-                        location: parsePath(c.loc),
-                        containerName: c.cf.trim(),
-                        containerLocation: containerLocation,
-                        document: doc,
-                        context: c.ctx.trim()
-                    };
-                    result.push(caller);
-                }
-                catch (_err)
-                {
-                }
-            }
-
-            return result;
-        };
-
-    return runRc(args, process, document);
-}
-
 function getDefinitions(document: TextDocument, p: Position, type: number = ReferenceType.Definition) :
     Thenable<Location[]>
 {
@@ -323,72 +151,6 @@ function getDefinitions(document: TextDocument, p: Position, type: number = Refe
         };
 
     return runRc(args, process, document);
-}
-
-interface Caller
-{
-    location: Location;
-    containerName: string;
-    containerLocation: Location;
-    document?: TextDocument;
-    context: string;
-}
-
-class CallHierarchy implements TreeDataProvider<Caller>, Disposable
-{
-    constructor()
-    {
-        this.provider = window.registerTreeDataProvider("rtagsCallHierarchy", this);
-    }
-
-    dispose() : void
-    {
-        this.provider.dispose();
-    }
-
-    getTreeItem(caller: Caller) : TreeItem | Thenable<TreeItem>
-    {
-        let ti = new TreeItem(caller.containerName + " : " + caller.context, TreeItemCollapsibleState.Collapsed);
-        ti.contextValue = "rtagsLocation";
-        return ti;
-    }
-
-    getChildren(node?: Caller) : ProviderResult<Caller[]>
-    {
-        const list: Caller[] = [];
-        if (!node)
-        {
-            let editor = window.activeTextEditor;
-            if (editor)
-            {
-                let pos = editor.selection.active;
-                let doc = editor.document;
-                let loc = new Location(doc.uri, pos);
-
-                let caller: Caller =
-                {
-                    location: loc,
-                    containerLocation: loc,
-                    containerName: doc.getText(doc.getWordRangeAtPosition(pos)),
-                    document: doc,
-                    context: ""
-                };
-                list.push(caller);
-            }
-            return list;
-        }
-
-        return getCallers(node.document, node.containerLocation.uri, node.containerLocation.range.start);
-    }
-
-    refresh() : void
-    {
-        this.onDidChangeEmitter.fire();
-    }
-
-    private provider: Disposable;
-    private onDidChangeEmitter: EventEmitter<Nullable<Caller>> = new EventEmitter<Nullable<Caller>>();
-    readonly onDidChangeTreeData: Event<Nullable<Caller>> = this.onDidChangeEmitter.event;
 }
 
 class RTagsCompletionItemProvider implements
