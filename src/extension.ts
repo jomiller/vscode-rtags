@@ -1,15 +1,15 @@
 'use strict';
 
 import { commands, languages, window, workspace, CancellationToken, CodeActionContext, CodeActionProvider, Command,
-         CompletionItem, CompletionItemKind, CompletionItemProvider, CompletionList, Diagnostic, DiagnosticCollection,
-         DiagnosticSeverity, Disposable, ExtensionContext, Position, ProviderResult, Range, SignatureHelp,
-         SignatureHelpProvider, SignatureInformation, SnippetString, TextDocument, TextDocumentChangeEvent, Uri,
-         WorkspaceEdit } from 'vscode';
+         Diagnostic, DiagnosticCollection, DiagnosticSeverity, Disposable, ExtensionContext, Position, ProviderResult,
+         Range, TextDocument, TextDocumentChangeEvent, Uri, WorkspaceEdit } from 'vscode';
 
 import { spawn } from 'child_process';
 import { setTimeout, clearTimeout } from 'timers';
 
-import { Nullable, RtagsSelector, toRtagsPosition, runRc, addProject, reindex } from './rtagsUtil';
+import { Nullable, RtagsSelector, runRc, addProject, reindex } from './rtagsUtil';
+
+import { RtagsCompletionProvider } from './completionProvider';
 
 import { RtagsDefinitionProvider } from './definitionProvider';
 
@@ -17,51 +17,7 @@ import { RtagsSymbolProvider } from './symbolProvider';
 
 import { CallHierarchy } from './callHierarchy';
 
-function toCompletionItemKind(kind: string) : CompletionItemKind
-{
-    switch (kind)
-    {
-        case "Namespace":
-            return CompletionItemKind.Module;
-
-        case "EnumDecl":
-            return CompletionItemKind.Enum;
-
-        case "EnumConstantDecl":
-            return CompletionItemKind.EnumMember;
-
-        case "ClassDecl":
-        case "StructDecl":
-            return CompletionItemKind.Class;
-
-        case "CXXConstructor":
-            return CompletionItemKind.Constructor;
-
-        case "CXXDestructor":
-            return CompletionItemKind.Constructor;
-
-        case "CXXMethod":
-            return CompletionItemKind.Method;
-
-        case "FunctionDecl":
-            return CompletionItemKind.Function;
-
-        case "FieldDecl":
-            return CompletionItemKind.Field;
-
-        case "ParmDecl":
-            return CompletionItemKind.Variable;
-
-        case "VarDecl":
-            return CompletionItemKind.Variable;
-    }
-
-    return CompletionItemKind.Keyword;
-}
-
-class RtagsCompletionProvider implements
-    CompletionItemProvider,
-    SignatureHelpProvider,
+class RtagsCodeActionProvider implements
     CodeActionProvider,
     Disposable
 {
@@ -71,7 +27,7 @@ class RtagsCompletionProvider implements
 
         this.disposables.push(
             this.diagnosticCollection,
-            commands.registerCommand(RtagsCompletionProvider.commandId, this.runCodeAction, this));
+            commands.registerCommand(RtagsCodeActionProvider.commandId, this.runCodeAction, this));
     }
 
     dispose() : void
@@ -80,118 +36,6 @@ class RtagsCompletionProvider implements
         {
             d.dispose();
         }
-    }
-
-    provideCompletionItems(document: TextDocument, p: Position, _token: CancellationToken) :
-        ProviderResult<CompletionItem[] | CompletionList>
-    {
-        const wordRange = document.getWordRangeAtPosition(p);
-        const range = wordRange ? new Range(wordRange.start, p) : null;
-        const maxCompletions = 20;
-        const at = toRtagsPosition(document.uri, p);
-
-        let args =
-        [
-            "--json",
-            "--synchronous-completions",
-            "--max",
-            maxCompletions.toString(),
-            "--code-complete-at",
-            at
-        ];
-
-        if (range)
-        {
-           const prefix = document.getText(range);
-           args.push("--code-complete-prefix", prefix);
-        }
-
-        let process =
-            (output: string) : CompletionList =>
-            {
-                const o = JSON.parse(output.toString());
-                let result: CompletionItem[] = [];
-                for (let c of o.completions)
-                {
-                    let sortText: string = ("00" + c.priority.toString()).slice(-2);
-                    let kind = toCompletionItemKind(c.kind);
-                    let insert = new SnippetString();
-                    switch (kind)
-                    {
-                        case CompletionItemKind.Method:
-                        case CompletionItemKind.Function:
-                            insert = new SnippetString(c.completion + "($1)");
-                            break;
-
-                        default:
-                            insert = new SnippetString(c.completion);
-                            break;
-                    }
-
-                    let item: CompletionItem =
-                    {
-                        label: c.completion,
-                        kind: kind,
-                        detail:  c.signature,
-                        sortText: sortText,
-                        insertText: insert
-                    };
-                    result.push(item);
-
-                    if (result.length === maxCompletions)
-                    {
-                        break;
-                    }
-                }
-                return new CompletionList(result, result.length >= maxCompletions);
-            };
-
-        return runRc(args, process, document);
-    }
-
-    provideSignatureHelp(document: TextDocument, p: Position, _token: CancellationToken) :
-        ProviderResult<SignatureHelp>
-    {
-        const maxCompletions = 20;
-        const at = toRtagsPosition(document.uri, p);
-
-        let args =
-        [
-            "--json",
-            "--synchronous-completions",
-            "--max",
-            maxCompletions.toString(),
-            "--code-complete-at",
-            at
-        ];
-
-        let process =
-            (output: string) : SignatureHelp =>
-            {
-                const o = JSON.parse(output.toString());
-                let result: SignatureInformation[] = [];
-
-                for (let s of o.signatures)
-                {
-                    let signatureInfo: SignatureInformation =
-                    {
-                        label: "test",
-                        parameters: s.parameters
-                    };
-                    result.push(signatureInfo);
-                }
-
-                // FIXME: result not used
-                let signatureHelp: SignatureHelp =
-                {
-                    signatures: o.signatures,
-                    activeSignature: 0,
-                    activeParameter: o.activeParameter
-                };
-                return signatureHelp;
-            };
-
-        return runRc(args, process, document);
     }
 
     provideCodeActions(document: TextDocument, _range: Range, _context: CodeActionContext, _token: CancellationToken) :
@@ -219,7 +63,7 @@ class RtagsCompletionProvider implements
 
                     let command: Command =
                     {
-                        command: RtagsCompletionProvider.commandId,
+                        command: RtagsCodeActionProvider.commandId,
                         title: "Replace with " + replace,
                         arguments: [document, range, replace]
                     };
@@ -331,19 +175,19 @@ class RtagsCompletionProvider implements
 
 export function activate(context: ExtensionContext)
 {
+    let codeActionProvider = new RtagsCodeActionProvider;
     let completionProvider = new RtagsCompletionProvider;
     let definitionProvider = new RtagsDefinitionProvider;
     let symbolProvider = new RtagsSymbolProvider;
     let callHierarchy = new CallHierarchy;
 
     context.subscriptions.push(
+        codeActionProvider,
         completionProvider,
         definitionProvider,
         symbolProvider,
         callHierarchy,
-        languages.registerCompletionItemProvider(RtagsSelector, completionProvider, '.', ':', '>'),
-        languages.registerSignatureHelpProvider(RtagsSelector, completionProvider, '(', ','),
-        languages.registerCodeActionsProvider(RtagsSelector, completionProvider),
+        languages.registerCodeActionsProvider(RtagsSelector, codeActionProvider),
         commands.registerCommand("rtags.addProject", (uri) => { addProject(uri); }),
         commands.registerCommand("rtags.reindex", (uri) => { reindex(uri); }));
 
@@ -366,5 +210,5 @@ export function activate(context: ExtensionContext)
 
     workspace.onDidSaveTextDocument((doc) => { reindex(doc); });
 
-    completionProvider.startDiagnostics();
+    codeActionProvider.startDiagnostics();
 }
