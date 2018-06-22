@@ -1,6 +1,8 @@
 'use strict';
 
-import { languages, CancellationToken, CompletionItemKind, CompletionItem, CompletionItemProvider, CompletionList, Disposable, Position, ProviderResult, Range, SignatureHelp, SignatureHelpProvider, SignatureInformation, SnippetString, TextDocument } from 'vscode';
+import { languages, CancellationToken, CompletionItemKind, CompletionItem, CompletionItemProvider, CompletionList,
+         Disposable, Position, ProviderResult, Range, SignatureHelp, SignatureHelpProvider, SignatureInformation,
+         SnippetString, TextDocument } from 'vscode';
 
 import { RtagsSelector, toRtagsPosition, runRc } from './rtagsUtil';
 

@@ -1,8 +1,8 @@
 'use strict';
 
-import { languages, window, workspace, CancellationToken, Definition, DefinitionProvider, Disposable, Location, Position,
-         ProviderResult, ReferenceContext, TextDocument, TypeDefinitionProvider, ImplementationProvider, Range,
-         ReferenceProvider, RenameProvider, WorkspaceEdit } from 'vscode';
+import { languages, window, workspace, CancellationToken, Definition, DefinitionProvider, Disposable, Location,
+         Position, ProviderResult, ReferenceContext, TextDocument, TypeDefinitionProvider, ImplementationProvider,
+         Range, ReferenceProvider, RenameProvider, WorkspaceEdit } from 'vscode';
 
 import { RtagsSelector, parsePath, toRtagsPosition, runRc } from './rtagsUtil';
 

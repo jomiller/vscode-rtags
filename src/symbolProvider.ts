@@ -1,6 +1,7 @@
 'use strict';
 
-import { languages, CancellationToken, Disposable, DocumentSymbolProvider, Hover, HoverProvider, Position, ProviderResult, SymbolInformation, SymbolKind, TextDocument, WorkspaceSymbolProvider } from 'vscode';
+import { languages, CancellationToken, Disposable, DocumentSymbolProvider, Hover, HoverProvider, Position,
+         ProviderResult, SymbolInformation, SymbolKind, TextDocument, WorkspaceSymbolProvider } from 'vscode';
 
 import { Nullable, RtagsSelector, parsePath, toRtagsPosition, runRc } from './rtagsUtil';
 
