@@ -69,7 +69,15 @@ export class RtagsCodeActionProvider implements
 
     startDiagnostics() : void
     {
-        const rc = spawn("rc", ["--json", "--diagnostics", "--code-completion-enabled"]);
+        let args =
+        [
+            "--json",
+            "--diagnostics",
+            "--code-completion-enabled"
+        ];
+    
+        const rc = spawn("rc", args);
+
         rc.stdout.on("data",
                      (data: string) : void =>
                      {

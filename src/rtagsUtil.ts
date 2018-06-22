@@ -57,6 +57,8 @@ export function runRc(args: string[], process: (stdout: string) => any, doc?: Te
                     resolve(process(stdout));
                 };
 
+            args.push("--silent-query");
+
             let child = execFile("rc", args, options, callback);
 
             if (doc && doc.isDirty)
