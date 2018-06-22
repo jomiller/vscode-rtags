@@ -2,16 +2,18 @@
 
 import { commands, languages, window, workspace, CancellationToken, CodeActionContext, CodeActionProvider, Command,
          CompletionItem, CompletionItemKind, CompletionItemProvider, CompletionList, Diagnostic, DiagnosticCollection,
-         DiagnosticSeverity, Disposable, DocumentSymbolProvider, ExtensionContext, Hover, HoverProvider, Position,
-         ProviderResult, Range, SignatureHelp, SignatureHelpProvider, SignatureInformation, SnippetString,
-         SymbolInformation, SymbolKind, TextDocument, TextDocumentChangeEvent, Uri, WorkspaceEdit,
-         WorkspaceSymbolProvider } from 'vscode';
+         DiagnosticSeverity, Disposable, ExtensionContext, Position, ProviderResult, Range, SignatureHelp,
+         SignatureHelpProvider, SignatureInformation, SnippetString, TextDocument, TextDocumentChangeEvent, Uri,
+         WorkspaceEdit } from 'vscode';
 
 import { spawn } from 'child_process';
 import { setTimeout, clearTimeout } from 'timers';
 
-import { Nullable, RtagsSelector, parsePath, toRtagsPosition, runRc, addProject, reindex }
-         from './rtagsUtil';
+import { Nullable, RtagsSelector, toRtagsPosition, runRc, addProject, reindex } from './rtagsUtil';
+
+import { RtagsDefinitionProvider } from './definitionProvider';
+
+import { RtagsSymbolProvider } from './symbolProvider';
 
 import { CallHierarchy } from './callHierarchy';
 
@@ -57,54 +59,9 @@ function toCompletionItemKind(kind: string) : CompletionItemKind
     return CompletionItemKind.Keyword;
 }
 
-function toSymbolKind(kind: string) : SymbolKind | undefined
-{
-    switch (kind)
-    {
-        case "Namespace":
-            return SymbolKind.Namespace;
-
-        case "EnumDecl":
-            return SymbolKind.Enum;
-
-        case "EnumConstantDecl":
-            return SymbolKind.EnumMember;
-
-        case "ClassDecl":
-        case "StructDecl":
-            return SymbolKind.Class;
-
-        case "CXXConstructor":
-            return SymbolKind.Constructor;
-
-        case "CXXDestructor":
-            return SymbolKind.Constructor;
-
-        case "CXXMethod":
-            return SymbolKind.Method;
-
-        case "FunctionDecl":
-            return SymbolKind.Function;
-
-        case "FieldDecl":
-            return SymbolKind.Field;
-
-        case "ParmDecl":
-            return SymbolKind.Variable;
-
-        case "VarDecl":
-            return SymbolKind.Variable;
-    }
-
-    return undefined;
-}
-
-class RTagsCompletionItemProvider implements
+class RtagsCompletionProvider implements
     CompletionItemProvider,
     SignatureHelpProvider,
-    DocumentSymbolProvider,
-    WorkspaceSymbolProvider,
-    HoverProvider,
     CodeActionProvider,
     Disposable
 {
@@ -114,7 +71,7 @@ class RTagsCompletionItemProvider implements
 
         this.disposables.push(
             this.diagnosticCollection,
-            commands.registerCommand(RTagsCompletionItemProvider.commandId, this.runCodeAction, this));
+            commands.registerCommand(RtagsCompletionProvider.commandId, this.runCodeAction, this));
     }
 
     dispose() : void
@@ -237,38 +194,6 @@ class RTagsCompletionItemProvider implements
         return runRc(args, process, document);
     }
 
-    provideDocumentSymbols(doc: TextDocument, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
-    {
-        return this.findSymbols("", ["--path-filter", doc.uri.fsPath]);
-    }
-
-    provideWorkspaceSymbols(query: string, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
-    {
-        if (query.length < 3)
-        {
-            return [];
-        }
-        return this.findSymbols(query, ["--max", "30"]);
-    }
-
-    provideHover(document: TextDocument, p: Position, _token: CancellationToken) : ProviderResult<Hover>
-    {
-        const at = toRtagsPosition(document.uri, p);
-
-        let process =
-            (output: string) : Nullable<Hover> =>
-            {
-                let m = /^Type:(.*)?(=>|$)/gm.exec(output);
-                if (m)
-                {
-                    return new Hover(m[1].toString());
-                }
-                return null;
-            };
-
-        return runRc(["--absolute-path", "--symbol-info", at], process, document);
-    }
-
     provideCodeActions(document: TextDocument, _range: Range, _context: CodeActionContext, _token: CancellationToken) :
         ProviderResult<Command[]>
     {
@@ -294,7 +219,7 @@ class RTagsCompletionItemProvider implements
 
                     let command: Command =
                     {
-                        command: RTagsCompletionItemProvider.commandId,
+                        command: RtagsCompletionProvider.commandId,
                         title: "Replace with " + replace,
                         arguments: [document, range, replace]
                     };
@@ -331,55 +256,6 @@ class RTagsCompletionItemProvider implements
                   window.showErrorMessage("Diagnostics stopped; restarting");
                   setTimeout(() => { this.startDiagnostics(); }, 10000);
               });
-    }
-
-    private findSymbols(query: string, args: string[] = []) : Thenable<SymbolInformation[]>
-    {
-        query += '*';
-
-        let process =
-            (output: string) : SymbolInformation[] =>
-            {
-                let result: SymbolInformation[] = [];
-                for (let line of output.split("\n"))
-                {
-                    let [path, _unused, name, kind, container] = line.split(/\t+/);
-                    _unused = _unused;
-                    if (!name)
-                    {
-                        continue;
-                    }
-                    const localKind = toSymbolKind(kind);
-                    if (!localKind)
-                    {
-                        continue;
-                    }
-                    const location = parsePath(path);
-
-                    //line.split(/:|function:/).map((x: string) => { return String.prototype.trim.apply(x); });
-
-                    let symbolInfo: SymbolInformation =
-                    {
-                        name: name,
-                        containerName: container,
-                        location: location,
-                        kind: <SymbolKind>localKind
-                    };
-                    result.push(symbolInfo);
-                }
-                return result;
-            };
-
-        args.push("--wildcard-symbol-names",
-                  "--absolute-path",
-                  "--containing-function",
-                  "--match-icase",
-                  "--find-symbols",
-                  query,
-                  "--cursor-kind",
-                  "--display-name");
-
-        return runRc(args, process);
     }
 
     private runCodeAction(document: TextDocument, range: Range, newText: string) : any
@@ -455,18 +331,19 @@ class RTagsCompletionItemProvider implements
 
 export function activate(context: ExtensionContext)
 {
-    let r = new RTagsCompletionItemProvider;
-    let ch = new CallHierarchy;
+    let completionProvider = new RtagsCompletionProvider;
+    let definitionProvider = new RtagsDefinitionProvider;
+    let symbolProvider = new RtagsSymbolProvider;
+    let callHierarchy = new CallHierarchy;
 
     context.subscriptions.push(
-        r,
-        ch,
-        languages.registerCompletionItemProvider(RtagsSelector, r, '.', ':', '>'),
-        languages.registerSignatureHelpProvider(RtagsSelector, r, '(', ','),
-        languages.registerDocumentSymbolProvider(RtagsSelector, r),
-        languages.registerWorkspaceSymbolProvider(r),
-        languages.registerHoverProvider(RtagsSelector, r),
-        languages.registerCodeActionsProvider(RtagsSelector, r),
+        completionProvider,
+        definitionProvider,
+        symbolProvider,
+        callHierarchy,
+        languages.registerCompletionItemProvider(RtagsSelector, completionProvider, '.', ':', '>'),
+        languages.registerSignatureHelpProvider(RtagsSelector, completionProvider, '(', ','),
+        languages.registerCodeActionsProvider(RtagsSelector, completionProvider),
         commands.registerCommand("rtags.addProject", (uri) => { addProject(uri); }),
         commands.registerCommand("rtags.reindex", (uri) => { reindex(uri); }));
 
@@ -489,5 +366,5 @@ export function activate(context: ExtensionContext)
 
     workspace.onDidSaveTextDocument((doc) => { reindex(doc); });
 
-    r.startDiagnostics();
+    completionProvider.startDiagnostics();
 }
