@@ -1,20 +1,19 @@
 'use strict';
 
 import { commands, languages, window, workspace, CancellationToken, CodeActionContext, CodeActionProvider, Command,
-         CompletionItem, CompletionItemKind, CompletionItemProvider, CompletionList, Definition, DefinitionProvider,
-         Diagnostic, DiagnosticCollection, DiagnosticSeverity, Disposable, DocumentSymbolProvider, ExtensionContext,
-         Hover, HoverProvider, ImplementationProvider, Location, Position, ProviderResult, Range, ReferenceContext,
-         ReferenceProvider, RenameProvider, SignatureHelp, SignatureHelpProvider, SignatureInformation, SnippetString,
-         SymbolInformation, SymbolKind, TextDocument, TextDocumentChangeEvent, TypeDefinitionProvider, Uri,
-         WorkspaceEdit, WorkspaceSymbolProvider } from 'vscode';
+         CompletionItem, CompletionItemKind, CompletionItemProvider, CompletionList, Diagnostic, DiagnosticCollection,
+         DiagnosticSeverity, Disposable, DocumentSymbolProvider, ExtensionContext, Hover, HoverProvider, Position,
+         ProviderResult, Range, SignatureHelp, SignatureHelpProvider, SignatureInformation, SnippetString,
+         SymbolInformation, SymbolKind, TextDocument, TextDocumentChangeEvent, Uri, WorkspaceEdit,
+         WorkspaceSymbolProvider } from 'vscode';
 
 import { spawn } from 'child_process';
 import { setTimeout, clearTimeout } from 'timers';
 
-import { Nullable, RtagsSelector, ReferenceType, parsePath, toRtagsPosition, runRc, addProject, reindex }
+import { Nullable, RtagsSelector, parsePath, toRtagsPosition, runRc, addProject, reindex }
          from './rtagsUtil';
 
-import { Caller, CallHierarchy } from './callHierarchy';
+import { CallHierarchy } from './callHierarchy';
 
 function toCompletionItemKind(kind: string) : CompletionItemKind
 {
@@ -100,76 +99,18 @@ function toSymbolKind(kind: string) : SymbolKind | undefined
     return undefined;
 }
 
-function getDefinitions(document: TextDocument, p: Position, type: number = ReferenceType.Definition) :
-    Thenable<Location[]>
-{
-    const at = toRtagsPosition(document.uri, p);
-
-    let args = ["--absolute-path"];
-
-    switch (type)
-    {
-        case ReferenceType.Virtuals:
-            args.push("--find-virtuals", "--references", at);
-            break;
-
-        case ReferenceType.References:
-            args.push("--references", at);
-            break;
-
-        case ReferenceType.Rename:
-            args.push("--rename", "--all-references", "--references", at);
-            break;
-
-        case ReferenceType.Definition:
-            args.push("--follow-location", at);
-            break;
-    }
-
-    let process =
-        (output: string) : Location[] =>
-        {
-            let result: Location[] = [];
-            try
-            {
-                for (let line of output.toString().split("\n"))
-                {
-                    if (!line)
-                    {
-                        continue;
-                    }
-                    let [location] = line.split("\t", 1);
-                    result.push(parsePath(location));
-                }
-            }
-            catch (_err)
-            {
-                return result;
-            }
-
-            return result;
-        };
-
-    return runRc(args, process, document);
-}
-
 class RTagsCompletionItemProvider implements
     CompletionItemProvider,
     SignatureHelpProvider,
     DocumentSymbolProvider,
     WorkspaceSymbolProvider,
-    DefinitionProvider,
-    TypeDefinitionProvider,
-    ImplementationProvider,
-    ReferenceProvider,
     HoverProvider,
     CodeActionProvider,
-    RenameProvider,
     Disposable
 {
     constructor()
     {
-        this.diagnosticCollection = languages.createDiagnosticCollection("RTAGS");
+        this.diagnosticCollection = languages.createDiagnosticCollection("rtags");
 
         this.disposables.push(
             this.diagnosticCollection,
@@ -310,33 +251,6 @@ class RTagsCompletionItemProvider implements
         return this.findSymbols(query, ["--max", "30"]);
     }
 
-    provideDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
-        ProviderResult<Definition>
-    {
-        return getDefinitions(document, position);
-    }
-
-    provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
-        ProviderResult<Definition>
-    {
-        return getDefinitions(document, position, ReferenceType.Virtuals);
-    }
-
-    provideImplementation(document: TextDocument, position: Position, _token: CancellationToken) :
-        ProviderResult<Definition>
-    {
-        return getDefinitions(document, position);
-    }
-
-    provideReferences(document: TextDocument,
-                      position: Position,
-                      _context: ReferenceContext,
-                      _token: CancellationToken) :
-        ProviderResult<Location[]>
-    {
-        return getDefinitions(document, position, ReferenceType.References);
-    }
-
     provideHover(document: TextDocument, p: Position, _token: CancellationToken) : ProviderResult<Hover>
     {
         const at = toRtagsPosition(document.uri, p);
@@ -390,37 +304,6 @@ class RTagsCompletionItemProvider implements
             };
 
         return runRc(["--fixits", document.fileName], process);
-    }
-
-    provideRenameEdits(document: TextDocument, position: Position, newName: string, _token: CancellationToken) :
-        ProviderResult<WorkspaceEdit>
-    {
-        for (let doc of workspace.textDocuments)
-        {
-            if (((doc.languageId === "cpp") || (doc.languageId === "c")) && doc.isDirty)
-            {
-                window.showInformationMessage("Save all source files first before renaming");
-                return null;
-            }
-        }
-
-        let wr = document.getWordRangeAtPosition(position);
-        let diff = wr ? (wr.end.character - wr.start.character) : undefined;
-
-        let edits: WorkspaceEdit = new WorkspaceEdit;
-
-        let resolve =
-            (results: Location[]) : WorkspaceEdit =>
-            {
-                for (let r of results)
-                {
-                    let end = r.range.end.translate(0, diff);
-                    edits.replace(r.uri, new Range(r.range.start, end), newName);
-                }
-                return edits;
-            };
-
-        return getDefinitions(document, position, ReferenceType.Rename).then(resolve);
     }
 
     startDiagnostics() : void
@@ -582,22 +465,10 @@ export function activate(context: ExtensionContext)
         languages.registerSignatureHelpProvider(RtagsSelector, r, '(', ','),
         languages.registerDocumentSymbolProvider(RtagsSelector, r),
         languages.registerWorkspaceSymbolProvider(r),
-        languages.registerDefinitionProvider(RtagsSelector, r),
-        languages.registerTypeDefinitionProvider(RtagsSelector, r),
-        languages.registerImplementationProvider(RtagsSelector, r),
-        languages.registerReferenceProvider(RtagsSelector, r),
         languages.registerHoverProvider(RtagsSelector, r),
         languages.registerCodeActionsProvider(RtagsSelector, r),
-        languages.registerRenameProvider(RtagsSelector, r),
-        commands.registerCommand("rtags.addproject", (uri) => { addProject(uri); }),
-        commands.registerCommand("rtags.reindex", (uri) => { reindex(uri); }),
-        commands.registerCommand("rtags.callhierarchy", () => { ch.refresh(); }),
-        commands.registerCommand("rtags.selectLocation",
-                                 (caller: Caller) : void =>
-                                 {
-                                     window.showTextDocument(caller.containerLocation.uri,
-                                                             {selection: caller.location.range});
-                                 }));
+        commands.registerCommand("rtags.addProject", (uri) => { addProject(uri); }),
+        commands.registerCommand("rtags.reindex", (uri) => { reindex(uri); }));
 
     let timerId: Nullable<NodeJS.Timer> = null;
     workspace.onDidChangeTextDocument(

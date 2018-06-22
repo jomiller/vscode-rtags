@@ -23,7 +23,7 @@
     "contributes": {
         "commands": [
             {
-                "command": "rtags.callhierarchy",
+                "command": "rtags.callHierarchy",
                 "title": "Call Hierarchy"
             },
             {
@@ -35,15 +35,15 @@
                 "title": "Go to location"
             },
             {
-                "command": "rtags.addproject",
-                "title": "Add project"
+                "command": "rtags.addProject",
+                "title": "Add rtags project"
             }
         ],
         "views": {
             "explorer": [
                 {
                     "id": "rtagsCallHierarchy",
-                    "name": "CallHierarchy"
+                    "name": "Call Hierarchy"
                 }
             ]
         },
@@ -51,18 +51,18 @@
             "explorer/context": [
                 {
                     "command": "rtags.reindex",
-                    "name": "Reindex"
+                    "name": "Reindex file"
                 },
                 {
-                    "command": "rtags.addproject",
+                    "command": "rtags.addProject",
                     "name": "Add rtags project",
                     "when": "explorerResourceIsFolder"
                 }
             ],
             "editor/context": [
                 {
-                    "command": "rtags.callhierarchy",
-                    "name": "CallHierarchy"
+                    "command": "rtags.callHierarchy",
+                    "name": "Call Hierarchy"
                 }
             ],
             "view/item/context": [

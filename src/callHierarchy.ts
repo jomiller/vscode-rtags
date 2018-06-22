@@ -1,11 +1,11 @@
 'use strict';
 
-import { window, workspace, Disposable, Event, EventEmitter, Location, Position, ProviderResult, TextDocument,
-         TreeDataProvider, TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
+import { commands, window, workspace, Disposable, Event, EventEmitter, Location, Position, ProviderResult,
+         TextDocument, TreeDataProvider, TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
 
 import { Nullable, parsePath, toRtagsPosition, runRc } from './rtagsUtil';
 
-export interface Caller
+interface Caller
 {
     location: Location;
     containerName: string;
@@ -68,12 +68,23 @@ export class CallHierarchy implements TreeDataProvider<Caller>, Disposable
 {
     constructor()
     {
-        this.provider = window.registerTreeDataProvider("rtagsCallHierarchy", this);
+        this.disposables.push(
+            window.registerTreeDataProvider("rtagsCallHierarchy", this),
+            commands.registerCommand("rtags.callHierarchy", () => { this.refresh(); }),
+            commands.registerCommand("rtags.selectLocation",
+                                     (caller: Caller) : void =>
+                                     {
+                                         window.showTextDocument(caller.containerLocation.uri,
+                                                                 {selection: caller.location.range});
+                                     }));
     }
 
     dispose() : void
     {
-        this.provider.dispose();
+        for (let d of this.disposables)
+        {
+            d.dispose();
+        }
     }
 
     getTreeItem(caller: Caller) : TreeItem | Thenable<TreeItem>
@@ -111,12 +122,12 @@ export class CallHierarchy implements TreeDataProvider<Caller>, Disposable
         return getCallers(node.document, node.containerLocation.uri, node.containerLocation.range.start);
     }
 
-    refresh() : void
+    private refresh() : void
     {
         this.onDidChangeEmitter.fire();
     }
 
-    private provider: Disposable;
+    private disposables: Disposable[] = [];
     private onDidChangeEmitter: EventEmitter<Nullable<Caller>> = new EventEmitter<Nullable<Caller>>();
     readonly onDidChangeTreeData: Event<Nullable<Caller>> = this.onDidChangeEmitter.event;
 }

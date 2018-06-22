@@ -12,15 +12,6 @@ export const RtagsSelector =
     { language: "c",   scheme: "file" }
 ];
 
-export enum ReferenceType
-{
-    Definition,
-    Virtuals,
-    References,
-    Rename,
-    SymbolInfo
-}
-
 export function parsePath(path: string) : Location
 {
     let [file, l, c] = path.split(':');
