@@ -4,9 +4,9 @@ import { commands, languages, window, workspace, CancellationToken, CodeActionCo
          Diagnostic, DiagnosticCollection, DiagnosticSeverity, Disposable, Position, ProviderResult, Range,
          TextDocument, Uri, WorkspaceEdit } from 'vscode';
 
-import { spawn } from 'child_process';
+import { ChildProcess, spawn } from 'child_process';
 
-import { RtagsSelector, runRc } from './rtagsUtil';
+import { Nullable, RtagsSelector, runRc } from './rtagsUtil';
 
 export class RtagsCodeActionProvider implements
     CodeActionProvider,
@@ -20,10 +20,14 @@ export class RtagsCodeActionProvider implements
             this.diagnosticCollection,
             languages.registerCodeActionsProvider(RtagsSelector, this),
             commands.registerCommand(RtagsCodeActionProvider.commandId, this.runCodeAction, this));
+
+        this.startDiagnostics();
     }
 
     dispose() : void
     {
+        this.stopDiagnostics();
+
         for (let d of this.disposables)
         {
             d.dispose();
@@ -67,7 +71,7 @@ export class RtagsCodeActionProvider implements
         return runRc(["--fixits", document.fileName], process);
     }
 
-    startDiagnostics() : void
+    private startDiagnostics() : void
     {
         let args =
         [
@@ -76,30 +80,47 @@ export class RtagsCodeActionProvider implements
             "--code-completion-enabled"
         ];
     
-        const rc = spawn("rc", args);
+        this.diagnosticProcess = spawn("rc", args);
 
-        rc.stdout.on("data",
-                     (data: string) : void =>
-                     {
-                         try
-                         {
-                             this.unprocessedDiagnostics = this.processDiagnostics(
-                                 this.unprocessedDiagnostics + data.toString());
-                         }
-                         catch (_err)
-                         {
-                             this.unprocessedDiagnostics = "";
-                         }
-                     });
+        let dataCallback =
+            (data: string) : void =>
+            {
+                try
+                {
+                    this.unprocessedDiagnostics = this.processDiagnostics(
+                        this.unprocessedDiagnostics + data.toString());
+                }
+                catch (_err)
+                {
+                    this.unprocessedDiagnostics = "";
+                }
+            };
 
-        rc.on("exit",
-              (_code: number, _signal: string) : void =>
-              {
-                  this.diagnosticCollection.clear();
-                  this.unprocessedDiagnostics = "";
-                  window.showErrorMessage("Diagnostics stopped; restarting");
-                  setTimeout(() => { this.startDiagnostics(); }, 10000);
-              });
+        this.diagnosticProcess.stdout.on("data", dataCallback);
+
+        let exitCallback =
+            (_code: number, signal: string) : void =>
+            {
+                this.diagnosticCollection.clear();
+                this.unprocessedDiagnostics = "";
+                let message = "Diagnostics stopped";
+                if (signal !== "SIGTERM")
+                {
+                    message += "; restarting";
+                    setTimeout(() => { this.startDiagnostics(); }, 10000);
+                }
+                window.showErrorMessage(message);
+            };
+
+        this.diagnosticProcess.on("exit", exitCallback);
+    }
+
+    private stopDiagnostics() : void
+    {
+        if (this.diagnosticProcess)
+        {
+            this.diagnosticProcess.kill("SIGTERM");
+        }
     }
 
     private runCodeAction(document: TextDocument, range: Range, newText: string) : any
@@ -157,7 +178,7 @@ export class RtagsCodeActionProvider implements
                     message: d.message,
                     range: new Range(p, p),
                     severity: DiagnosticSeverity.Error,
-                    source: "rtags",
+                    source: "RTags",
                     code: 0
                 };
                 diags.push(diag);
@@ -170,5 +191,6 @@ export class RtagsCodeActionProvider implements
 
     private disposables: Disposable[] = [];
     private diagnosticCollection: DiagnosticCollection;
+    private diagnosticProcess: Nullable<ChildProcess> = null;
     private unprocessedDiagnostics: string = "";
 }

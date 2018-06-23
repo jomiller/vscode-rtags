@@ -51,6 +51,4 @@ export function activate(context: ExtensionContext)
         });
 
     workspace.onDidSaveTextDocument((doc) => { reindex(doc); });
-
-    codeActionProvider.startDiagnostics();
 }
