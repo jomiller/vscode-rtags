@@ -1,6 +1,8 @@
 'use strict';
 
-import { commands, workspace, ExtensionContext, TextDocumentChangeEvent } from 'vscode';
+import { commands, window, workspace, ExtensionContext, TextDocumentChangeEvent } from 'vscode';
+
+import { spawn, spawnSync, SpawnOptions } from 'child_process';
 
 import { setTimeout, clearTimeout } from 'timers';
 
@@ -16,8 +18,35 @@ import { RtagsSymbolProvider } from './symbolProvider';
 
 import { CallHierarchy } from './callHierarchy';
 
-export function activate(context: ExtensionContext)
+function startDaemon() : void
 {
+    let rc = spawnSync("rc", ["--project", "--silent-query"]);
+    if (rc.status !== 0)
+    {
+        let options: SpawnOptions =
+        {
+            detached: true,
+            stdio: "ignore"
+        };
+
+        let rdm = spawn("rdm", [], options);
+
+        if (rdm.pid)
+        {
+            rdm.unref();
+            window.showInformationMessage("Started RTags daemon successfully");
+        }
+        else
+        {
+            window.showErrorMessage("Could not start RTags daemon; start it by running 'rdm'");
+        }
+    }
+}
+
+export function activate(context: ExtensionContext) : void
+{
+    startDaemon();
+
     let codeActionProvider = new RtagsCodeActionProvider;
     let completionProvider = new RtagsCompletionProvider;
     let definitionProvider = new RtagsDefinitionProvider;

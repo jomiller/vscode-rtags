@@ -103,13 +103,11 @@ export class RtagsCodeActionProvider implements
             {
                 this.diagnosticCollection.clear();
                 this.unprocessedDiagnostics = "";
-                let message = "Diagnostics stopped";
                 if (signal !== "SIGTERM")
                 {
-                    message += "; restarting";
+                    window.showErrorMessage("Diagnostics stopped; restarting");
                     setTimeout(() => { this.startDiagnostics(); }, 10000);
                 }
-                window.showErrorMessage(message);
             };
 
         this.diagnosticProcess.on("exit", exitCallback);
@@ -120,6 +118,7 @@ export class RtagsCodeActionProvider implements
         if (this.diagnosticProcess)
         {
             this.diagnosticProcess.kill("SIGTERM");
+            this.diagnosticProcess = null;
         }
     }
 
