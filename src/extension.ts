@@ -19,7 +19,7 @@ import { RtagsSymbolProvider } from './symbolProvider';
 
 import { CallHierarchyProvider } from './callHierarchy';
 
-function startDaemon() : void
+function startServer() : void
 {
     let rc = spawnSync("rc", ["--project", "--silent-query"]);
     if (rc.status !== 0)
@@ -35,11 +35,11 @@ function startDaemon() : void
         if (rdm.pid)
         {
             rdm.unref();
-            window.showInformationMessage("Started RTags daemon successfully");
+            window.showInformationMessage("Started RTags server successfully");
         }
         else
         {
-            window.showErrorMessage("Could not start RTags daemon; start it by running 'rdm'");
+            window.showErrorMessage("Could not start RTags server; start it by running 'rdm'");
         }
     }
 }
@@ -84,15 +84,15 @@ function reindex(doc?: TextDocument) : void
     }
     else
     {
-        let promise = runRc(["--reindex"], (_unused) => {});
+        let promise = runRc(["--reindex", "--silent"], (_unused) => {});
 
-        promise.then(() => runRc(["--diagnose-all"], (_unused) => {}));
+        promise.then(() => { runRc(["--diagnose-all"], (_unused) => {}); });
     }
 }
 
 export function activate(context: ExtensionContext) : void
 {
-    startDaemon();
+    startServer();
 
     let codeActionProvider = new RtagsCodeActionProvider;
     let completionProvider = new RtagsCompletionProvider;
