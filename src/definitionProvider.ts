@@ -4,7 +4,7 @@ import { languages, window, workspace, CancellationToken, Definition, Definition
          Position, ProviderResult, ReferenceContext, TextDocument, TypeDefinitionProvider, ImplementationProvider,
          Range, ReferenceProvider, RenameProvider, WorkspaceEdit } from 'vscode';
 
-import { RtagsSelector, parsePath, toRtagsPosition, runRc } from './rtagsUtil';
+import { RtagsSelector, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
 
 enum ReferenceType
 {
@@ -14,29 +14,29 @@ enum ReferenceType
     Rename
 }
 
-function getDefinitions(document: TextDocument, p: Position, type: number = ReferenceType.Definition) :
+function getDefinitions(document: TextDocument, position: Position, type: number = ReferenceType.Definition) :
     Thenable<Location[]>
 {
-    const at = toRtagsPosition(document.uri, p);
+    const location = toRtagsLocation(document.uri, position);
 
     let args = ["--absolute-path"];
 
     switch (type)
     {
+        case ReferenceType.Definition:
+            args.push("--follow-location", location);
+            break;
+
         case ReferenceType.Virtuals:
-            args.push("--find-virtuals", "--references", at);
+            args.push("--find-virtuals", "--references", location);
             break;
 
         case ReferenceType.References:
-            args.push("--references", at);
+            args.push("--references", location);
             break;
 
         case ReferenceType.Rename:
-            args.push("--rename", "--all-references", "--references", at);
-            break;
-
-        case ReferenceType.Definition:
-            args.push("--follow-location", at);
+            args.push("--rename", "--all-references", "--references", location);
             break;
     }
 
@@ -53,7 +53,7 @@ function getDefinitions(document: TextDocument, p: Position, type: number = Refe
                         continue;
                     }
                     let [location] = line.split("\t", 1);
-                    result.push(parsePath(location));
+                    result.push(fromRtagsLocation(location));
                 }
             }
             catch (_err)

@@ -3,7 +3,7 @@
 import { commands, window, workspace, Disposable, Event, EventEmitter, Location, Position, ProviderResult,
          TextDocument, TreeDataProvider, TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
 
-import { Nullable, setContext, parsePath, toRtagsPosition, runRc } from './rtagsUtil';
+import { Nullable, setContext, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
 
 interface Caller
 {
@@ -14,9 +14,9 @@ interface Caller
     context: string;
 }
 
-function getCallers(document: TextDocument | undefined, uri: Uri, p: Position) : Thenable<Caller[]>
+function getCallers(document: TextDocument | undefined, uri: Uri, position: Position) : Thenable<Caller[]>
 {
-    const at = toRtagsPosition(uri, p);
+    const location = toRtagsLocation(uri, position);
 
     let args =
     [
@@ -25,7 +25,7 @@ function getCallers(document: TextDocument | undefined, uri: Uri, p: Position) :
         "--containing-function",
         "--containing-function-location",
         "--references",
-        at
+        location
     ];
 
     let process =
@@ -39,13 +39,13 @@ function getCallers(document: TextDocument | undefined, uri: Uri, p: Position) :
             {
                 try
                 {
-                    let containerLocation = parsePath(c.cfl);
+                    let containerLocation = fromRtagsLocation(c.cfl);
                     let doc = workspace.textDocuments.find(
                         (v, _i) => { return (v.uri.fsPath === containerLocation.uri.fsPath); });
 
                     let caller: Caller =
                     {
-                        location: parsePath(c.loc),
+                        location: fromRtagsLocation(c.loc),
                         containerName: c.cf.trim(),
                         containerLocation: containerLocation,
                         document: doc,

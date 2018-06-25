@@ -4,7 +4,7 @@ import { languages, CancellationToken, CompletionItemKind, CompletionItem, Compl
          Disposable, Position, ProviderResult, Range, SignatureHelp, SignatureHelpProvider, SignatureInformation,
          SnippetString, TextDocument } from 'vscode';
 
-import { RtagsSelector, toRtagsPosition, runRc } from './rtagsUtil';
+import { RtagsSelector, toRtagsLocation, runRc } from './rtagsUtil';
 
 function toCompletionItemKind(kind: string) : CompletionItemKind
 {
@@ -68,13 +68,13 @@ export class RtagsCompletionProvider implements
         }
     }
 
-    provideCompletionItems(document: TextDocument, p: Position, _token: CancellationToken) :
+    provideCompletionItems(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<CompletionItem[] | CompletionList>
     {
-        const wordRange = document.getWordRangeAtPosition(p);
-        const range = wordRange ? new Range(wordRange.start, p) : null;
+        const wordRange = document.getWordRangeAtPosition(position);
+        const range = wordRange ? new Range(wordRange.start, position) : null;
         const maxCompletions = 20;
-        const at = toRtagsPosition(document.uri, p);
+        const location = toRtagsLocation(document.uri, position);
 
         let args =
         [
@@ -83,7 +83,7 @@ export class RtagsCompletionProvider implements
             "--max",
             maxCompletions.toString(),
             "--code-complete-at",
-            at
+            location
         ];
 
         if (range)
@@ -135,11 +135,11 @@ export class RtagsCompletionProvider implements
         return runRc(args, process, document);
     }
 
-    provideSignatureHelp(document: TextDocument, p: Position, _token: CancellationToken) :
+    provideSignatureHelp(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<SignatureHelp>
     {
         const maxCompletions = 20;
-        const at = toRtagsPosition(document.uri, p);
+        const location = toRtagsLocation(document.uri, position);
 
         let args =
         [
@@ -148,7 +148,7 @@ export class RtagsCompletionProvider implements
             "--max",
             maxCompletions.toString(),
             "--code-complete-at",
-            at
+            location
         ];
 
         let process =

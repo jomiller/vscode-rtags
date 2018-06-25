@@ -17,18 +17,18 @@ export function setContext(name: any, value: any) : void
     commands.executeCommand("setContext", name, value);
 }
 
-export function parsePath(path: string) : Location
+export function fromRtagsLocation(path: string) : Location
 {
-    let [file, l, c] = path.split(':');
-    let p = new Position(parseInt(l) - 1, parseInt(c) - 1);
+    let [file, line, col] = path.split(':');
+    let position = new Position(parseInt(line) - 1, parseInt(col) - 1);
     let uri = Uri.file(file);
-    return new Location(uri, p);
+    return new Location(uri, position);
 }
 
-export function toRtagsPosition(uri: Uri, pos: Position) : string
+export function toRtagsLocation(uri: Uri, position: Position) : string
 {
-    const at = uri.fsPath + ':' + (pos.line + 1) + ':' + (pos.character + 1);
-    return at;
+    const location = uri.fsPath + ':' + (position.line + 1) + ':' + (position.character + 1);
+    return location;
 }
 
 export function runRc(args: string[], process: (stdout: string) => any, doc?: TextDocument) : Thenable<any>

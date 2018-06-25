@@ -3,7 +3,7 @@
 import { languages, CancellationToken, Disposable, DocumentSymbolProvider, Hover, HoverProvider, Position,
          ProviderResult, SymbolInformation, SymbolKind, TextDocument, WorkspaceSymbolProvider } from 'vscode';
 
-import { Nullable, RtagsSelector, parsePath, toRtagsPosition, runRc } from './rtagsUtil';
+import { Nullable, RtagsSelector, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
 
 function toSymbolKind(kind: string) : SymbolKind | undefined
 {
@@ -68,7 +68,7 @@ function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInform
                 {
                     continue;
                 }
-                const location = parsePath(path);
+                const location = fromRtagsLocation(path);
 
                 //line.split(/:|function:/).map((x: string) => { return String.prototype.trim.apply(x); });
 
@@ -85,13 +85,13 @@ function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInform
         };
 
     args.push("--wildcard-symbol-names",
-                "--absolute-path",
-                "--containing-function",
-                "--match-icase",
-                "--find-symbols",
-                query,
-                "--cursor-kind",
-                "--display-name");
+              "--absolute-path",
+              "--containing-function",
+              "--match-icase",
+              "--find-symbols",
+              query,
+              "--cursor-kind",
+              "--display-name");
 
     return runRc(args, process);
 }
@@ -132,9 +132,9 @@ export class RtagsSymbolProvider implements
         return findSymbols(query, ["--max", "30"]);
     }
 
-    provideHover(document: TextDocument, p: Position, _token: CancellationToken) : ProviderResult<Hover>
+    provideHover(document: TextDocument, position: Position, _token: CancellationToken) : ProviderResult<Hover>
     {
-        const at = toRtagsPosition(document.uri, p);
+        const location = toRtagsLocation(document.uri, position);
 
         let process =
             (output: string) : Nullable<Hover> =>
@@ -147,7 +147,7 @@ export class RtagsSymbolProvider implements
                 return null;
             };
 
-        return runRc(["--absolute-path", "--symbol-info", at], process, document);
+        return runRc(["--absolute-path", "--symbol-info", location], process, document);
     }
 
     private disposables: Disposable[] = [];
