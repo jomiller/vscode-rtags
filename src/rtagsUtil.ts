@@ -1,6 +1,6 @@
 'use strict';
 
-import { languages, window, Location, Position, TextDocument, Uri } from 'vscode';
+import { commands, window, Location, Position, TextDocument, Uri } from 'vscode';
 
 import { execFile, ExecFileOptions } from 'child_process';
 
@@ -11,6 +11,11 @@ export const RtagsSelector =
     { language: "cpp", scheme: "file" },
     { language: "c",   scheme: "file" }
 ];
+
+export function setContext(name: any, value: any) : void
+{
+    commands.executeCommand("setContext", name, value);
+}
 
 export function parsePath(path: string) : Location
 {
@@ -68,57 +73,4 @@ export function runRc(args: string[], process: (stdout: string) => any, doc?: Te
         };
 
     return new Promise(executor);
-}
-
-function diagnose(uri: Uri) : void
-{
-    const path = uri.fsPath;
-
-    runRc(["--json", "--diagnose", path], (_) => {});
-}
-
-export function addProject(uri: Uri) : void
-{
-    runRc(["--load-compile-commands", uri.fsPath],
-          (output: string) : void =>
-          {
-              window.showInformationMessage(output);
-          });
-}
-
-function isTextDocument(file: TextDocument | Uri) : file is TextDocument
-{
-    return ((<TextDocument>file).uri !== undefined);
-}
-
-export function reindex(file: TextDocument | Uri) : void
-{
-    let doc: TextDocument | undefined = undefined;
-    let uri: Uri;
-
-    if (isTextDocument(file))
-    {
-        doc = file;
-        uri = doc.uri;
-
-        if (languages.match(RtagsSelector, doc) === 0)
-        {
-            return;
-        }
-    }
-    else
-    {
-        uri = file;
-    }
-
-    runRc(["--reindex", uri.fsPath],
-          (output: string) : void =>
-          {
-              if (output === "No matches")
-              {
-                  return;
-              }
-              setTimeout(diagnose, 1000, uri);
-          },
-          doc);
 }

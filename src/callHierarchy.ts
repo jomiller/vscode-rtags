@@ -3,7 +3,7 @@
 import { commands, window, workspace, Disposable, Event, EventEmitter, Location, Position, ProviderResult,
          TextDocument, TreeDataProvider, TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
 
-import { Nullable, parsePath, toRtagsPosition, runRc } from './rtagsUtil';
+import { Nullable, setContext, parsePath, toRtagsPosition, runRc } from './rtagsUtil';
 
 interface Caller
 {
@@ -64,14 +64,25 @@ function getCallers(document: TextDocument | undefined, uri: Uri, p: Position) :
     return runRc(args, process, document);
 }
 
-export class CallHierarchy implements TreeDataProvider<Caller>, Disposable
+export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposable
 {
     constructor()
     {
         this.disposables.push(
-            window.registerTreeDataProvider("rtagsCallHierarchy", this),
-            commands.registerCommand("rtags.callHierarchy", () => { this.refresh(); }),
-            commands.registerCommand("rtags.selectLocation",
+            window.registerTreeDataProvider("rtags.callHierarchy", this),
+            commands.registerCommand("rtags.callHierarchy",
+                                     () : void =>
+                                     {
+                                         setContext("extension.rtags.callHierarchyVisible", true);
+                                         this.refresh();
+                                     }),
+            commands.registerCommand("rtags.closeCallHierarchy",
+                                     () : void =>
+                                     {
+                                         setContext("extension.rtags.callHierarchyVisible", false);
+                                         this.refresh();
+                                     }),
+            commands.registerCommand("rtags.gotoLocation",
                                      (caller: Caller) : void =>
                                      {
                                          window.showTextDocument(caller.containerLocation.uri,

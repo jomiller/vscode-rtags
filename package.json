@@ -1,10 +1,11 @@
 {
     "name": "rtags-client",
-    "description": "Rtags client",
+    "description": "RTags client",
     "author": "yorver",
     "license": "SEE LICENSE IN License.txt",
     "version": "0.4.0",
     "publisher": "jomiller",
+    "preview": true,
     "repository": {
         "type": "git",
         "url": "https://github.com/jomiller/rtags-vscode"
@@ -13,65 +14,76 @@
         "vscode": "^1.16.0"
     },
     "categories": [
-        "Other"
+        "Programming Languages"
     ],
     "activationEvents": [
         "onLanguage:cpp",
-        "onLanguage:c"
+        "onLanguage:c",
+        "workspaceContains:compile_commands.json"
     ],
     "main": "./out/extension",
     "contributes": {
-        "commands": [
-            {
-                "command": "rtags.callHierarchy",
-                "title": "Call Hierarchy"
-            },
-            {
-                "command": "rtags.reindex",
-                "title": "Reindex file"
-            },
-            {
-                "command": "rtags.selectLocation",
-                "title": "Go to location"
-            },
-            {
-                "command": "rtags.addProject",
-                "title": "Add rtags project"
-            }
-        ],
         "views": {
             "explorer": [
                 {
-                    "id": "rtagsCallHierarchy",
-                    "name": "Call Hierarchy"
+                    "id": "rtags.callHierarchy",
+                    "name": "Call Hierarchy",
+                    "when": "extension.rtags.callHierarchyVisible"
                 }
             ]
         },
         "menus": {
-            "explorer/context": [
-                {
-                    "command": "rtags.reindex",
-                    "name": "Reindex file"
-                },
-                {
-                    "command": "rtags.addProject",
-                    "name": "Add rtags project",
-                    "when": "explorerResourceIsFolder"
-                }
-            ],
             "editor/context": [
                 {
                     "command": "rtags.callHierarchy",
-                    "name": "Call Hierarchy"
+                    "when": "resourceLangId == cpp",
+                    "group": "navigation@2"
+                }
+            ],
+            "view/title": [
+                {
+                  "command": "rtags.closeCallHierarchy",
+                  "when": "view == rtags.callHierarchy",
+                  "group": "navigation"
                 }
             ],
             "view/item/context": [
                 {
-                    "command": "rtags.selectLocation",
-                    "when": "viewItem == rtagsLocation && view == rtagsCallHierarchy"
+                    "command": "rtags.gotoLocation",
+                    "when": "viewItem == rtagsLocation && view == rtags.callHierarchy"
+                }
+            ],
+            "commandPalette": [
+                {
+                    "command": "rtags.closeCallHierarchy",
+                    "when": "false"
+                },
+                {
+                    "command": "rtags.gotoLocation",
+                    "when": "false"
                 }
             ]
-        }
+        },
+        "commands": [
+            {
+                "command": "rtags.freshenIndex",
+                "title": "Freshen Index",
+                "category": "RTags"
+            },
+            {
+                "command": "rtags.callHierarchy",
+                "title": "Call Hierarchy",
+                "category": "RTags"
+            },
+            {
+                "command": "rtags.closeCallHierarchy",
+                "title": "Close"
+            },
+            {
+                "command": "rtags.gotoLocation",
+                "title": "Go to Location"
+            }
+        ]
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",

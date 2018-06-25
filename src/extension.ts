@@ -1,12 +1,13 @@
 'use strict';
 
-import { commands, window, workspace, ExtensionContext, TextDocumentChangeEvent } from 'vscode';
+import { commands, languages, window, workspace, ExtensionContext, TextDocument, TextDocumentChangeEvent }
+         from 'vscode';
 
 import { spawn, spawnSync, SpawnOptions } from 'child_process';
 
 import { setTimeout, clearTimeout } from 'timers';
 
-import { Nullable, addProject, reindex } from './rtagsUtil';
+import { Nullable, RtagsSelector, runRc } from './rtagsUtil';
 
 import { RtagsCodeActionProvider } from './codeActionProvider';
 
@@ -16,7 +17,7 @@ import { RtagsDefinitionProvider } from './definitionProvider';
 
 import { RtagsSymbolProvider } from './symbolProvider';
 
-import { CallHierarchy } from './callHierarchy';
+import { CallHierarchyProvider } from './callHierarchy';
 
 function startDaemon() : void
 {
@@ -43,6 +44,52 @@ function startDaemon() : void
     }
 }
 
+/*
+function addProject(uri: Uri) : void
+{
+    runRc(["--load-compile-commands", uri.fsPath],
+          (output: string) : void =>
+          {
+              window.showInformationMessage(output);
+          });
+}
+*/
+
+function reindex(doc?: TextDocument) : void
+{
+    if (doc)
+    {
+        const uri = doc.uri;
+
+        if (languages.match(RtagsSelector, doc) === 0)
+        {
+            return;
+        }
+
+        let promise = runRc(["--reindex", uri.fsPath],
+                            (output: string) : boolean =>
+                            {
+                                return (output !== "No matches");
+                            },
+                            doc);
+
+        promise.then(
+            (reindexed: boolean) : void =>
+            {
+                if (reindexed)
+                {
+                    runRc(["--json", "--diagnose", uri.fsPath], (_unused) => {});
+                }
+            });
+    }
+    else
+    {
+        let promise = runRc(["--reindex"], (_unused) => {});
+
+        promise.then(() => runRc(["--diagnose-all"], (_unused) => {}));
+    }
+}
+
 export function activate(context: ExtensionContext) : void
 {
     startDaemon();
@@ -51,16 +98,15 @@ export function activate(context: ExtensionContext) : void
     let completionProvider = new RtagsCompletionProvider;
     let definitionProvider = new RtagsDefinitionProvider;
     let symbolProvider = new RtagsSymbolProvider;
-    let callHierarchy = new CallHierarchy;
+    let callHierarchyProvider = new CallHierarchyProvider;
 
     context.subscriptions.push(
         codeActionProvider,
         completionProvider,
         definitionProvider,
         symbolProvider,
-        callHierarchy,
-        commands.registerCommand("rtags.addProject", (uri) => { addProject(uri); }),
-        commands.registerCommand("rtags.reindex", (uri) => { reindex(uri); }));
+        callHierarchyProvider,
+        commands.registerCommand("rtags.freshenIndex", () => { reindex(); }));
 
     let timerId: Nullable<NodeJS.Timer> = null;
     workspace.onDidChangeTextDocument(
