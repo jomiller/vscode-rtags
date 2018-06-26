@@ -95,9 +95,9 @@ export class RtagsCompletionProvider implements
         const process =
             (output: string) : CompletionList =>
             {
-                const o = JSON.parse(output);
+                const jsonObj = JSON.parse(output);
                 let result: CompletionItem[] = [];
-                for (const c of o.completions)
+                for (const c of jsonObj.completions)
                 {
                     const sortText: string = ("00" + c.priority.toString()).slice(-2);
                     const kind = toCompletionItemKind(c.kind);
@@ -154,10 +154,10 @@ export class RtagsCompletionProvider implements
         const process =
             (output: string) : SignatureHelp =>
             {
-                const o = JSON.parse(output);
+                const jsonObj = JSON.parse(output);
                 let result: SignatureInformation[] = [];
 
-                for (const s of o.signatures)
+                for (const s of jsonObj.signatures)
                 {
                     const signatureInfo: SignatureInformation =
                     {
@@ -170,9 +170,9 @@ export class RtagsCompletionProvider implements
                 // FIXME: result not used
                 const signatureHelp: SignatureHelp =
                 {
-                    signatures: o.signatures,
+                    signatures: jsonObj.signatures,
                     activeSignature: 0,
-                    activeParameter: o.activeParameter
+                    activeParameter: jsonObj.activeParameter
                 };
                 return signatureHelp;
             };

@@ -153,10 +153,10 @@ export class RtagsCodeActionProvider implements
         {
             return;
         }
-        let o;
+        let jsonObj;
         try
         {
-            o = JSON.parse(output);
+            jsonObj = JSON.parse(output);
         }
         catch (_err)
         {
@@ -164,31 +164,31 @@ export class RtagsCodeActionProvider implements
             return;
         }
 
-        for (const file in o.checkStyle)
+        for (const file in jsonObj.checkStyle)
         {
-            if (!o.checkStyle.hasOwnProperty(file))
+            if (!jsonObj.checkStyle.hasOwnProperty(file))
             {
                 continue;
             }
 
-            let diags: Diagnostic[] = [];
+            let diagnostics: Diagnostic[] = [];
             const uri = Uri.file(file);
 
-            for (const d of o.checkStyle[file])
+            for (const d of jsonObj.checkStyle[file])
             {
-                const p = new Position(d.line - 1, d.column - 1);
+                const pos = new Position(d.line - 1, d.column - 1);
 
                 const diag: Diagnostic =
                 {
                     message: d.message,
-                    range: new Range(p, p),
+                    range: new Range(pos, pos),
                     severity: DiagnosticSeverity.Error,
                     source: "RTags",
                     code: 0
                 };
-                diags.push(diag);
+                diagnostics.push(diag);
             }
-            this.diagnosticCollection.set(uri, diags);
+            this.diagnosticCollection.set(uri, diagnostics);
         }
     }
 

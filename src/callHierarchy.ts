@@ -33,15 +33,15 @@ function getCallers(document: TextDocument | undefined, uri: Uri, position: Posi
         {
             let result: Caller[] = [];
 
-            const o = JSON.parse(output);
+            const jsonObj = JSON.parse(output);
 
-            for (const c of o)
+            for (const c of jsonObj)
             {
                 try
                 {
                     const containerLocation = fromRtagsLocation(c.cfl);
                     const doc = workspace.textDocuments.find(
-                        (v, _i) => { return (v.uri.fsPath === containerLocation.uri.fsPath); });
+                        (val, _idx) => { return (val.uri.fsPath === containerLocation.uri.fsPath); });
 
                     const caller: Caller =
                     {
