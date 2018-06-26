@@ -1,10 +1,10 @@
 'use strict';
 
-import { languages, window, workspace, CancellationToken, Definition, DefinitionProvider, Disposable, Location,
+import { languages, window, workspace, CancellationToken, Definition, DefinitionProvider, Disposable, Hover, HoverProvider, Location,
          Position, ProviderResult, ReferenceContext, TextDocument, TypeDefinitionProvider, ImplementationProvider,
          Range, ReferenceProvider, RenameProvider, WorkspaceEdit } from 'vscode';
 
-import { RtagsSelector, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
+import { Nullable, RtagsSelector, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
 
 enum ReferenceType
 {
@@ -46,7 +46,7 @@ function getDefinitions(document: TextDocument, position: Position, type: number
             let result: Location[] = [];
             try
             {
-                for (let line of output.toString().split("\n"))
+                for (let line of output.split("\n"))
                 {
                     if (!line)
                     {
@@ -58,9 +58,7 @@ function getDefinitions(document: TextDocument, position: Position, type: number
             }
             catch (_err)
             {
-                return result;
             }
-
             return result;
         };
 
@@ -73,6 +71,7 @@ export class RtagsDefinitionProvider implements
     ImplementationProvider,
     ReferenceProvider,
     RenameProvider,
+    HoverProvider,
     Disposable
 {
     constructor()
@@ -82,7 +81,8 @@ export class RtagsDefinitionProvider implements
             languages.registerTypeDefinitionProvider(RtagsSelector, this),
             languages.registerImplementationProvider(RtagsSelector, this),
             languages.registerReferenceProvider(RtagsSelector, this),
-            languages.registerRenameProvider(RtagsSelector, this));
+            languages.registerRenameProvider(RtagsSelector, this),
+            languages.registerHoverProvider(RtagsSelector, this));
     }
 
     dispose() : void
@@ -149,6 +149,42 @@ export class RtagsDefinitionProvider implements
             };
 
         return getDefinitions(document, position, ReferenceType.Rename).then(resolve);
+    }
+
+    provideHover(document: TextDocument, position: Position, _token: CancellationToken) : ProviderResult<Hover>
+    {
+        const location = toRtagsLocation(document.uri, position);
+
+        let args =
+        [
+            "--absolute-path",
+            "--follow-location",
+            location
+        ];
+
+        let process =
+            (output: string) : string =>
+            {
+                let definition: string = "";
+                try
+                {
+                    let _unused: string = "";
+                    [_unused, definition] = output.split("\t", 2).map((token) => { return token.trim(); });
+                }
+                catch (_err)
+                {
+                }
+                return definition;
+            };
+        
+        let resolve =
+            (definition: string) : Nullable<Hover> =>
+            {
+                // Hover text is not formatted properly unless a tab or 4 spaces are prepended
+                return ((definition.length !== 0) ? new Hover('\t' + definition) : null);
+            };
+
+        return runRc(args, process, document).then(resolve);
     }
 
     private disposables: Disposable[] = [];

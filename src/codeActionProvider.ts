@@ -47,7 +47,7 @@ export class RtagsCodeActionProvider implements
                     {
                         continue;
                     }
-                    let [pos, size, replace] = l.split(" ");
+                    let [pos, size, replace] = l.split(' ');
                     let [line, col] = pos.split(':');
                     let start = new Position(parseInt(line) - 1, parseInt(col) - 1);
                     let end = start.translate(0, parseInt(size));
@@ -81,6 +81,12 @@ export class RtagsCodeActionProvider implements
         ];
     
         this.diagnosticProcess = spawn("rc", args);
+        if (!this.diagnosticProcess.pid)
+        {
+            window.showErrorMessage("Could not start RTags diagnostics");
+            this.diagnosticProcess = null;
+            return;
+        }
 
         let dataCallback =
             (data: string) : void =>
@@ -88,7 +94,7 @@ export class RtagsCodeActionProvider implements
                 try
                 {
                     this.unprocessedDiagnostics = this.processDiagnostics(
-                        this.unprocessedDiagnostics + data.toString());
+                        this.unprocessedDiagnostics + data);
                 }
                 catch (_err)
                 {
@@ -105,7 +111,7 @@ export class RtagsCodeActionProvider implements
                 this.unprocessedDiagnostics = "";
                 if (signal !== "SIGTERM")
                 {
-                    window.showErrorMessage("Diagnostics stopped; restarting");
+                    window.showErrorMessage("RTags diagnostics stopped; restarting");
                     setTimeout(() => { this.startDiagnostics(); }, 10000);
                 }
             };
@@ -150,11 +156,11 @@ export class RtagsCodeActionProvider implements
         let o;
         try
         {
-            o = JSON.parse(output.toString());
+            o = JSON.parse(output);
         }
         catch (_err)
         {
-            window.showErrorMessage("Diagnostics parse error: " + output.toString());
+            window.showErrorMessage("Diagnostics parse error: " + output);
             return;
         }
 

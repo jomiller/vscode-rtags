@@ -1,9 +1,9 @@
 'use strict';
 
-import { languages, CancellationToken, Disposable, DocumentSymbolProvider, Hover, HoverProvider, Position,
-         ProviderResult, SymbolInformation, SymbolKind, TextDocument, WorkspaceSymbolProvider } from 'vscode';
+import { languages, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult, SymbolInformation,
+         SymbolKind, TextDocument, WorkspaceSymbolProvider } from 'vscode';
 
-import { Nullable, RtagsSelector, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
+import { RtagsSelector, fromRtagsLocation, runRc } from './rtagsUtil';
 
 function toSymbolKind(kind: string) : SymbolKind | undefined
 {
@@ -70,8 +70,6 @@ function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInform
                 }
                 const location = fromRtagsLocation(path);
 
-                //line.split(/:|function:/).map((x: string) => { return String.prototype.trim.apply(x); });
-
                 let symbolInfo: SymbolInformation =
                 {
                     name: name,
@@ -99,15 +97,13 @@ function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInform
 export class RtagsSymbolProvider implements
     DocumentSymbolProvider,
     WorkspaceSymbolProvider,
-    HoverProvider,
     Disposable
 {
     constructor()
     {
         this.disposables.push(
             languages.registerDocumentSymbolProvider(RtagsSelector, this),
-            languages.registerWorkspaceSymbolProvider(this),
-            languages.registerHoverProvider(RtagsSelector, this));
+            languages.registerWorkspaceSymbolProvider(this));
     }
 
     dispose() : void
@@ -130,24 +126,6 @@ export class RtagsSymbolProvider implements
             return [];
         }
         return findSymbols(query, ["--max", "30"]);
-    }
-
-    provideHover(document: TextDocument, position: Position, _token: CancellationToken) : ProviderResult<Hover>
-    {
-        const location = toRtagsLocation(document.uri, position);
-
-        let process =
-            (output: string) : Nullable<Hover> =>
-            {
-                let m = (/^Type:(.*)?(=>|$)/gm).exec(output);
-                if (m)
-                {
-                    return new Hover(m[1].toString());
-                }
-                return null;
-            };
-
-        return runRc(["--absolute-path", "--symbol-info", location], process, document);
     }
 
     private disposables: Disposable[] = [];

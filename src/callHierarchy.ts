@@ -33,7 +33,7 @@ function getCallers(document: TextDocument | undefined, uri: Uri, position: Posi
         {
             let result: Caller[] = [];
 
-            const o = JSON.parse(output.toString());
+            const o = JSON.parse(output);
 
             for (let c of o)
             {

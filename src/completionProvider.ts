@@ -95,7 +95,7 @@ export class RtagsCompletionProvider implements
         let process =
             (output: string) : CompletionList =>
             {
-                const o = JSON.parse(output.toString());
+                const o = JSON.parse(output);
                 let result: CompletionItem[] = [];
                 for (let c of o.completions)
                 {
@@ -154,7 +154,7 @@ export class RtagsCompletionProvider implements
         let process =
             (output: string) : SignatureHelp =>
             {
-                const o = JSON.parse(output.toString());
+                const o = JSON.parse(output);
                 let result: SignatureInformation[] = [];
 
                 for (let s of o.signatures)
