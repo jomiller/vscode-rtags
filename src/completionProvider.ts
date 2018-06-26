@@ -76,7 +76,7 @@ export class RtagsCompletionProvider implements
         const maxCompletions = 20;
         const location = toRtagsLocation(document.uri, position);
 
-        let args =
+        const args =
         [
             "--json",
             "--synchronous-completions",
@@ -92,15 +92,15 @@ export class RtagsCompletionProvider implements
            args.push("--code-complete-prefix", prefix);
         }
 
-        let process =
+        const process =
             (output: string) : CompletionList =>
             {
                 const o = JSON.parse(output);
                 let result: CompletionItem[] = [];
-                for (let c of o.completions)
+                for (const c of o.completions)
                 {
-                    let sortText: string = ("00" + c.priority.toString()).slice(-2);
-                    let kind = toCompletionItemKind(c.kind);
+                    const sortText: string = ("00" + c.priority.toString()).slice(-2);
+                    const kind = toCompletionItemKind(c.kind);
                     let insert = new SnippetString();
                     switch (kind)
                     {
@@ -114,7 +114,7 @@ export class RtagsCompletionProvider implements
                             break;
                     }
 
-                    let item: CompletionItem =
+                    const item: CompletionItem =
                     {
                         label: c.completion,
                         kind: kind,
@@ -141,7 +141,7 @@ export class RtagsCompletionProvider implements
         const maxCompletions = 20;
         const location = toRtagsLocation(document.uri, position);
 
-        let args =
+        const args =
         [
             "--json",
             "--synchronous-completions",
@@ -151,15 +151,15 @@ export class RtagsCompletionProvider implements
             location
         ];
 
-        let process =
+        const process =
             (output: string) : SignatureHelp =>
             {
                 const o = JSON.parse(output);
                 let result: SignatureInformation[] = [];
 
-                for (let s of o.signatures)
+                for (const s of o.signatures)
                 {
-                    let signatureInfo: SignatureInformation =
+                    const signatureInfo: SignatureInformation =
                     {
                         label: "test",
                         parameters: s.parameters
@@ -168,7 +168,7 @@ export class RtagsCompletionProvider implements
                 }
 
                 // FIXME: result not used
-                let signatureHelp: SignatureHelp =
+                const signatureHelp: SignatureHelp =
                 {
                     signatures: o.signatures,
                     activeSignature: 0,

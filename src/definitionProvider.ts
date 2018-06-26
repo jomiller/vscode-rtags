@@ -40,19 +40,19 @@ function getDefinitions(document: TextDocument, position: Position, type: number
             break;
     }
 
-    let process =
+    const process =
         (output: string) : Location[] =>
         {
             let result: Location[] = [];
             try
             {
-                for (let line of output.split("\n"))
+                for (const line of output.split("\n"))
                 {
                     if (!line)
                     {
                         continue;
                     }
-                    let [location] = line.split("\t", 1);
+                    const [location] = line.split("\t", 1);
                     result.push(fromRtagsLocation(location));
                 }
             }
@@ -123,7 +123,7 @@ export class RtagsDefinitionProvider implements
     provideRenameEdits(document: TextDocument, position: Position, newName: string, _token: CancellationToken) :
         ProviderResult<WorkspaceEdit>
     {
-        for (let doc of workspace.textDocuments)
+        for (const doc of workspace.textDocuments)
         {
             if (((doc.languageId === "cpp") || (doc.languageId === "c")) && doc.isDirty)
             {
@@ -132,17 +132,17 @@ export class RtagsDefinitionProvider implements
             }
         }
 
-        let wr = document.getWordRangeAtPosition(position);
-        let diff = wr ? (wr.end.character - wr.start.character) : undefined;
+        const wr = document.getWordRangeAtPosition(position);
+        const diff = wr ? (wr.end.character - wr.start.character) : undefined;
 
         let edits: WorkspaceEdit = new WorkspaceEdit;
 
-        let resolve =
+        const resolve =
             (results: Location[]) : WorkspaceEdit =>
             {
-                for (let r of results)
+                for (const r of results)
                 {
-                    let end = r.range.end.translate(0, diff);
+                    const end = r.range.end.translate(0, diff);
                     edits.replace(r.uri, new Range(r.range.start, end), newName);
                 }
                 return edits;
@@ -155,14 +155,14 @@ export class RtagsDefinitionProvider implements
     {
         const location = toRtagsLocation(document.uri, position);
 
-        let args =
+        const args =
         [
             "--absolute-path",
             "--follow-location",
             location
         ];
 
-        let process =
+        const process =
             (output: string) : string =>
             {
                 let definition: string = "";
@@ -177,7 +177,7 @@ export class RtagsDefinitionProvider implements
                 return definition;
             };
         
-        let resolve =
+            const resolve =
             (definition: string) : Nullable<Hover> =>
             {
                 // Hover text is not formatted properly unless a tab or 4 spaces are prepended

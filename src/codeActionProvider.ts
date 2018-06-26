@@ -37,27 +37,27 @@ export class RtagsCodeActionProvider implements
     provideCodeActions(document: TextDocument, _range: Range, _context: CodeActionContext, _token: CancellationToken) :
         ProviderResult<Command[]>
     {
-        let process =
+        const process =
             (output: string) : Command[] =>
             {
                 let result: Command[] = [];
-                for (let l of output.split('\n'))
+                for (const l of output.split('\n'))
                 {
                     if (l.trim().length === 0)
                     {
                         continue;
                     }
-                    let [pos, size, replace] = l.split(' ');
-                    let [line, col] = pos.split(':');
-                    let start = new Position(parseInt(line) - 1, parseInt(col) - 1);
-                    let end = start.translate(0, parseInt(size));
-                    let range: Range = new Range(start, end);
+                    const [pos, size, replace] = l.split(' ');
+                    const [line, col] = pos.split(':');
+                    const start = new Position(parseInt(line) - 1, parseInt(col) - 1);
+                    const end = start.translate(0, parseInt(size));
+                    const range: Range = new Range(start, end);
                     if (_range.start.line !== start.line)
                     {
                         continue;
                     }
 
-                    let command: Command =
+                    const command: Command =
                     {
                         command: RtagsCodeActionProvider.commandId,
                         title: "Replace with " + replace,
@@ -73,7 +73,7 @@ export class RtagsCodeActionProvider implements
 
     private startDiagnostics() : void
     {
-        let args =
+        const args =
         [
             "--json",
             "--diagnostics",
@@ -88,7 +88,7 @@ export class RtagsCodeActionProvider implements
             return;
         }
 
-        let dataCallback =
+        const dataCallback =
             (data: string) : void =>
             {
                 try
@@ -104,7 +104,7 @@ export class RtagsCodeActionProvider implements
 
         this.diagnosticProcess.stdout.on("data", dataCallback);
 
-        let exitCallback =
+        const exitCallback =
             (_code: number, signal: string) : void =>
             {
                 this.diagnosticCollection.clear();
@@ -164,7 +164,7 @@ export class RtagsCodeActionProvider implements
             return;
         }
 
-        for (let file in o.checkStyle)
+        for (const file in o.checkStyle)
         {
             if (!o.checkStyle.hasOwnProperty(file))
             {
@@ -172,13 +172,13 @@ export class RtagsCodeActionProvider implements
             }
 
             let diags: Diagnostic[] = [];
-            let uri = Uri.file(file);
+            const uri = Uri.file(file);
 
-            for (let d of o.checkStyle[file])
+            for (const d of o.checkStyle[file])
             {
-                let p = new Position(d.line - 1, d.column - 1);
+                const p = new Position(d.line - 1, d.column - 1);
 
-                let diag: Diagnostic =
+                const diag: Diagnostic =
                 {
                     message: d.message,
                     range: new Range(p, p),

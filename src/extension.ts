@@ -21,7 +21,7 @@ import { CallHierarchyProvider } from './callHierarchy';
 
 function startServer() : void
 {
-    let rc = spawnSync("rc", ["--current-project", "--silent-query"]);
+    const rc = spawnSync("rc", ["--current-project", "--silent-query"]);
     if (rc.error)
     {
         window.showErrorMessage("Could not run RTags client");
@@ -30,7 +30,7 @@ function startServer() : void
 
     if (rc.status !== 0)
     {
-        let options: SpawnOptions =
+        const options: SpawnOptions =
         {
             detached: true,
             stdio: "ignore"

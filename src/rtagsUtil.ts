@@ -19,9 +19,9 @@ export function setContext(name: any, value: any) : void
 
 export function fromRtagsLocation(path: string) : Location
 {
-    let [file, line, col] = path.split(':');
-    let position = new Position(parseInt(line) - 1, parseInt(col) - 1);
-    let uri = Uri.file(file);
+    const [file, line, col] = path.split(':');
+    const position = new Position(parseInt(line) - 1, parseInt(col) - 1);
+    const uri = Uri.file(file);
     return new Location(uri, position);
 }
 
@@ -33,7 +33,7 @@ export function toRtagsLocation(uri: Uri, position: Position) : string
 
 export function runRc(args: string[], process: (stdout: string) => any, doc?: TextDocument) : Thenable<any>
 {
-    let executor =
+    const executor =
         (resolve: (value?: any) => any, _reject: (reason?: any) => any) : void =>
         {
             if (doc && doc.isDirty)
@@ -45,12 +45,12 @@ export function runRc(args: string[], process: (stdout: string) => any, doc?: Te
                 args.push("--unsaved-file=" + unsaved);
             }
 
-            let options: ExecFileOptions =
+            const options: ExecFileOptions =
             {
                 maxBuffer: 4 * 1024 * 1024
             };
 
-            let callback =
+            const callback =
                 (error: Error, stdout: string, stderr: string) : void =>
                 {
                     if (error)

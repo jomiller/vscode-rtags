@@ -18,7 +18,7 @@ function getCallers(document: TextDocument | undefined, uri: Uri, position: Posi
 {
     const location = toRtagsLocation(uri, position);
 
-    let args =
+    const args =
     [
         "--json",
         "--absolute-path",
@@ -28,22 +28,22 @@ function getCallers(document: TextDocument | undefined, uri: Uri, position: Posi
         location
     ];
 
-    let process =
+    const process =
         (output: string) : Caller[] =>
         {
             let result: Caller[] = [];
 
             const o = JSON.parse(output);
 
-            for (let c of o)
+            for (const c of o)
             {
                 try
                 {
-                    let containerLocation = fromRtagsLocation(c.cfl);
-                    let doc = workspace.textDocuments.find(
+                    const containerLocation = fromRtagsLocation(c.cfl);
+                    const doc = workspace.textDocuments.find(
                         (v, _i) => { return (v.uri.fsPath === containerLocation.uri.fsPath); });
 
-                    let caller: Caller =
+                    const caller: Caller =
                     {
                         location: fromRtagsLocation(c.loc),
                         containerName: c.cf.trim(),
@@ -110,14 +110,14 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
         const list: Caller[] = [];
         if (!node)
         {
-            let editor = window.activeTextEditor;
+            const editor = window.activeTextEditor;
             if (editor)
             {
-                let pos = editor.selection.active;
-                let doc = editor.document;
-                let loc = new Location(doc.uri, pos);
+                const pos = editor.selection.active;
+                const doc = editor.document;
+                const loc = new Location(doc.uri, pos);
 
-                let caller: Caller =
+                const caller: Caller =
                 {
                     location: loc,
                     containerLocation: loc,

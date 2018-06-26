@@ -51,11 +51,11 @@ function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInform
 {
     query += '*';
 
-    let process =
+    const process =
         (output: string) : SymbolInformation[] =>
         {
             let result: SymbolInformation[] = [];
-            for (let line of output.split("\n"))
+            for (const line of output.split("\n"))
             {
                 let [path, _unused, name, kind, container] = line.split(/\t+/);
                 _unused = _unused;
@@ -70,7 +70,7 @@ function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInform
                 }
                 const location = fromRtagsLocation(path);
 
-                let symbolInfo: SymbolInformation =
+                const symbolInfo: SymbolInformation =
                 {
                     name: name,
                     containerName: container,
