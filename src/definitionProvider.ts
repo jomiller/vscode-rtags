@@ -176,13 +176,13 @@ export class RtagsDefinitionProvider implements
                 }
                 return definition;
             };
-        
+
             const resolve =
-            (definition: string) : Nullable<Hover> =>
-            {
-                // Hover text is not formatted properly unless a tab or 4 spaces are prepended
-                return ((definition.length !== 0) ? new Hover('\t' + definition) : null);
-            };
+                (definition: string) : Nullable<Hover> =>
+                {
+                    // Hover text is not formatted properly unless a tab or 4 spaces are prepended
+                    return ((definition.length !== 0) ? new Hover('\t' + definition) : null);
+                };
 
         return runRc(args, process, document).then(resolve);
     }

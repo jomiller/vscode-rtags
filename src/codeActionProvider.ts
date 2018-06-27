@@ -79,7 +79,7 @@ export class RtagsCodeActionProvider implements
             "--diagnostics",
             "--code-completion-enabled"
         ];
-    
+
         this.diagnosticProcess = spawn("rc", args);
         if (!this.diagnosticProcess.pid)
         {
