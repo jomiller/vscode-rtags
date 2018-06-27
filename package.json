@@ -42,9 +42,9 @@
             ],
             "view/title": [
                 {
-                  "command": "rtags.closeCallHierarchy",
-                  "when": "view == rtags.callHierarchy",
-                  "group": "navigation"
+                    "command": "rtags.closeCallHierarchy",
+                    "when": "view == rtags.callHierarchy",
+                    "group": "navigation"
                 }
             ],
             "view/item/context": [

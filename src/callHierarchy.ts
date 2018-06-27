@@ -3,6 +3,8 @@
 import { commands, window, workspace, Disposable, Event, EventEmitter, Location, Position, ProviderResult,
          TextDocument, TreeDataProvider, TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
 
+import { basename } from 'path';
+
 import { Nullable, setContext, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
 
 interface Caller
@@ -11,7 +13,6 @@ interface Caller
     containerName: string;
     containerLocation: Location;
     document?: TextDocument;
-    context: string;
 }
 
 function getCallers(document: TextDocument | undefined, uri: Uri, position: Position) : Thenable<Caller[]>
@@ -48,8 +49,7 @@ function getCallers(document: TextDocument | undefined, uri: Uri, position: Posi
                         location: fromRtagsLocation(c.loc),
                         containerName: c.cf.trim(),
                         containerLocation: containerLocation,
-                        document: doc,
-                        context: c.ctx.trim()
+                        document: doc
                     };
                     result.push(caller);
                 }
@@ -85,7 +85,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
             commands.registerCommand("rtags.gotoLocation",
                                      (caller: Caller) : void =>
                                      {
-                                         window.showTextDocument(caller.containerLocation.uri,
+                                         window.showTextDocument(caller.location.uri,
                                                                  {selection: caller.location.range});
                                      }));
     }
@@ -100,9 +100,10 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
 
     getTreeItem(caller: Caller) : TreeItem | Thenable<TreeItem>
     {
-        let ti = new TreeItem(caller.containerName + " : " + caller.context, TreeItemCollapsibleState.Collapsed);
-        ti.contextValue = "rtagsLocation";
-        return ti;
+        let location: string = basename(caller.location.uri.fsPath) + ':' + (caller.location.range.start.line + 1);
+        let treeItem = new TreeItem(caller.containerName + " (" + location + ')', TreeItemCollapsibleState.Collapsed);
+        treeItem.contextValue = "rtagsLocation";
+        return treeItem;
     }
 
     getChildren(node?: Caller) : ProviderResult<Caller[]>
@@ -122,8 +123,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                     location: loc,
                     containerLocation: loc,
                     containerName: doc.getText(doc.getWordRangeAtPosition(pos)),
-                    document: doc,
-                    context: ""
+                    document: doc
                 };
                 list.push(caller);
             }
