@@ -1,6 +1,6 @@
 'use strict';
 
-import { commands, window, Location, Position, TextDocument, Uri } from 'vscode';
+import { commands, window, Location, Position, Range, TextDocument, TextDocumentShowOptions, Uri } from 'vscode';
 
 import { execFile, ExecFileOptions } from 'child_process';
 
@@ -29,6 +29,12 @@ export function toRtagsLocation(uri: Uri, position: Position) : string
 {
     const location = uri.fsPath + ':' + (position.line + 1) + ':' + (position.character + 1);
     return location;
+}
+
+export function jumpToLocation(uri: Uri, range: Range) : void
+{
+    const options: TextDocumentShowOptions = {selection: range};
+    window.showTextDocument(uri, options);
 }
 
 export function runRc(args: string[], process: (stdout: string) => any, doc?: TextDocument) : Thenable<any>

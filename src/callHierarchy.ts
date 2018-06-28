@@ -5,7 +5,7 @@ import { commands, window, workspace, Disposable, Event, EventEmitter, Location,
 
 import { basename } from 'path';
 
-import { Nullable, setContext, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
+import { Nullable, setContext, fromRtagsLocation, toRtagsLocation, jumpToLocation, runRc } from './rtagsUtil';
 
 interface Caller
 {
@@ -85,8 +85,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
             commands.registerCommand("rtags.gotoLocation",
                                      (caller: Caller) : void =>
                                      {
-                                         window.showTextDocument(caller.location.uri,
-                                                                 {selection: caller.location.range});
+                                         jumpToLocation(caller.location.uri, caller.location.range);
                                      }));
     }
 
