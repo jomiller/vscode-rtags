@@ -1,6 +1,6 @@
 'use strict';
 
-import { languages, window, workspace, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult,
+import { languages, workspace, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult,
          SymbolInformation, SymbolKind, TextDocument, WorkspaceSymbolProvider } from 'vscode';
 
 import { RtagsSelector, fromRtagsLocation, runRc } from './rtagsUtil';
@@ -128,13 +128,12 @@ export class RtagsSymbolProvider implements
 
         const args = ["--max", "30"];
 
-        const editor = window.activeTextEditor;
-        if (editor)
+        const folders = workspace.workspaceFolders;
+        if (folders)
         {
-            const folder = workspace.getWorkspaceFolder(editor.document.uri);
-            if (folder)
+            for (const f of folders)
             {
-                args.push("--path-filter", folder.uri.fsPath);
+                args.push("--path-filter", f.uri.fsPath);
             }
         }
 
