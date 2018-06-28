@@ -19,7 +19,7 @@ function getDefinitions(document: TextDocument, position: Position, type: number
 {
     const location = toRtagsLocation(document.uri, position);
 
-    let args = ["--absolute-path"];
+    let args = ["--absolute-path", "--no-context"];
 
     switch (type)
     {
@@ -46,13 +46,12 @@ function getDefinitions(document: TextDocument, position: Position, type: number
             let result: Location[] = [];
             try
             {
-                for (const line of output.split("\n"))
+                for (const location of output.split("\n"))
                 {
-                    if (!line)
+                    if (!location)
                     {
                         continue;
                     }
-                    const [location] = line.split("\t", 1);
                     result.push(fromRtagsLocation(location));
                 }
             }
