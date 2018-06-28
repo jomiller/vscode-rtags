@@ -118,7 +118,7 @@ export class RtagsCompletionProvider implements
                     {
                         label: c.completion,
                         kind: kind,
-                        detail:  c.signature,
+                        detail: c.signature,
                         sortText: sortText,
                         insertText: insert
                     };
@@ -157,22 +157,26 @@ export class RtagsCompletionProvider implements
                 const jsonObj = JSON.parse(output);
                 let result: SignatureInformation[] = [];
 
-                for (const s of jsonObj.signatures)
+                for (const c of jsonObj.completions)
                 {
                     const signatureInfo: SignatureInformation =
                     {
-                        label: "test",
-                        parameters: s.parameters
+                        label: c.signature,
+                        parameters: [c.completion]
                     };
                     result.push(signatureInfo);
+
+                    if (result.length === maxCompletions)
+                    {
+                        break;
+                    }
                 }
 
-                // FIXME: result not used
                 const signatureHelp: SignatureHelp =
                 {
-                    signatures: jsonObj.signatures,
+                    signatures: result,
                     activeSignature: 0,
-                    activeParameter: jsonObj.activeParameter
+                    activeParameter: 0
                 };
                 return signatureHelp;
             };
