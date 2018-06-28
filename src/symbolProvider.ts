@@ -1,7 +1,7 @@
 'use strict';
 
-import { languages, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult, SymbolInformation,
-         SymbolKind, TextDocument, WorkspaceSymbolProvider } from 'vscode';
+import { languages, window, workspace, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult,
+         SymbolInformation, SymbolKind, TextDocument, WorkspaceSymbolProvider } from 'vscode';
 
 import { RtagsSelector, fromRtagsLocation, runRc } from './rtagsUtil';
 
@@ -125,7 +125,20 @@ export class RtagsSymbolProvider implements
         {
             return [];
         }
-        return findSymbols(query, ["--max", "30"]);
+
+        const args = ["--max", "30"];
+
+        const editor = window.activeTextEditor;
+        if (editor)
+        {
+            const folder = workspace.getWorkspaceFolder(editor.document.uri);
+            if (folder)
+            {
+                args.push("--path-filter", folder.uri.fsPath);
+            }
+        }
+
+        return findSymbols(query, args);
     }
 
     private disposables: Disposable[] = [];
