@@ -51,7 +51,7 @@ export class RtagsCodeActionProvider implements
                     const [line, col] = pos.split(':');
                     const start = new Position(parseInt(line) - 1, parseInt(col) - 1);
                     const end = start.translate(0, parseInt(size));
-                    const range: Range = new Range(start, end);
+                    const range = new Range(start, end);
                     if (_range.start.line !== start.line)
                     {
                         continue;
