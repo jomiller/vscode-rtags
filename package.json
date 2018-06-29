@@ -38,6 +38,11 @@
                     "command": "rtags.callHierarchy",
                     "when": "resourceLangId == cpp",
                     "group": "navigation@2"
+                },
+                {
+                    "command": "rtags.showCallers",
+                    "when": "resourceLangId == cpp",
+                    "group": "navigation@3"
                 }
             ],
             "view/title": [
@@ -82,6 +87,11 @@
             {
                 "command": "rtags.gotoLocation",
                 "title": "Go to Location"
+            },
+            {
+                "command": "rtags.showCallers",
+                "title": "Show Callers",
+                "category": "RTags"
             }
         ]
     },

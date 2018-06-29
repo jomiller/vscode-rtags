@@ -29,10 +29,10 @@ function getCallers(document: TextDocument | undefined, uri: Uri, position: Posi
         location
     ];
 
-    const process =
+    const processCallback =
         (output: string) : Caller[] =>
         {
-            let result: Caller[] = [];
+            let callers: Caller[] = [];
 
             const jsonObj = JSON.parse(output);
 
@@ -51,42 +51,75 @@ function getCallers(document: TextDocument | undefined, uri: Uri, position: Posi
                         containerLocation: containerLocation,
                         document: doc
                     };
-                    result.push(caller);
+                    callers.push(caller);
                 }
                 catch (_err)
                 {
                 }
             }
 
-            return result;
+            return callers;
         };
 
-    return runRc(args, process, document);
+    return runRc(args, processCallback, document);
 }
 
 export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposable
 {
     constructor()
     {
+        const callHierarchyCallback =
+            () : void =>
+            {
+                setContext("extension.rtags.callHierarchyVisible", true);
+                this.refresh();
+            };
+
+        const closeCallHierarchyCallback =
+            () : void =>
+            {
+                setContext("extension.rtags.callHierarchyVisible", false);
+                this.refresh();
+            };
+
+        const gotoLocationCallback =
+            (caller: Caller) : void =>
+            {
+                jumpToLocation(caller.location.uri, caller.location.range);
+            };
+
+        const showCallersCallback =
+            () : void =>
+            {
+                const editor = window.activeTextEditor;
+                if (editor)
+                {
+                   const document = editor.document;
+                   const position = editor.selection.active;
+                   let promise = getCallers(document, document.uri, position);
+
+                   promise.then(
+                       (callers: Caller[]) : void =>
+                       {
+                           let locations: Location[] = [];
+                           for (const c of callers)
+                           {
+                               locations.push(c.location);
+                           }
+                           commands.executeCommand("editor.action.showReferences",
+                                                   document.uri,
+                                                   position,
+                                                   locations);
+                       });
+                }
+            };
+
         this.disposables.push(
             window.registerTreeDataProvider("rtags.callHierarchy", this),
-            commands.registerCommand("rtags.callHierarchy",
-                                     () : void =>
-                                     {
-                                         setContext("extension.rtags.callHierarchyVisible", true);
-                                         this.refresh();
-                                     }),
-            commands.registerCommand("rtags.closeCallHierarchy",
-                                     () : void =>
-                                     {
-                                         setContext("extension.rtags.callHierarchyVisible", false);
-                                         this.refresh();
-                                     }),
-            commands.registerCommand("rtags.gotoLocation",
-                                     (caller: Caller) : void =>
-                                     {
-                                         jumpToLocation(caller.location.uri, caller.location.range);
-                                     }));
+            commands.registerCommand("rtags.callHierarchy", callHierarchyCallback),
+            commands.registerCommand("rtags.closeCallHierarchy", closeCallHierarchyCallback),
+            commands.registerCommand("rtags.gotoLocation", gotoLocationCallback),
+            commands.registerCommand("rtags.showCallers", showCallersCallback));
     }
 
     dispose() : void
