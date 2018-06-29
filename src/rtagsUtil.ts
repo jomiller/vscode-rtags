@@ -70,11 +70,11 @@ export function runRc(args: string[], process: (stdout: string) => any, doc?: Te
 
             args.push("--silent-query");
 
-            let child = execFile("rc", args, options, callback);
+            let rc = execFile("rc", args, options, callback);
 
             if (doc && doc.isDirty)
             {
-                child.stdin.write(doc.getText());
+                rc.stdin.write(doc.getText());
             }
         };
 

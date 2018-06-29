@@ -51,10 +51,10 @@ function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInform
 {
     query += '*';
 
-    const process =
+    const processCallback =
         (output: string) : SymbolInformation[] =>
         {
-            let result: SymbolInformation[] = [];
+            let symbols: SymbolInformation[] = [];
             for (const line of output.split("\n"))
             {
                 let [path, _unused, name, kind, container] = line.split(/\t+/);
@@ -77,9 +77,9 @@ function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInform
                     location: location,
                     kind: <SymbolKind>localKind
                 };
-                result.push(symbolInfo);
+                symbols.push(symbolInfo);
             }
-            return result;
+            return symbols;
         };
 
     args.push("--wildcard-symbol-names",
@@ -91,7 +91,7 @@ function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInform
               "--cursor-kind",
               "--display-name");
 
-    return runRc(args, process);
+    return runRc(args, processCallback);
 }
 
 export class RtagsSymbolProvider implements

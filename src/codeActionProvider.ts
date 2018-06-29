@@ -37,10 +37,10 @@ export class RtagsCodeActionProvider implements
     provideCodeActions(document: TextDocument, _range: Range, _context: CodeActionContext, _token: CancellationToken) :
         ProviderResult<Command[]>
     {
-        const process =
+        const processCallback =
             (output: string) : Command[] =>
             {
-                let result: Command[] = [];
+                let cmds: Command[] = [];
                 for (const l of output.split('\n'))
                 {
                     if (l.trim().length === 0)
@@ -63,12 +63,12 @@ export class RtagsCodeActionProvider implements
                         title: "Replace with " + replace,
                         arguments: [document, range, replace]
                     };
-                    result.push(command);
+                    cmds.push(command);
                 }
-                return result;
+                return cmds;
             };
 
-        return runRc(["--fixits", document.fileName], process);
+        return runRc(["--fixits", document.fileName], processCallback);
     }
 
     private startDiagnostics() : void

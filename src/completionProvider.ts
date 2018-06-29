@@ -92,11 +92,11 @@ export class RtagsCompletionProvider implements
            args.push("--code-complete-prefix", prefix);
         }
 
-        const process =
+        const processCallback =
             (output: string) : CompletionList =>
             {
                 const jsonObj = JSON.parse(output);
-                let result: CompletionItem[] = [];
+                let completionItems: CompletionItem[] = [];
                 for (const c of jsonObj.completions)
                 {
                     const sortText: string = ("00" + c.priority.toString()).slice(-2);
@@ -122,17 +122,17 @@ export class RtagsCompletionProvider implements
                         sortText: sortText,
                         insertText: insert
                     };
-                    result.push(item);
+                    completionItems.push(item);
 
-                    if (result.length === maxCompletions)
+                    if (completionItems.length === maxCompletions)
                     {
                         break;
                     }
                 }
-                return new CompletionList(result, result.length >= maxCompletions);
+                return new CompletionList(completionItems, completionItems.length >= maxCompletions);
             };
 
-        return runRc(args, process, document);
+        return runRc(args, processCallback, document);
     }
 
     provideSignatureHelp(document: TextDocument, position: Position, _token: CancellationToken) :
@@ -151,11 +151,11 @@ export class RtagsCompletionProvider implements
             location
         ];
 
-        const process =
+        const processCallback =
             (output: string) : SignatureHelp =>
             {
                 const jsonObj = JSON.parse(output);
-                let result: SignatureInformation[] = [];
+                let signatures: SignatureInformation[] = [];
 
                 for (const c of jsonObj.completions)
                 {
@@ -164,9 +164,9 @@ export class RtagsCompletionProvider implements
                         label: c.signature,
                         parameters: [c.completion]
                     };
-                    result.push(signatureInfo);
+                    signatures.push(signatureInfo);
 
-                    if (result.length === maxCompletions)
+                    if (signatures.length === maxCompletions)
                     {
                         break;
                     }
@@ -174,14 +174,14 @@ export class RtagsCompletionProvider implements
 
                 const signatureHelp: SignatureHelp =
                 {
-                    signatures: result,
+                    signatures: signatures,
                     activeSignature: 0,
                     activeParameter: 0
                 };
                 return signatureHelp;
             };
 
-        return runRc(args, process, document);
+        return runRc(args, processCallback, document);
     }
 
     private disposables: Disposable[] = [];

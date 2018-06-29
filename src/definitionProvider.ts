@@ -40,28 +40,28 @@ function getDefinitions(document: TextDocument, position: Position, type: number
             break;
     }
 
-    const process =
+    const processCallback =
         (output: string) : Location[] =>
         {
-            let result: Location[] = [];
+            let locations: Location[] = [];
             try
             {
-                for (const location of output.split("\n"))
+                for (const loc of output.split("\n"))
                 {
-                    if (!location)
+                    if (!loc)
                     {
                         continue;
                     }
-                    result.push(fromRtagsLocation(location));
+                    locations.push(fromRtagsLocation(loc));
                 }
             }
             catch (_err)
             {
             }
-            return result;
+            return locations;
         };
 
-    return runRc(args, process, document);
+    return runRc(args, processCallback, document);
 }
 
 export class RtagsDefinitionProvider implements
@@ -136,18 +136,18 @@ export class RtagsDefinitionProvider implements
 
         let edits: WorkspaceEdit = new WorkspaceEdit;
 
-        const resolve =
-            (results: Location[]) : WorkspaceEdit =>
+        const resolveCallback =
+            (locations: Location[]) : WorkspaceEdit =>
             {
-                for (const r of results)
+                for (const l of locations)
                 {
-                    const end = r.range.end.translate(0, diff);
-                    edits.replace(r.uri, new Range(r.range.start, end), newName);
+                    const end = l.range.end.translate(0, diff);
+                    edits.replace(l.uri, new Range(l.range.start, end), newName);
                 }
                 return edits;
             };
 
-        return getDefinitions(document, position, ReferenceType.Rename).then(resolve);
+        return getDefinitions(document, position, ReferenceType.Rename).then(resolveCallback);
     }
 
     provideHover(document: TextDocument, position: Position, _token: CancellationToken) : ProviderResult<Hover>
@@ -161,7 +161,7 @@ export class RtagsDefinitionProvider implements
             location
         ];
 
-        const process =
+        const processCallback =
             (output: string) : string =>
             {
                 let definition: string = "";
@@ -176,14 +176,14 @@ export class RtagsDefinitionProvider implements
                 return definition;
             };
 
-            const resolve =
+            const resolveCallback =
                 (definition: string) : Nullable<Hover> =>
                 {
                     // Hover text is not formatted properly unless a tab or 4 spaces are prepended
                     return ((definition.length !== 0) ? new Hover('\t' + definition) : null);
                 };
 
-        return runRc(args, process, document).then(resolve);
+        return runRc(args, processCallback, document).then(resolveCallback);
     }
 
     private disposables: Disposable[] = [];
