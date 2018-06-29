@@ -40,9 +40,14 @@
                     "group": "navigation@2"
                 },
                 {
-                    "command": "rtags.showCallers",
+                    "command": "rtags.showVariables",
                     "when": "resourceLangId == cpp",
                     "group": "navigation@3"
+                },
+                {
+                    "command": "rtags.showCallers",
+                    "when": "resourceLangId == cpp",
+                    "group": "navigation@4"
                 }
             ],
             "view/title": [
@@ -87,6 +92,11 @@
             {
                 "command": "rtags.gotoLocation",
                 "title": "Go to Location"
+            },
+            {
+                "command": "rtags.showVariables",
+                "title": "Show Variables",
+                "category": "RTags"
             },
             {
                 "command": "rtags.showCallers",

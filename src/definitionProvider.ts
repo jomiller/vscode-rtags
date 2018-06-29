@@ -1,8 +1,8 @@
 'use strict';
 
-import { languages, window, workspace, CancellationToken, Definition, DefinitionProvider, Disposable, Hover, HoverProvider, Location,
-         Position, ProviderResult, ReferenceContext, TextDocument, TypeDefinitionProvider, ImplementationProvider,
-         Range, ReferenceProvider, RenameProvider, WorkspaceEdit } from 'vscode';
+import { commands, languages, window, workspace, CancellationToken, Definition, DefinitionProvider, Disposable, Hover,
+         HoverProvider, Location, Position, ProviderResult, ReferenceContext, TextDocument, TypeDefinitionProvider,
+         ImplementationProvider, Range, ReferenceProvider, RenameProvider, WorkspaceEdit } from 'vscode';
 
 import { Nullable, RtagsSelector, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
 
@@ -11,10 +11,11 @@ enum ReferenceType
     Definition,
     Virtuals,
     References,
-    Rename
+    Rename,
+    Variables
 }
 
-function getDefinitions(document: TextDocument, position: Position, type: number = ReferenceType.Definition) :
+function getDefinitions(document: TextDocument, position: Position, type: ReferenceType = ReferenceType.Definition) :
     Thenable<Location[]>
 {
     const location = toRtagsLocation(document.uri, position);
@@ -38,6 +39,17 @@ function getDefinitions(document: TextDocument, position: Position, type: number
         case ReferenceType.Rename:
             args.push("--rename", "--all-references", "--references", location);
             break;
+
+        case ReferenceType.Variables:
+        {
+            const kinds = ["FieldDecl", "ParmDecl", "VarDecl", "MemberRef"];
+            for (const k of kinds)
+            {
+                args.push("--kind-filter", k);
+            }
+            args.push("--references", location);
+            break;
+        }
     }
 
     const processCallback =
@@ -75,13 +87,35 @@ export class RtagsDefinitionProvider implements
 {
     constructor()
     {
+        const showVariablesCallback =
+        () : void =>
+        {
+            const editor = window.activeTextEditor;
+            if (editor)
+            {
+                const document = editor.document;
+                const position = editor.selection.active;
+                let promise = getDefinitions(document, position, ReferenceType.Variables);
+
+                promise.then(
+                    (locations: Location[]) : void =>
+                    {
+                        commands.executeCommand("editor.action.showReferences",
+                                                document.uri,
+                                                position,
+                                                locations);
+                    });
+            }
+        };
+
         this.disposables.push(
             languages.registerDefinitionProvider(RtagsSelector, this),
             languages.registerTypeDefinitionProvider(RtagsSelector, this),
             languages.registerImplementationProvider(RtagsSelector, this),
             languages.registerReferenceProvider(RtagsSelector, this),
             languages.registerRenameProvider(RtagsSelector, this),
-            languages.registerHoverProvider(RtagsSelector, this));
+            languages.registerHoverProvider(RtagsSelector, this),
+            commands.registerCommand("rtags.showVariables", showVariablesCallback));
     }
 
     dispose() : void
