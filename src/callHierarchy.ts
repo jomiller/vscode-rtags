@@ -102,10 +102,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                        (callers: Caller[]) : void =>
                        {
                            let locations: Location[] = [];
-                           for (const c of callers)
-                           {
-                               locations.push(c.location);
-                           }
+                           callers.forEach((c) => { locations.push(c.location); });
                            commands.executeCommand("editor.action.showReferences",
                                                    document.uri,
                                                    position,

@@ -13,6 +13,15 @@ export const RtagsSelector: DocumentFilter[] =
     { language: "c",   scheme: "file" }
 ];
 
+export function isUnsavedSourceFile(document: TextDocument) : boolean
+{
+    if (!document.isDirty)
+    {
+        return false;
+    }
+    return RtagsSelector.some((filt) => { return (filt.language === document.languageId); });
+}
+
 export function setContext(name: any, value: any) : void
 {
     commands.executeCommand("setContext", name, value);

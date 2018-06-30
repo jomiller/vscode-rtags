@@ -133,10 +133,7 @@ export class RtagsSymbolProvider implements
         const folders = workspace.workspaceFolders;
         if (folders)
         {
-            for (const f of folders)
-            {
-                args.push("--path-filter", f.uri.fsPath);
-            }
+            folders.forEach((f) => { args.push("--path-filter", f.uri.fsPath); });
         }
 
         return findSymbols(query, args);

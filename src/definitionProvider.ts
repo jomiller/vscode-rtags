@@ -4,7 +4,7 @@ import { commands, languages, window, workspace, CancellationToken, Definition, 
          HoverProvider, Location, Position, ProviderResult, ReferenceContext, TextDocument, TypeDefinitionProvider,
          ImplementationProvider, Range, ReferenceProvider, RenameProvider, WorkspaceEdit } from 'vscode';
 
-import { Nullable, RtagsSelector, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
+import { Nullable, RtagsSelector, isUnsavedSourceFile, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
 
 enum ReferenceType
 {
@@ -64,10 +64,7 @@ function getDefinitions(document: TextDocument, position: Position, type: Refere
         case ReferenceType.Variables:
         {
             const kinds = ["FieldDecl", "ParmDecl", "VarDecl", "MemberRef"];
-            for (const k of kinds)
-            {
-                args.push("--kind-filter", k);
-            }
+            kinds.forEach((k) => { args.push("--kind-filter", k); });
             args.push("--references", location);
             break;
         }
@@ -219,18 +216,11 @@ export class RtagsDefinitionProvider implements
     provideRenameEdits(document: TextDocument, position: Position, newName: string, _token: CancellationToken) :
         ProviderResult<WorkspaceEdit>
     {
-        for (const doc of workspace.textDocuments)
+        const unsaved: boolean = workspace.textDocuments.some((doc) => { return isUnsavedSourceFile(doc); });
+        if (unsaved)
         {
-            if (doc.isDirty)
-            {
-                const isSourceFile: boolean =
-                    RtagsSelector.some((filt) => { return (filt.language === doc.languageId); });
-                if (isSourceFile)
-                {
-                    window.showInformationMessage("Save all source files first before renaming");
-                    return null;
-                }
-            }
+            window.showInformationMessage("Save all source files first before renaming");
+            return null;
         }
 
         const wr = document.getWordRangeAtPosition(position);
