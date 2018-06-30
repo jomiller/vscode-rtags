@@ -71,7 +71,7 @@ export function runRc(args: string[], process: (stdout: string) => any, doc?: Te
                 {
                     if (error)
                     {
-                        window.showErrorMessage(stderr);
+                        window.showErrorMessage("[RTags] Client error: " + stderr);
                         resolve([]);
                         return;
                     }

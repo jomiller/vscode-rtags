@@ -220,7 +220,7 @@ export class RtagsDefinitionProvider implements
             window.visibleTextEditors.some((editor) => { return isUnsavedSourceFile(editor.document); });
         if (unsaved)
         {
-            window.showInformationMessage("Save all source files first before renaming");
+            window.showInformationMessage("[RTags] Save all source files first before renaming");
             return null;
         }
 

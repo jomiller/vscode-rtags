@@ -83,7 +83,7 @@ export class RtagsCodeActionProvider implements
         this.diagnosticProcess = spawn("rc", args);
         if (!this.diagnosticProcess.pid)
         {
-            window.showErrorMessage("Could not start RTags diagnostics");
+            window.showErrorMessage("[RTags] Could not start diagnostics");
             this.diagnosticProcess = null;
             return;
         }
@@ -111,7 +111,7 @@ export class RtagsCodeActionProvider implements
                 this.unprocessedDiagnostics = "";
                 if (signal !== "SIGTERM")
                 {
-                    window.showErrorMessage("RTags diagnostics stopped; restarting");
+                    window.showErrorMessage("[RTags] Diagnostics stopped; restarting");
                     setTimeout(() => { this.startDiagnostics(); }, 10000);
                 }
             };
@@ -160,7 +160,7 @@ export class RtagsCodeActionProvider implements
         }
         catch (_err)
         {
-            window.showErrorMessage("Diagnostics parse error: " + output);
+            window.showErrorMessage("[RTags] Diagnostics parse error: " + output);
             return;
         }
 

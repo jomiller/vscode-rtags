@@ -24,7 +24,7 @@ function startServer() : void
     const rc = spawnSync("rc", ["--current-project", "--silent-query"]);
     if (rc.error)
     {
-        window.showErrorMessage("Could not run RTags client");
+        window.showErrorMessage("[RTags] Could not run client");
         return;
     }
 
@@ -41,11 +41,11 @@ function startServer() : void
         if (rdm.pid)
         {
             rdm.unref();
-            window.showInformationMessage("Started RTags server successfully");
+            window.showInformationMessage("[RTags] Started server successfully");
         }
         else
         {
-            window.showErrorMessage("Could not start RTags server; start it by running 'rdm'");
+            window.showErrorMessage("[RTags] Could not start server; start it by running 'rdm'");
         }
     }
 }
@@ -94,7 +94,7 @@ function reindex(doc?: TextDocument) : void
             window.visibleTextEditors.some((editor) => { return isUnsavedSourceFile(editor.document); });
         if (unsaved)
         {
-            window.showInformationMessage("Save all source files first before reindexing");
+            window.showInformationMessage("[RTags] Save all source files first before reindexing");
             return;
         }
 
