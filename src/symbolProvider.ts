@@ -12,18 +12,21 @@ function toSymbolKind(kind: string) : SymbolKind | undefined
         case "Namespace":
             return SymbolKind.Namespace;
 
-        case "EnumDecl":
-            return SymbolKind.Enum;
-
-        case "EnumConstantDecl":
-            return SymbolKind.EnumMember;
-
         case "ClassDecl":
             return SymbolKind.Class;
 
         case "StructDecl":
         case "UnionDecl":
             return SymbolKind.Struct;
+
+        case "EnumDecl":
+            return SymbolKind.Enum;
+
+        case "EnumConstantDecl":
+            return SymbolKind.EnumMember;
+
+        case "TemplateTypeParameter":
+            return SymbolKind.TypeParameter;
 
         case "CXXConstructor":
         case "CXXDestructor":

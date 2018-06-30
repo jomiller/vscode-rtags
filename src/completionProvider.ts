@@ -13,16 +13,19 @@ function toCompletionItemKind(kind: string) : CompletionItemKind
         case "Namespace":
             return CompletionItemKind.Module;
 
+        case "ClassDecl":
+        case "StructDecl":
+        case "UnionDecl":
+                return CompletionItemKind.Class;
+
         case "EnumDecl":
             return CompletionItemKind.Enum;
 
         case "EnumConstantDecl":
             return CompletionItemKind.EnumMember;
 
-        case "ClassDecl":
-        case "StructDecl":
-        case "UnionDecl":
-            return CompletionItemKind.Class;
+        case "TemplateTypeParameter":
+            return CompletionItemKind.TypeParameter;
 
         case "CXXConstructor":
         case "CXXDestructor":
