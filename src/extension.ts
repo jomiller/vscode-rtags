@@ -90,7 +90,8 @@ function reindex(doc?: TextDocument) : void
     }
     else
     {
-        const unsaved: boolean = workspace.textDocuments.some((doc) => { return isUnsavedSourceFile(doc); });
+        const unsaved: boolean =
+            window.visibleTextEditors.some((editor) => { return isUnsavedSourceFile(editor.document); });
         if (unsaved)
         {
             window.showInformationMessage("Save all source files first before reindexing");
