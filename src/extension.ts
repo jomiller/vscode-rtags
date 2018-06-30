@@ -7,7 +7,7 @@ import { spawn, spawnSync, SpawnOptions } from 'child_process';
 
 import { setTimeout, clearTimeout } from 'timers';
 
-import { Nullable, RtagsSelector, runRc } from './rtagsUtil';
+import { Nullable, RtagsSelector, isUnsavedSourceFile, runRc } from './rtagsUtil';
 
 import { RtagsCodeActionProvider } from './codeActionProvider';
 
@@ -90,6 +90,13 @@ function reindex(doc?: TextDocument) : void
     }
     else
     {
+        const unsaved: boolean = workspace.textDocuments.some((doc) => { return isUnsavedSourceFile(doc); });
+        if (unsaved)
+        {
+            window.showInformationMessage("Save all source files first before reindexing");
+            return;
+        }
+
         let promise = runRc(["--reindex", "--silent"], (_unused) => {});
 
         promise.then(() => { runRc(["--diagnose-all"], (_unused) => {}); });
