@@ -9,49 +9,13 @@ import { Nullable, RtagsSelector, fromRtagsLocation, toRtagsLocation, runRc } fr
 enum ReferenceType
 {
     Definition,
-    Virtuals,
     References,
     Rename,
     Variables
 }
 
-function getDefinitions(document: TextDocument, position: Position, type: ReferenceType = ReferenceType.Definition) :
-    Thenable<Location[]>
+function getLocations(args: string[], document: TextDocument) : Thenable<Location[]>
 {
-    const location = toRtagsLocation(document.uri, position);
-
-    let args = ["--absolute-path", "--no-context"];
-
-    switch (type)
-    {
-        case ReferenceType.Definition:
-            args.push("--follow-location", location);
-            break;
-
-        case ReferenceType.Virtuals:
-            args.push("--find-virtuals", "--references", location);
-            break;
-
-        case ReferenceType.References:
-            args.push("--references", location);
-            break;
-
-        case ReferenceType.Rename:
-            args.push("--rename", "--all-references", "--references", location);
-            break;
-
-        case ReferenceType.Variables:
-        {
-            const kinds = ["FieldDecl", "ParmDecl", "VarDecl", "MemberRef"];
-            for (const k of kinds)
-            {
-                args.push("--kind-filter", k);
-            }
-            args.push("--references", location);
-            break;
-        }
-    }
-
     const processCallback =
         (output: string) : Location[] =>
         {
@@ -74,6 +38,42 @@ function getDefinitions(document: TextDocument, position: Position, type: Refere
         };
 
     return runRc(args, processCallback, document);
+}
+
+function getDefinitions(document: TextDocument, position: Position, type: ReferenceType = ReferenceType.Definition) :
+    Thenable<Location[]>
+{
+    const location = toRtagsLocation(document.uri, position);
+
+    let args = ["--absolute-path", "--no-context"];
+
+    switch (type)
+    {
+        case ReferenceType.Definition:
+            args.push("--follow-location", location);
+            break;
+
+        case ReferenceType.References:
+            args.push("--references", location);
+            break;
+
+        case ReferenceType.Rename:
+            args.push("--rename", "--all-references", "--references", location);
+            break;
+
+        case ReferenceType.Variables:
+        {
+            const kinds = ["FieldDecl", "ParmDecl", "VarDecl", "MemberRef"];
+            for (const k of kinds)
+            {
+                args.push("--kind-filter", k);
+            }
+            args.push("--references", location);
+            break;
+        }
+    }
+
+    return getLocations(args, document);
 }
 
 export class RtagsDefinitionProvider implements
@@ -135,7 +135,70 @@ export class RtagsDefinitionProvider implements
     provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<Definition>
     {
-        return getDefinitions(document, position, ReferenceType.Virtuals);
+        const location = toRtagsLocation(document.uri, position);
+
+        const args =
+        [
+            "--absolute-path",
+            "--symbol-info",
+            location
+        ];
+
+        const processCallback =
+            (output: string) : Nullable<string> =>
+            {
+                const symbolKind = (/^Kind:(.*)$/gm).exec(output);
+                if (!symbolKind)
+                {
+                    return null;
+                }
+                const symbolKinds =
+                [
+                    "ClassDecl",
+                    "StructDecl",
+                    "UnionDecl",
+                    "EnumDecl",
+                    "FieldDecl",
+                    "ParmDecl",
+                    "VarDecl",
+                    "TypeRef",
+                    "MemberRefExpr",
+                    "DeclRefExpr"
+                ];
+                if (!symbolKinds.includes(symbolKind[1].trim()))
+                {
+                    return null;
+                }
+
+                const qualSymbolType = (/^Type:(.*)$/gm).exec(output);
+                if (!qualSymbolType)
+                {
+                    return null;
+                }
+                const unqualSymbolType = qualSymbolType[1].replace(/const|volatile|&|\*|(=>.*)$/g, "");
+                return unqualSymbolType.trim();
+            };
+
+        const resolveCallback =
+            (symbolType: Nullable<string>) : ProviderResult<Location[]> =>
+            {
+                if (!symbolType)
+                {
+                    return [];
+                }
+
+                const localArgs =
+                [
+                    "--absolute-path",
+                    "--no-context",
+                    "--find-symbols",
+                    symbolType
+                ];
+
+                return getLocations(localArgs, document);
+            };
+
+        return runRc(args, processCallback, document).then(resolveCallback);
     }
 
     provideImplementation(document: TextDocument, position: Position, _token: CancellationToken) :
