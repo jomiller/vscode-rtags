@@ -1,12 +1,13 @@
 'use strict';
 
-import { commands, window, Location, Position, Range, TextDocument, TextDocumentShowOptions, Uri } from 'vscode';
+import { commands, window, DocumentFilter, Location, Position, Range, TextDocument, TextDocumentShowOptions, Uri }
+         from 'vscode';
 
 import { execFile, ExecFileOptions } from 'child_process';
 
 export type Nullable<T> = T | null;
 
-export const RtagsSelector =
+export const RtagsSelector: DocumentFilter[] =
 [
     { language: "cpp", scheme: "file" },
     { language: "c",   scheme: "file" }
@@ -39,7 +40,7 @@ export function jumpToLocation(uri: Uri, range: Range) : void
 
 export function runRc(args: string[], process: (stdout: string) => any, doc?: TextDocument) : Thenable<any>
 {
-    const executor =
+    const executorCallback =
         (resolve: (value?: any) => any, _reject: (reason?: any) => any) : void =>
         {
             if (doc && doc.isDirty)
@@ -56,7 +57,7 @@ export function runRc(args: string[], process: (stdout: string) => any, doc?: Te
                 maxBuffer: 4 * 1024 * 1024
             };
 
-            const callback =
+            const exitCallback =
                 (error: Error, stdout: string, stderr: string) : void =>
                 {
                     if (error)
@@ -70,13 +71,14 @@ export function runRc(args: string[], process: (stdout: string) => any, doc?: Te
 
             args.push("--silent-query");
 
-            let rc = execFile("rc", args, options, callback);
+            let rc = execFile("rc", args, options, exitCallback);
 
             if (doc && doc.isDirty)
             {
                 rc.stdin.write(doc.getText());
+                rc.stdin.end();
             }
         };
 
-    return new Promise(executor);
+    return new Promise(executorCallback);
 }
