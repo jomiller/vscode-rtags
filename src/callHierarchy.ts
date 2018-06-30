@@ -42,7 +42,7 @@ function getCallers(document: TextDocument | undefined, uri: Uri, position: Posi
                 {
                     const containerLocation = fromRtagsLocation(c.cfl);
                     const doc = workspace.textDocuments.find(
-                        (val, _idx) => { return (val.uri.fsPath === containerLocation.uri.fsPath); });
+                        (val) => { return (val.uri.fsPath === containerLocation.uri.fsPath); });
 
                     const caller: Caller =
                     {
