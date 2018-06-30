@@ -21,11 +21,10 @@ function toCompletionItemKind(kind: string) : CompletionItemKind
 
         case "ClassDecl":
         case "StructDecl":
+        case "UnionDecl":
             return CompletionItemKind.Class;
 
         case "CXXConstructor":
-            return CompletionItemKind.Constructor;
-
         case "CXXDestructor":
             return CompletionItemKind.Constructor;
 
@@ -39,8 +38,6 @@ function toCompletionItemKind(kind: string) : CompletionItemKind
             return CompletionItemKind.Field;
 
         case "ParmDecl":
-            return CompletionItemKind.Variable;
-
         case "VarDecl":
             return CompletionItemKind.Variable;
     }

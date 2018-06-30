@@ -19,12 +19,13 @@ function toSymbolKind(kind: string) : SymbolKind | undefined
             return SymbolKind.EnumMember;
 
         case "ClassDecl":
-        case "StructDecl":
             return SymbolKind.Class;
 
-        case "CXXConstructor":
-            return SymbolKind.Constructor;
+        case "StructDecl":
+        case "UnionDecl":
+            return SymbolKind.Struct;
 
+        case "CXXConstructor":
         case "CXXDestructor":
             return SymbolKind.Constructor;
 
@@ -38,8 +39,6 @@ function toSymbolKind(kind: string) : SymbolKind | undefined
             return SymbolKind.Field;
 
         case "ParmDecl":
-            return SymbolKind.Variable;
-
         case "VarDecl":
             return SymbolKind.Variable;
     }
