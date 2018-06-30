@@ -221,10 +221,15 @@ export class RtagsDefinitionProvider implements
     {
         for (const doc of workspace.textDocuments)
         {
-            if (((doc.languageId === "cpp") || (doc.languageId === "c")) && doc.isDirty)
+            if (doc.isDirty)
             {
-                window.showInformationMessage("Save all source files first before renaming");
-                return null;
+                const isSourceFile: boolean =
+                    RtagsSelector.some((filt) => { return (filt.language === doc.languageId); });
+                if (isSourceFile)
+                {
+                    window.showInformationMessage("Save all source files first before renaming");
+                    return null;
+                }
             }
         }
 
