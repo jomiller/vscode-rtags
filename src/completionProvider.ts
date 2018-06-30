@@ -16,7 +16,7 @@ function toCompletionItemKind(kind: string) : CompletionItemKind
         case "ClassDecl":
         case "StructDecl":
         case "UnionDecl":
-                return CompletionItemKind.Class;
+            return CompletionItemKind.Class;
 
         case "EnumDecl":
             return CompletionItemKind.Enum;
