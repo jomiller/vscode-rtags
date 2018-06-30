@@ -58,7 +58,7 @@ export function runRc(args: string[], process: (stdout: string) => any, doc?: Te
                 const path = doc.uri.fsPath;
 
                 const unsaved = path + ':' + content.length;
-                args.push("--unsaved-file=" + unsaved);
+                args.push("--unsaved-file", unsaved);
             }
 
             const options: ExecFileOptions =

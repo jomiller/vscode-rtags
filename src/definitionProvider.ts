@@ -22,7 +22,7 @@ function getLocations(args: string[], document: TextDocument) : Thenable<Locatio
             let locations: Location[] = [];
             try
             {
-                for (const loc of output.split("\n"))
+                for (const loc of output.split('\n'))
                 {
                     if (!loc)
                     {
@@ -261,7 +261,7 @@ export class RtagsDefinitionProvider implements
                 try
                 {
                     let _unused: string = "";
-                    [_unused, definition] = output.split("\t", 2).map((token) => { return token.trim(); });
+                    [_unused, definition] = output.split('\t', 2).map((token) => { return token.trim(); });
                 }
                 catch (_err)
                 {

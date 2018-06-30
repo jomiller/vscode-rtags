@@ -57,10 +57,9 @@ function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInform
         (output: string) : SymbolInformation[] =>
         {
             let symbols: SymbolInformation[] = [];
-            for (const line of output.split("\n"))
+            for (const line of output.split('\n'))
             {
-                let [path, _unused, name, kind, container] = line.split(/\t+/);
-                _unused = _unused;
+                let [location, name, kind, container] = line.split('\t', 4).map((token) => { return token.trim(); });
                 if (!name)
                 {
                     continue;
@@ -70,13 +69,16 @@ function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInform
                 {
                     continue;
                 }
-                const location = fromRtagsLocation(path);
+                if (container)
+                {
+                    container = container.replace(/^function: /, "");
+                }
 
                 const symbolInfo: SymbolInformation =
                 {
                     name: name,
                     containerName: container,
-                    location: location,
+                    location: fromRtagsLocation(location),
                     kind: <SymbolKind>localKind
                 };
                 symbols.push(symbolInfo);
@@ -84,14 +86,15 @@ function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInform
             return symbols;
         };
 
-    args.push("--wildcard-symbol-names",
-              "--absolute-path",
+    args.push("--absolute-path",
+              "--no-context",
+              "--display-name",
+              "--cursor-kind",
               "--containing-function",
+              "--wildcard-symbol-names",
               "--match-icase",
               "--find-symbols",
-              query,
-              "--cursor-kind",
-              "--display-name");
+              query);
 
     return runRc(args, processCallback);
 }
@@ -128,7 +131,7 @@ export class RtagsSymbolProvider implements
             return [];
         }
 
-        const args = ["--max", "30"];
+        const args = ["--max", "50"];
 
         const folders = workspace.workspaceFolders;
         if (folders)
