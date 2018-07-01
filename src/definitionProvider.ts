@@ -124,51 +124,39 @@ export class RtagsDefinitionProvider implements
 
                 const args =
                 [
-                    "--json",
                     "--absolute-path",
                     "--no-context",
-                    "--symbol-info",
+                    "--class-hierarchy",
                     location
                 ];
 
                 const processCallback =
-                    (output: string) : string[] =>
+                    (output: string) : Location[] =>
                     {
-                        let baseClassNames: string[] = [];
-                        const jsonObj = JSON.parse(output);
+                        let locations: Location[] = [];
 
-                        if (jsonObj.baseClasses)
+                        const lines = output.split('\n');
+                        const index = lines.indexOf("Superclasses:");
+                        if (index !== -1)
                         {
-                            for (const base of jsonObj.baseClasses)
+                            for (const l of lines.slice(index + 2))
                             {
-                                const baseClassName = base.replace(/@[A-Z]@/, "").replace(/@[A-Z]@/g, "::");
-
-                                baseClassNames.push(baseClassName.replace(/^c:/, "class "),
-                                                    baseClassName.replace(/^c:/, "struct "));
+                                const base = l.match(/^ {4}\w.*/);
+                                if (!base)
+                                {
+                                    break;
+                                }
+                                let [_unused, location] =
+                                    base[0].split('\t', 2).map((token) => { return token.trim(); });
+                                _unused = _unused;
+                                locations.push(fromRtagsLocation(location));
                             }
                         }
 
-                        return baseClassNames;
+                        return locations;
                     };
 
                 const resolveCallback =
-                    (baseClassNames: string[]) : Thenable<Location[]> =>
-                    {
-                        if (baseClassNames.length === 0)
-                        {
-                            return Promise.resolve([]);
-                        }
-
-                        let localArgs = ["--absolute-path", "--no-context"];
-
-                        baseClassNames.forEach((base) => { localArgs.push("--find-symbols", base); });
-
-                        return getLocations(localArgs, document);
-                    };
-
-                let promise = runRc(args, processCallback, document).then(resolveCallback);
-
-                promise.then(
                     (locations: Location[]) : void =>
                     {
                         if (locations.length === 1)
@@ -182,7 +170,9 @@ export class RtagsDefinitionProvider implements
                                                     position,
                                                     locations);
                         }
-                    });
+                    };
+
+                runRc(args, processCallback, document).then(resolveCallback);
             };
 
         this.disposables.push(
