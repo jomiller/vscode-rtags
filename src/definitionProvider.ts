@@ -136,6 +136,7 @@ export class RtagsDefinitionProvider implements
 
         const args =
         [
+            "--json",
             "--absolute-path",
             "--symbol-info",
             location
@@ -144,7 +145,9 @@ export class RtagsDefinitionProvider implements
         const processCallback =
             (output: string) : Nullable<string> =>
             {
-                const symbolKind = (/^Kind:(.*)$/gm).exec(output);
+                const jsonObj = JSON.parse(output);
+
+                const symbolKind = jsonObj.kind;
                 if (!symbolKind)
                 {
                     return null;
@@ -162,17 +165,17 @@ export class RtagsDefinitionProvider implements
                     "MemberRefExpr",
                     "DeclRefExpr"
                 ];
-                if (!symbolKinds.includes(symbolKind[1].trim()))
+                if (!symbolKinds.includes(symbolKind))
                 {
                     return null;
                 }
 
-                const qualSymbolType = (/^Type:(.*)$/gm).exec(output);
+                const qualSymbolType = jsonObj.type;
                 if (!qualSymbolType)
                 {
                     return null;
                 }
-                const unqualSymbolType = qualSymbolType[1].replace(/const|volatile|&|\*|(=>.*)$/g, "");
+                const unqualSymbolType = qualSymbolType.replace(/const|volatile|&|\*|(=>.*)$/g, "");
                 return unqualSymbolType.trim();
             };
 
