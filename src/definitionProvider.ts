@@ -1,6 +1,6 @@
 'use strict';
 
-import { commands, languages, window, CancellationToken, Definition, DefinitionProvider, Disposable, Hover,
+import { commands, languages, window, workspace, CancellationToken, Definition, DefinitionProvider, Disposable, Hover,
          HoverProvider, Location, Position, ProviderResult, ReferenceContext, TextDocument, TypeDefinitionProvider,
          ImplementationProvider, Range, ReferenceProvider, RenameProvider, WorkspaceEdit } from 'vscode';
 
@@ -216,8 +216,7 @@ export class RtagsDefinitionProvider implements
     provideRenameEdits(document: TextDocument, position: Position, newName: string, _token: CancellationToken) :
         ProviderResult<WorkspaceEdit>
     {
-        const unsaved: boolean =
-            window.visibleTextEditors.some((editor) => { return isUnsavedSourceFile(editor.document); });
+        const unsaved: boolean = workspace.textDocuments.some((doc) => { return isUnsavedSourceFile(doc); });
         if (unsaved)
         {
             window.showInformationMessage("[RTags] Save all source files first before renaming");
