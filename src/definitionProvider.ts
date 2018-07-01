@@ -129,20 +129,22 @@ export class RtagsDefinitionProvider implements
                         let locations: Location[] = [];
 
                         const lines = output.split('\n');
-                        const index = lines.indexOf("Superclasses:");
-                        if (index !== -1)
+                        const baseIndex = lines.indexOf("Superclasses:");
+                        if (baseIndex !== -1)
                         {
-                            for (const l of lines.slice(index + 2))
+                            const startIndex = baseIndex + 2;
+                            const derivedIndex = lines.indexOf("Subclasses:");
+                            const endIndex = (derivedIndex === -1) ? (lines.length - 1) : (derivedIndex - 1);
+                            for (let i = startIndex; i <= endIndex; ++i)
                             {
-                                const base = l.match(/^ {4}\w.*/);
-                                if (!base)
+                                const base = lines[i].match(/^ {4}\w.*/);
+                                if (base)
                                 {
-                                    break;
+                                    let [_unused, location] =
+                                        base[0].split('\t', 2).map((token) => { return token.trim(); });
+                                    _unused = _unused;
+                                    locations.push(fromRtagsLocation(location));
                                 }
-                                let [_unused, location] =
-                                    base[0].split('\t', 2).map((token) => { return token.trim(); });
-                                _unused = _unused;
-                                locations.push(fromRtagsLocation(location));
                             }
                         }
 
@@ -154,7 +156,7 @@ export class RtagsDefinitionProvider implements
                     {
                         if (locations.length === 1)
                         {
-                            jumpToLocation(document.uri, new Range(position, position));
+                            jumpToLocation(document.uri, locations[0].range);
                         }
                         else
                         {
