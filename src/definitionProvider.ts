@@ -4,7 +4,8 @@ import { commands, languages, window, workspace, CancellationToken, Definition, 
          HoverProvider, Location, Position, ProviderResult, ReferenceContext, TextDocument, TypeDefinitionProvider,
          ImplementationProvider, Range, ReferenceProvider, RenameProvider, WorkspaceEdit } from 'vscode';
 
-import { Nullable, RtagsSelector, isUnsavedSourceFile, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
+import { Nullable, RtagsSelector, isUnsavedSourceFile, fromRtagsLocation, toRtagsLocation, jumpToLocation, runRc }
+         from './rtagsUtil';
 
 enum ReferenceType
 {
@@ -85,11 +86,14 @@ export class RtagsDefinitionProvider implements
     constructor()
     {
         const showVariablesCallback =
-        () : void =>
-        {
-            const editor = window.activeTextEditor;
-            if (editor)
+            () : void =>
             {
+                const editor = window.activeTextEditor;
+                if (!editor)
+                {
+                    return;
+                }
+
                 const document = editor.document;
                 const position = editor.selection.active;
                 let promise = getDefinitions(document, position, ReferenceType.Variables);
@@ -102,8 +106,84 @@ export class RtagsDefinitionProvider implements
                                                 position,
                                                 locations);
                     });
-            }
-        };
+            };
+
+        const showBaseClassesCallback =
+            () : void =>
+            {
+                const editor = window.activeTextEditor;
+                if (!editor)
+                {
+                    return;
+                }
+
+                const document = editor.document;
+                const position = editor.selection.active;
+
+                const location = toRtagsLocation(document.uri, position);
+
+                const args =
+                [
+                    "--json",
+                    "--absolute-path",
+                    "--no-context",
+                    "--symbol-info",
+                    location
+                ];
+
+                const processCallback =
+                    (output: string) : string[] =>
+                    {
+                        let baseClassNames: string[] = [];
+                        const jsonObj = JSON.parse(output);
+
+                        if (jsonObj.baseClasses)
+                        {
+                            for (const base of jsonObj.baseClasses)
+                            {
+                                const baseClassName = base.replace(/@[A-Z]@/, "").replace(/@[A-Z]@/g, "::");
+
+                                baseClassNames.push(baseClassName.replace(/^c:/, "class "),
+                                                    baseClassName.replace(/^c:/, "struct "));
+                            }
+                        }
+
+                        return baseClassNames;
+                    };
+
+                const resolveCallback =
+                    (baseClassNames: string[]) : Thenable<Location[]> =>
+                    {
+                        if (baseClassNames.length === 0)
+                        {
+                            return Promise.resolve([]);
+                        }
+
+                        let localArgs = ["--absolute-path", "--no-context"];
+
+                        baseClassNames.forEach((base) => { localArgs.push("--find-symbols", base); });
+
+                        return getLocations(localArgs, document);
+                    };
+
+                let promise = runRc(args, processCallback, document).then(resolveCallback);
+
+                promise.then(
+                    (locations: Location[]) : void =>
+                    {
+                        if (locations.length === 1)
+                        {
+                            jumpToLocation(document.uri, new Range(position, position));
+                        }
+                        else
+                        {
+                            commands.executeCommand("editor.action.showReferences",
+                                                    document.uri,
+                                                    position,
+                                                    locations);
+                        }
+                    });
+            };
 
         this.disposables.push(
             languages.registerDefinitionProvider(RtagsSelector, this),
@@ -112,7 +192,8 @@ export class RtagsDefinitionProvider implements
             languages.registerReferenceProvider(RtagsSelector, this),
             languages.registerRenameProvider(RtagsSelector, this),
             languages.registerHoverProvider(RtagsSelector, this),
-            commands.registerCommand("rtags.showVariables", showVariablesCallback));
+            commands.registerCommand("rtags.showVariables", showVariablesCallback),
+            commands.registerCommand("rtags.showBaseClasses", showBaseClassesCallback));
     }
 
     dispose() : void
