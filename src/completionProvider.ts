@@ -95,8 +95,9 @@ export class RtagsCompletionProvider implements
         const processCallback =
             (output: string) : CompletionList =>
             {
-                const jsonObj = JSON.parse(output);
                 let completionItems: CompletionItem[] = [];
+                const jsonObj = JSON.parse(output);
+
                 for (const c of jsonObj.completions)
                 {
                     const sortText: string = ("00" + c.priority.toString()).slice(-2);
@@ -129,6 +130,7 @@ export class RtagsCompletionProvider implements
                         break;
                     }
                 }
+
                 return new CompletionList(completionItems, completionItems.length >= maxCompletions);
             };
 
@@ -154,8 +156,8 @@ export class RtagsCompletionProvider implements
         const processCallback =
             (output: string) : SignatureHelp =>
             {
-                const jsonObj = JSON.parse(output);
                 let signatures: SignatureInformation[] = [];
+                const jsonObj = JSON.parse(output);
 
                 for (const c of jsonObj.completions)
                 {
