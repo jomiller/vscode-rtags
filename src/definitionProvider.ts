@@ -138,6 +138,7 @@ export class RtagsDefinitionProvider implements
         [
             "--json",
             "--absolute-path",
+            "--no-context",
             "--symbol-info",
             location
         ];

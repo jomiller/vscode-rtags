@@ -23,6 +23,7 @@ function getCallers(document: TextDocument | undefined, uri: Uri, position: Posi
     [
         "--json",
         "--absolute-path",
+        "--no-context",
         "--containing-function",
         "--containing-function-location",
         "--references",
