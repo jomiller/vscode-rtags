@@ -71,7 +71,23 @@ export function runRc(args: string[], process: (stdout: string) => any, doc?: Te
                 {
                     if (error)
                     {
-                        window.showErrorMessage("[RTags] Client error: " + stderr);
+                        if (stdout || stderr)
+                        {
+                            let message: string = "[RTags] ";
+                            if (stderr)
+                            {
+                                message += "Client error: " + stderr;
+                            }
+                            else if (error.message)
+                            {
+                                message += "Client error: " + error.message;
+                            }
+                            else
+                            {
+                                message += "Unknown client error";
+                            }
+                            window.showErrorMessage(message);
+                        }
                         resolve([]);
                         return;
                     }
