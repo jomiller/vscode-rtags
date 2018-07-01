@@ -34,7 +34,6 @@ function getCallers(document: TextDocument | undefined, uri: Uri, position: Posi
         (output: string) : Caller[] =>
         {
             let callers: Caller[] = [];
-
             const jsonObj = JSON.parse(output);
 
             for (const c of jsonObj)
@@ -93,23 +92,25 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
             () : void =>
             {
                 const editor = window.activeTextEditor;
-                if (editor)
+                if (!editor)
                 {
-                   const document = editor.document;
-                   const position = editor.selection.active;
-                   let promise = getCallers(document, document.uri, position);
-
-                   promise.then(
-                       (callers: Caller[]) : void =>
-                       {
-                           let locations: Location[] = [];
-                           callers.forEach((c) => { locations.push(c.location); });
-                           commands.executeCommand("editor.action.showReferences",
-                                                   document.uri,
-                                                   position,
-                                                   locations);
-                       });
+                    return;
                 }
+
+                const document = editor.document;
+                const position = editor.selection.active;
+                let promise = getCallers(document, document.uri, position);
+
+                promise.then(
+                    (callers: Caller[]) : void =>
+                    {
+                        let locations: Location[] = [];
+                        callers.forEach((c) => { locations.push(c.location); });
+                        commands.executeCommand("editor.action.showReferences",
+                                                document.uri,
+                                                position,
+                                                locations);
+                    });
             };
 
         this.disposables.push(
