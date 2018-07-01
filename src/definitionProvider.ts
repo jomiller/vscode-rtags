@@ -21,19 +21,12 @@ function getLocations(args: string[], document: TextDocument) : Thenable<Locatio
         (output: string) : Location[] =>
         {
             let locations: Location[] = [];
-            try
+            for (const loc of output.split('\n'))
             {
-                for (const loc of output.split('\n'))
+                if (loc)
                 {
-                    if (!loc)
-                    {
-                        continue;
-                    }
                     locations.push(fromRtagsLocation(loc));
                 }
-            }
-            catch (_err)
-            {
             }
             return locations;
         };
@@ -217,7 +210,15 @@ export class RtagsDefinitionProvider implements
         const processCallback =
             (output: string) : Nullable<string> =>
             {
-                const jsonObj = JSON.parse(output);
+                let jsonObj;
+                try
+                {
+                    jsonObj = JSON.parse(output);
+                }
+                catch (_err)
+                {
+                    return null;
+                }
 
                 const symbolKind = jsonObj.kind;
                 if (!symbolKind)
@@ -331,15 +332,9 @@ export class RtagsDefinitionProvider implements
         const processCallback =
             (output: string) : string =>
             {
+                let _unused: string = "";
                 let definition: string = "";
-                try
-                {
-                    let _unused: string = "";
-                    [_unused, definition] = output.split('\t', 2).map((token) => { return token.trim(); });
-                }
-                catch (_err)
-                {
-                }
+                [_unused, definition] = output.split('\t', 2).map((token) => { return token.trim(); });
                 return definition;
             };
 

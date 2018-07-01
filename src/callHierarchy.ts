@@ -34,11 +34,11 @@ function getCallers(document: TextDocument | undefined, uri: Uri, position: Posi
         (output: string) : Caller[] =>
         {
             let callers: Caller[] = [];
-            const jsonObj = JSON.parse(output);
 
-            for (const c of jsonObj)
+            try
             {
-                try
+                const jsonObj = JSON.parse(output);
+                for (const c of jsonObj)
                 {
                     const containerLocation = fromRtagsLocation(c.cfl);
                     const doc = workspace.textDocuments.find(
@@ -53,9 +53,9 @@ function getCallers(document: TextDocument | undefined, uri: Uri, position: Posi
                     };
                     callers.push(caller);
                 }
-                catch (_err)
-                {
-                }
+            }
+            catch (_err)
+            {
             }
 
             return callers;

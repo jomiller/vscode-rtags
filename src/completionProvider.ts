@@ -96,39 +96,45 @@ export class RtagsCompletionProvider implements
             (output: string) : CompletionList =>
             {
                 let completionItems: CompletionItem[] = [];
-                const jsonObj = JSON.parse(output);
 
-                for (const c of jsonObj.completions)
+                try
                 {
-                    const sortText: string = ("00" + c.priority.toString()).slice(-2);
-                    const kind = toCompletionItemKind(c.kind);
-                    let insert = new SnippetString();
-                    switch (kind)
+                    const jsonObj = JSON.parse(output);
+                    for (const c of jsonObj.completions)
                     {
-                        case CompletionItemKind.Method:
-                        case CompletionItemKind.Function:
-                            insert = new SnippetString(c.completion + "($1)");
+                        const sortText: string = ("00" + c.priority.toString()).slice(-2);
+                        const kind = toCompletionItemKind(c.kind);
+                        let insert = new SnippetString();
+                        switch (kind)
+                        {
+                            case CompletionItemKind.Method:
+                            case CompletionItemKind.Function:
+                                insert = new SnippetString(c.completion + "($1)");
+                                break;
+
+                            default:
+                                insert = new SnippetString(c.completion);
+                                break;
+                        }
+
+                        const item: CompletionItem =
+                        {
+                            label: c.completion,
+                            kind: kind,
+                            detail: c.signature,
+                            sortText: sortText,
+                            insertText: insert
+                        };
+                        completionItems.push(item);
+
+                        if (completionItems.length === maxCompletions)
+                        {
                             break;
-
-                        default:
-                            insert = new SnippetString(c.completion);
-                            break;
+                        }
                     }
-
-                    const item: CompletionItem =
-                    {
-                        label: c.completion,
-                        kind: kind,
-                        detail: c.signature,
-                        sortText: sortText,
-                        insertText: insert
-                    };
-                    completionItems.push(item);
-
-                    if (completionItems.length === maxCompletions)
-                    {
-                        break;
-                    }
+                }
+                catch (_err)
+                {
                 }
 
                 return new CompletionList(completionItems, completionItems.length >= maxCompletions);
@@ -157,21 +163,27 @@ export class RtagsCompletionProvider implements
             (output: string) : SignatureHelp =>
             {
                 let signatures: SignatureInformation[] = [];
-                const jsonObj = JSON.parse(output);
 
-                for (const c of jsonObj.completions)
+                try
                 {
-                    const signatureInfo: SignatureInformation =
+                    const jsonObj = JSON.parse(output);
+                    for (const c of jsonObj.completions)
                     {
-                        label: c.signature,
-                        parameters: [c.completion]
-                    };
-                    signatures.push(signatureInfo);
+                        const signatureInfo: SignatureInformation =
+                        {
+                            label: c.signature,
+                            parameters: [c.completion]
+                        };
+                        signatures.push(signatureInfo);
 
-                    if (signatures.length === maxCompletions)
-                    {
-                        break;
+                        if (signatures.length === maxCompletions)
+                        {
+                            break;
+                        }
                     }
+                }
+                catch (_err)
+                {
                 }
 
                 const signatureHelp: SignatureHelp =
@@ -180,6 +192,7 @@ export class RtagsCompletionProvider implements
                     activeSignature: 0,
                     activeParameter: 0
                 };
+
                 return signatureHelp;
             };
 

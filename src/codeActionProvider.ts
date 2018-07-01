@@ -91,15 +91,7 @@ export class RtagsCodeActionProvider implements
         const dataCallback =
             (data: string) : void =>
             {
-                try
-                {
-                    this.unprocessedDiagnostics = this.processDiagnostics(
-                        this.unprocessedDiagnostics + data);
-                }
-                catch (_err)
-                {
-                    this.unprocessedDiagnostics = "";
-                }
+                this.unprocessedDiagnostics = this.processDiagnostics(this.unprocessedDiagnostics + data);
             };
 
         this.diagnosticProcess.stdout.on("data", dataCallback);
@@ -153,6 +145,7 @@ export class RtagsCodeActionProvider implements
         {
             return;
         }
+
         let jsonObj;
         try
         {
@@ -161,6 +154,11 @@ export class RtagsCodeActionProvider implements
         catch (_err)
         {
             window.showErrorMessage("[RTags] Diagnostics parse error: " + output);
+            return;
+        }
+
+        if (!jsonObj.checkStyle)
+        {
             return;
         }
 
