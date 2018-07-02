@@ -5,17 +5,17 @@ import { commands, window, workspace, Disposable, Event, EventEmitter, Location,
 
 import { basename } from 'path';
 
-import { Nullable, setContext, fromRtagsLocation, toRtagsLocation, jumpToLocation, runRc } from './rtagsUtil';
+import { Nullable, setContext, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
 
-interface Caller
+export interface Caller
 {
     location: Location;
     containerName: string;
     containerLocation: Location;
-    document?: TextDocument;
+    containerDocument?: TextDocument;
 }
 
-function getCallers(document: TextDocument | undefined, uri: Uri, position: Position) : Thenable<Caller[]>
+function getCallers(uri: Uri, position: Position, document?: TextDocument) : Thenable<Caller[]>
 {
     const location = toRtagsLocation(uri, position);
 
@@ -41,7 +41,7 @@ function getCallers(document: TextDocument | undefined, uri: Uri, position: Posi
                 for (const c of jsonObj)
                 {
                     const containerLocation = fromRtagsLocation(c.cfl);
-                    const doc = workspace.textDocuments.find(
+                    const containerDoc = workspace.textDocuments.find(
                         (val) => { return (val.uri.fsPath === containerLocation.uri.fsPath); });
 
                     const caller: Caller =
@@ -49,7 +49,7 @@ function getCallers(document: TextDocument | undefined, uri: Uri, position: Posi
                         location: fromRtagsLocation(c.loc),
                         containerName: c.cf.trim(),
                         containerLocation: containerLocation,
-                        document: doc
+                        containerDocument: containerDoc
                     };
                     callers.push(caller);
                 }
@@ -82,12 +82,6 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                 this.refresh();
             };
 
-        const gotoLocationCallback =
-            (caller: Caller) : void =>
-            {
-                jumpToLocation(caller.location.uri, caller.location.range);
-            };
-
         const showCallersCallback =
             () : void =>
             {
@@ -99,7 +93,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
 
                 const document = editor.document;
                 const position = editor.selection.active;
-                let promise = getCallers(document, document.uri, position);
+                let promise = getCallers(document.uri, position, document);
 
                 promise.then(
                     (callers: Caller[]) : void =>
@@ -117,7 +111,6 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
             window.registerTreeDataProvider("rtags.callHierarchy", this),
             commands.registerCommand("rtags.callHierarchy", callHierarchyCallback),
             commands.registerCommand("rtags.closeCallHierarchy", closeCallHierarchyCallback),
-            commands.registerCommand("rtags.gotoLocation", gotoLocationCallback),
             commands.registerCommand("rtags.showCallers", showCallersCallback));
     }
 
@@ -141,7 +134,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
     {
         if (!node)
         {
-            const list: Caller[] = [];
+            let callers: Caller[] = [];
             const editor = window.activeTextEditor;
             if (editor)
             {
@@ -154,14 +147,14 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                     location: loc,
                     containerLocation: loc,
                     containerName: doc.getText(doc.getWordRangeAtPosition(pos)),
-                    document: doc
+                    containerDocument: doc
                 };
-                list.push(caller);
+                callers.push(caller);
             }
-            return list;
+            return callers;
         }
 
-        return getCallers(node.document, node.containerLocation.uri, node.containerLocation.range.start);
+        return getCallers(node.containerLocation.uri, node.containerLocation.range.start, node.containerDocument);
     }
 
     private refresh() : void

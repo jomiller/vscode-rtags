@@ -7,7 +7,7 @@ import { spawn, spawnSync, SpawnOptions } from 'child_process';
 
 import { setTimeout, clearTimeout } from 'timers';
 
-import { Nullable, RtagsSelector, isUnsavedSourceFile, runRc } from './rtagsUtil';
+import { Nullable, RtagsSelector, isUnsavedSourceFile, jumpToLocation, runRc } from './rtagsUtil';
 
 import { RtagsCodeActionProvider } from './codeActionProvider';
 
@@ -17,7 +17,9 @@ import { RtagsDefinitionProvider } from './definitionProvider';
 
 import { RtagsSymbolProvider } from './symbolProvider';
 
-import { CallHierarchyProvider } from './callHierarchy';
+import { Caller, CallHierarchyProvider } from './callHierarchy';
+
+import { InheritanceNode, InheritanceHierarchyProvider } from './inheritanceHierarchy';
 
 function startServer() : void
 {
@@ -112,6 +114,13 @@ export function activate(context: ExtensionContext) : void
     let definitionProvider = new RtagsDefinitionProvider;
     let symbolProvider = new RtagsSymbolProvider;
     let callHierarchyProvider = new CallHierarchyProvider;
+    let inheritanceHierarchyProvider = new InheritanceHierarchyProvider;
+
+    const gotoLocationCallback =
+        (node: Caller | InheritanceNode) : void =>
+        {
+            jumpToLocation(node.location.uri, node.location.range);
+        };
 
     context.subscriptions.push(
         codeActionProvider,
@@ -119,7 +128,9 @@ export function activate(context: ExtensionContext) : void
         definitionProvider,
         symbolProvider,
         callHierarchyProvider,
-        commands.registerCommand("rtags.freshenIndex", () => { reindex(); }));
+        inheritanceHierarchyProvider,
+        commands.registerCommand("rtags.freshenIndex", () => { reindex(); }),
+        commands.registerCommand("rtags.gotoLocation", gotoLocationCallback));
 
     let timerId: Nullable<NodeJS.Timer> = null;
     workspace.onDidChangeTextDocument(

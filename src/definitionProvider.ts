@@ -4,8 +4,7 @@ import { commands, languages, window, workspace, CancellationToken, Definition, 
          HoverProvider, Location, Position, ProviderResult, ReferenceContext, TextDocument, TypeDefinitionProvider,
          ImplementationProvider, Range, ReferenceProvider, RenameProvider, WorkspaceEdit } from 'vscode';
 
-import { Nullable, RtagsSelector, isUnsavedSourceFile, fromRtagsLocation, toRtagsLocation, jumpToLocation, runRc }
-         from './rtagsUtil';
+import { Nullable, RtagsSelector, isUnsavedSourceFile, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
 
 enum ReferenceType
 {
@@ -101,75 +100,6 @@ export class RtagsDefinitionProvider implements
                     });
             };
 
-        const showBaseClassesCallback =
-            () : void =>
-            {
-                const editor = window.activeTextEditor;
-                if (!editor)
-                {
-                    return;
-                }
-
-                const document = editor.document;
-                const position = editor.selection.active;
-
-                const location = toRtagsLocation(document.uri, position);
-
-                const args =
-                [
-                    "--absolute-path",
-                    "--no-context",
-                    "--class-hierarchy",
-                    location
-                ];
-
-                const processCallback =
-                    (output: string) : Location[] =>
-                    {
-                        let locations: Location[] = [];
-
-                        const lines = output.split('\n');
-                        const baseIndex = lines.indexOf("Superclasses:");
-                        if (baseIndex !== -1)
-                        {
-                            const startIndex = baseIndex + 2;
-                            const derivedIndex = lines.indexOf("Subclasses:");
-                            const endIndex = (derivedIndex === -1) ? (lines.length - 1) : (derivedIndex - 1);
-                            for (let i = startIndex; i <= endIndex; ++i)
-                            {
-                                const base = lines[i].match(/^ {4}\w.*/);
-                                if (base)
-                                {
-                                    let [_unused, location] =
-                                        base[0].split('\t', 2).map((token) => { return token.trim(); });
-                                    _unused = _unused;
-                                    locations.push(fromRtagsLocation(location));
-                                }
-                            }
-                        }
-
-                        return locations;
-                    };
-
-                const resolveCallback =
-                    (locations: Location[]) : void =>
-                    {
-                        if (locations.length === 1)
-                        {
-                            jumpToLocation(document.uri, locations[0].range);
-                        }
-                        else
-                        {
-                            commands.executeCommand("editor.action.showReferences",
-                                                    document.uri,
-                                                    position,
-                                                    locations);
-                        }
-                    };
-
-                runRc(args, processCallback, document).then(resolveCallback);
-            };
-
         this.disposables.push(
             languages.registerDefinitionProvider(RtagsSelector, this),
             languages.registerTypeDefinitionProvider(RtagsSelector, this),
@@ -177,8 +107,7 @@ export class RtagsDefinitionProvider implements
             languages.registerReferenceProvider(RtagsSelector, this),
             languages.registerRenameProvider(RtagsSelector, this),
             languages.registerHoverProvider(RtagsSelector, this),
-            commands.registerCommand("rtags.showVariables", showVariablesCallback),
-            commands.registerCommand("rtags.showBaseClasses", showBaseClassesCallback));
+            commands.registerCommand("rtags.showVariables", showVariablesCallback));
     }
 
     dispose() : void

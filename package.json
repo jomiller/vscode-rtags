@@ -29,6 +29,11 @@
                     "id": "rtags.callHierarchy",
                     "name": "Call Hierarchy",
                     "when": "extension.rtags.callHierarchyVisible"
+                },
+                {
+                    "id": "rtags.inheritanceHierarchy",
+                    "name": "Inheritance Hierarchy",
+                    "when": "extension.rtags.inheritanceHierarchyVisible"
                 }
             ]
         },
@@ -40,19 +45,24 @@
                     "group": "navigation@2"
                 },
                 {
-                    "command": "rtags.showVariables",
+                    "command": "rtags.inheritanceHierarchy",
                     "when": "resourceLangId == cpp",
                     "group": "navigation@3"
                 },
                 {
-                    "command": "rtags.showCallers",
+                    "command": "rtags.showVariables",
                     "when": "resourceLangId == cpp",
                     "group": "navigation@4"
                 },
                 {
-                    "command": "rtags.showBaseClasses",
+                    "command": "rtags.showCallers",
                     "when": "resourceLangId == cpp",
                     "group": "navigation@5"
+                },
+                {
+                    "command": "rtags.showBaseClasses",
+                    "when": "resourceLangId == cpp",
+                    "group": "navigation@6"
                 }
             ],
             "view/title": [
@@ -60,17 +70,26 @@
                     "command": "rtags.closeCallHierarchy",
                     "when": "view == rtags.callHierarchy",
                     "group": "navigation"
+                },
+                {
+                    "command": "rtags.closeInheritanceHierarchy",
+                    "when": "view == rtags.inheritanceHierarchy",
+                    "group": "navigation"
                 }
             ],
             "view/item/context": [
                 {
                     "command": "rtags.gotoLocation",
-                    "when": "viewItem == rtagsLocation && view == rtags.callHierarchy"
+                    "when": "viewItem == rtagsLocation"
                 }
             ],
             "commandPalette": [
                 {
                     "command": "rtags.closeCallHierarchy",
+                    "when": "false"
+                },
+                {
+                    "command": "rtags.closeInheritanceHierarchy",
                     "when": "false"
                 },
                 {
@@ -92,6 +111,15 @@
             },
             {
                 "command": "rtags.closeCallHierarchy",
+                "title": "Close"
+            },
+            {
+                "command": "rtags.inheritanceHierarchy",
+                "title": "Inheritance Hierarchy",
+                "category": "RTags"
+            },
+            {
+                "command": "rtags.closeInheritanceHierarchy",
                 "title": "Close"
             },
             {
