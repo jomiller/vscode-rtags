@@ -122,17 +122,17 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
         }
     }
 
-    getTreeItem(caller: Caller) : TreeItem | Thenable<TreeItem>
+    getTreeItem(element: Caller) : TreeItem | Thenable<TreeItem>
     {
-        const location: string = basename(caller.location.uri.fsPath) + ':' + (caller.location.range.start.line + 1);
-        let treeItem = new TreeItem(caller.containerName + " (" + location + ')', TreeItemCollapsibleState.Collapsed);
+        const location: string = basename(element.location.uri.fsPath) + ':' + (element.location.range.start.line + 1);
+        let treeItem = new TreeItem(element.containerName + " (" + location + ')', TreeItemCollapsibleState.Collapsed);
         treeItem.contextValue = "rtagsLocation";
         return treeItem;
     }
 
-    getChildren(node?: Caller) : ProviderResult<Caller[]>
+    getChildren(element?: Caller) : ProviderResult<Caller[]>
     {
-        if (!node)
+        if (!element)
         {
             let callers: Caller[] = [];
             const editor = window.activeTextEditor;
@@ -154,7 +154,9 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
             return callers;
         }
 
-        return getCallers(node.containerLocation.uri, node.containerLocation.range.start, node.containerDocument);
+        return getCallers(element.containerLocation.uri,
+                          element.containerLocation.range.start,
+                          element.containerDocument);
     }
 
     private refresh() : void

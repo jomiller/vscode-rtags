@@ -202,25 +202,26 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
         }
     }
 
-    getTreeItem(node: InheritanceNode) : TreeItem | Thenable<TreeItem>
+    getTreeItem(element: InheritanceNode) : TreeItem | Thenable<TreeItem>
     {
-        let label = node.name;
-        if (node.nodeType !== NodeType.BaseRoot)
+        let label = element.name;
+        if (element.nodeType !== NodeType.BaseRoot)
         {
-            const location: string = basename(node.location.uri.fsPath) + ':' + (node.location.range.start.line + 1);
+            const location: string =
+                basename(element.location.uri.fsPath) + ':' + (element.location.range.start.line + 1);
             label += " (" + location + ')';
         }
         let treeItem = new TreeItem(label, TreeItemCollapsibleState.Collapsed);
-        if (node.nodeType !== NodeType.BaseRoot)
+        if (element.nodeType !== NodeType.BaseRoot)
         {
             treeItem.contextValue = "rtagsLocation";
         }
         return treeItem;
     }
 
-    getChildren(node?: InheritanceNode) : ProviderResult<InheritanceNode[]>
+    getChildren(element?: InheritanceNode) : ProviderResult<InheritanceNode[]>
     {
-        if (!node)
+        if (!element)
         {
             let nodes: InheritanceNode[] = [];
             const editor = window.activeTextEditor;
@@ -243,13 +244,13 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
             return nodes;
         }
 
-        if (node.nodeType === NodeType.Root)
+        if (element.nodeType === NodeType.Root)
         {
             let promise = getClasses(NodeType.Common,
                                      ClassType.Derived,
-                                     node.location.uri,
-                                     node.location.range.start,
-                                     node.document);
+                                     element.location.uri,
+                                     element.location.range.start,
+                                     element.document);
 
             const resolveCallback =
                 (derivedNodes: InheritanceNode[]) : InheritanceNode[] =>
@@ -259,8 +260,8 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
                         nodeType: NodeType.BaseRoot,
                         classType: ClassType.Base,
                         name: "[[Base]]",
-                        location: node.location,
-                        document: node.document
+                        location: element.location,
+                        document: element.document
                     };
 
                     return [baseRoot].concat(derivedNodes);
@@ -270,10 +271,10 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
         }
 
         return getClasses(NodeType.Common,
-                          node.classType,
-                          node.location.uri,
-                          node.location.range.start,
-                          node.document);
+                          element.classType,
+                          element.location.uri,
+                          element.location.range.start,
+                          element.document);
     }
 
     private refresh() : void
