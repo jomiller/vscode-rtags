@@ -71,7 +71,7 @@ export function runRc(args: string[], process: (stdout: string) => any, doc?: Te
                 {
                     if (error)
                     {
-                        if (stdout || stderr)
+                        if ((stdout && !stdout.startsWith("null")) || stderr)
                         {
                             let message: string = "[RTags] ";
                             if (stderr)
