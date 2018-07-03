@@ -73,20 +73,20 @@ function getClasses(nodeType: NodeType, classType: ClassType, uri: Uri, position
                     const classInfo = lines[i].match(/^ {4}\w.*/);
                     if (classInfo)
                     {
-                        const [name, loc] =
+                        const [className, loc] =
                             classInfo[0].split('\t', 2).map((token) => { return token.trim(); });
 
-                        const location = fromRtagsLocation(loc);
-                        const doc = workspace.textDocuments.find(
-                            (val) => { return (val.uri.fsPath === location.uri.fsPath); });
+                        const classLocation = fromRtagsLocation(loc);
+                        const classDoc = workspace.textDocuments.find(
+                            (val) => { return (val.uri.fsPath === classLocation.uri.fsPath); });
 
                         const node: InheritanceNode =
                         {
                             nodeType: nodeType,
                             classType: classType,
-                            name: name,
-                            location: location,
-                            document: doc
+                            name: className,
+                            location: classLocation,
+                            document: classDoc
                         };
                         nodes.push(node);
                     }
@@ -129,61 +129,28 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
                 const document = editor.document;
                 const position = editor.selection.active;
 
-                const location = toRtagsLocation(document.uri, position);
+                let promise = getClasses(NodeType.Common, ClassType.Base, document.uri, position, document);
 
-                const args =
-                [
-                    "--absolute-path",
-                    "--no-context",
-                    "--class-hierarchy",
-                    location
-                ];
-
-                const processCallback =
-                    (output: string) : Location[] =>
+                promise.then(
+                    (nodes: InheritanceNode[]) : void =>
                     {
-                        let locations: Location[] = [];
-
-                        const lines = output.split('\n');
-                        const baseIndex = lines.indexOf("Superclasses:");
-                        if (baseIndex !== -1)
+                        if (nodes.length === 1)
                         {
-                            const startIndex = baseIndex + 2;
-                            const derivedIndex = lines.indexOf("Subclasses:");
-                            const endIndex = (derivedIndex === -1) ? (lines.length - 1) : (derivedIndex - 1);
-                            for (let i = startIndex; i <= endIndex; ++i)
+                            const doc = nodes[0].document;
+                            if (doc)
                             {
-                                const baseInfo = lines[i].match(/^ {4}\w.*/);
-                                if (baseInfo)
-                                {
-                                    let [_unused, location] =
-                                        baseInfo[0].split('\t', 2).map((token) => { return token.trim(); });
-                                    _unused = _unused;
-                                    locations.push(fromRtagsLocation(location));
-                                }
+                                jumpToLocation(doc.uri, nodes[0].location.range);
                             }
-                        }
-
-                        return locations;
-                    };
-
-                const resolveCallback =
-                    (locations: Location[]) : void =>
-                    {
-                        if (locations.length === 1)
-                        {
-                            jumpToLocation(document.uri, locations[0].range);
                         }
                         else
                         {
+                            const locations: Location[] = nodes.map((n) => { return n.location; });
                             commands.executeCommand("editor.action.showReferences",
                                                     document.uri,
                                                     position,
                                                     locations);
                         }
-                    };
-
-                runRc(args, processCallback, document).then(resolveCallback);
+                    });
             };
 
         this.disposables.push(
