@@ -92,13 +92,13 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
 
                 const document = editor.document;
                 const position = editor.selection.active;
+
                 let promise = getCallers(document.uri, position, document);
 
                 promise.then(
                     (callers: Caller[]) : void =>
                     {
-                        let locations: Location[] = [];
-                        callers.forEach((c) => { locations.push(c.location); });
+                        const locations: Location[] = callers.map((c) => { return c.location; });
                         commands.executeCommand("editor.action.showReferences",
                                                 document.uri,
                                                 position,
