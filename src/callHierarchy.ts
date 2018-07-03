@@ -5,11 +5,10 @@ import { commands, window, workspace, Disposable, Event, EventEmitter, Location,
 
 import { basename } from 'path';
 
-import { Nullable, setContext, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
+import { Nullable, Locatable, setContext, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
 
-export interface Caller
+interface Caller extends Locatable
 {
-    location: Location;
     containerName: string;
     containerLocation: Location;
     containerDocument?: TextDocument;

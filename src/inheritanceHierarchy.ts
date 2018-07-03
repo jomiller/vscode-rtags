@@ -5,7 +5,7 @@ import { commands, window, workspace, Disposable, Event, EventEmitter, Location,
 
 import { basename } from 'path';
 
-import { Nullable, setContext, fromRtagsLocation, toRtagsLocation, jumpToLocation, runRc } from './rtagsUtil';
+import { Nullable, Locatable, setContext, fromRtagsLocation, toRtagsLocation, jumpToLocation, runRc } from './rtagsUtil';
 
 enum NodeType
 {
@@ -20,12 +20,11 @@ enum ClassType
     Derived
 }
 
-export interface InheritanceNode
+interface InheritanceNode extends Locatable
 {
     nodeType: NodeType;
     classType: ClassType;
     name: string;
-    location: Location;
     document?: TextDocument;
 }
 

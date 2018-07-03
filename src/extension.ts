@@ -7,7 +7,7 @@ import { spawn, spawnSync, SpawnOptions } from 'child_process';
 
 import { setTimeout, clearTimeout } from 'timers';
 
-import { Nullable, RtagsSelector, isUnsavedSourceFile, jumpToLocation, runRc } from './rtagsUtil';
+import { Nullable, Locatable, RtagsSelector, isUnsavedSourceFile, jumpToLocation, runRc } from './rtagsUtil';
 
 import { RtagsCodeActionProvider } from './codeActionProvider';
 
@@ -17,9 +17,9 @@ import { RtagsDefinitionProvider } from './definitionProvider';
 
 import { RtagsSymbolProvider } from './symbolProvider';
 
-import { Caller, CallHierarchyProvider } from './callHierarchy';
+import { CallHierarchyProvider } from './callHierarchy';
 
-import { InheritanceNode, InheritanceHierarchyProvider } from './inheritanceHierarchy';
+import { InheritanceHierarchyProvider } from './inheritanceHierarchy';
 
 function startServer() : void
 {
@@ -117,9 +117,9 @@ export function activate(context: ExtensionContext) : void
     let inheritanceHierarchyProvider = new InheritanceHierarchyProvider;
 
     const gotoLocationCallback =
-        (node: Caller | InheritanceNode) : void =>
+        (element: Locatable) : void =>
         {
-            jumpToLocation(node.location.uri, node.location.range);
+            jumpToLocation(element.location.uri, element.location.range);
         };
 
     context.subscriptions.push(

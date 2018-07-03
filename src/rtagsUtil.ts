@@ -7,6 +7,11 @@ import { execFile, ExecFileOptions } from 'child_process';
 
 export type Nullable<T> = T | null;
 
+export interface Locatable
+{
+    location: Location;
+}
+
 export const RtagsSelector: DocumentFilter[] =
 [
     { language: "cpp", scheme: "file" },
