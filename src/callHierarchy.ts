@@ -133,24 +133,87 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
     {
         if (!element)
         {
-            let callers: Caller[] = [];
             const editor = window.activeTextEditor;
-            if (editor)
+            if (!editor)
             {
-                const pos = editor.selection.active;
-                const doc = editor.document;
-                const loc = new Location(doc.uri, pos);
-
-                const caller: Caller =
-                {
-                    location: loc,
-                    containerLocation: loc,
-                    containerName: doc.getText(doc.getWordRangeAtPosition(pos)),
-                    containerDocument: doc
-                };
-                callers.push(caller);
+                return [];
             }
-            return callers;
+
+            const position = editor.selection.active;
+            const document = editor.document;
+
+            const location = toRtagsLocation(document.uri, position);
+
+            const args =
+            [
+                "--json",
+                "--absolute-path",
+                "--no-context",
+                "--symbol-info-include-targets",
+                "--symbol-info",
+                location
+            ];
+
+            const resolveCallback =
+                (output: string) : Caller[] =>
+                {
+                    let jsonObj;
+                    try
+                    {
+                        jsonObj = JSON.parse(output);
+                    }
+                    catch (_err)
+                    {
+                        return [];
+                    }
+
+                    const symbolName = jsonObj.symbolName;
+                    if (!symbolName)
+                    {
+                        return [];
+                    }
+
+                    const symbolKind = jsonObj.kind;
+                    if (!symbolKind)
+                    {
+                        return [];
+                    }
+
+                    const symbolKinds =
+                    [
+                        "CXXConstructor",
+                        "CXXDestructor",
+                        "CXXMethod",
+                        "FunctionDecl",
+                        "VarDecl",
+                        "MemberRefExpr",
+                        "DeclRefExpr"
+                    ];
+                    if (!symbolKinds.includes(symbolKind))
+                    {
+                        return [];
+                    }
+
+                    const targets = jsonObj.targets;
+                    if (!targets || (targets.length === 0))
+                    {
+                        return [];
+                    }
+
+                    const containerLocation = fromRtagsLocation(targets[0].location);
+
+                    const caller: Caller =
+                    {
+                        location: containerLocation,
+                        containerLocation: containerLocation,
+                        containerName: symbolName,
+                        containerDocument: document
+                    };
+
+                    return [caller];
+                };
+
+            return runRc(args, (output) => { return output; }, document).then(resolveCallback);
         }
 
         return getCallers(element.containerLocation.uri,
