@@ -194,13 +194,12 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                         return [];
                     }
 
+                    let containerLocation = new Location(document.uri, position);
                     const targets = jsonObj.targets;
-                    if (!targets || (targets.length === 0))
+                    if (targets && (targets.length !== 0))
                     {
-                        return [];
+                        containerLocation = fromRtagsLocation(targets[0].location);
                     }
-
-                    const containerLocation = fromRtagsLocation(targets[0].location);
 
                     const caller: Caller =
                     {
