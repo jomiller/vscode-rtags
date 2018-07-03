@@ -32,9 +32,9 @@ export function setContext(name: any, value: any) : void
     commands.executeCommand("setContext", name, value);
 }
 
-export function fromRtagsLocation(path: string) : Location
+export function fromRtagsLocation(location: string) : Location
 {
-    const [file, line, col] = path.split(':');
+    const [file, line, col] = location.split(':');
     const position = new Position(parseInt(line) - 1, parseInt(col) - 1);
     const uri = Uri.file(file);
     return new Location(uri, position);
@@ -42,7 +42,9 @@ export function fromRtagsLocation(path: string) : Location
 
 export function toRtagsLocation(uri: Uri, position: Position) : string
 {
-    const location = uri.fsPath + ':' + (position.line + 1) + ':' + (position.character + 1);
+    const lineNumber = position.line + 1;
+    const colNumber = position.character + 1;
+    const location = uri.fsPath + ':' + lineNumber.toString() + ':' + colNumber.toString();
     return location;
 }
 
@@ -62,7 +64,7 @@ export function runRc(args: string[], process: (stdout: string) => any, doc?: Te
                 const content = doc.getText();
                 const path = doc.uri.fsPath;
 
-                const unsaved = path + ':' + content.length;
+                const unsaved = path + ':' + content.length.toString();
                 args.push("--unsaved-file", unsaved);
             }
 

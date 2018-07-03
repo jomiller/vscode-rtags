@@ -123,7 +123,8 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
 
     getTreeItem(element: Caller) : TreeItem | Thenable<TreeItem>
     {
-        const location: string = basename(element.location.uri.fsPath) + ':' + (element.location.range.start.line + 1);
+        const lineNumber = element.location.range.start.line + 1;
+        const location: string = basename(element.location.uri.fsPath) + ':' + lineNumber.toString();
         let treeItem = new TreeItem(element.containerName + " (" + location + ')', TreeItemCollapsibleState.Collapsed);
         treeItem.contextValue = "rtagsLocation";
         return treeItem;
