@@ -16,6 +16,7 @@ enum NodeType
 
 enum ClassType
 {
+    This,
     Base,
     Derived
 }
@@ -28,7 +29,7 @@ interface InheritanceNode extends Locatable
     document?: TextDocument;
 }
 
-function getClasses(nodeType: NodeType, classType: ClassType, uri: Uri, position: Position, document?: TextDocument) :
+function getClasses(classType: ClassType, uri: Uri, position: Position, document?: TextDocument) :
     Thenable<InheritanceNode[]>
 {
     const location = toRtagsLocation(uri, position);
@@ -53,6 +54,13 @@ function getClasses(nodeType: NodeType, classType: ClassType, uri: Uri, position
             let endIndex = lines.length - 1;
             switch (classType)
             {
+                case ClassType.This:
+                    if (baseIndex === -1)
+                    {
+                        startIndex = derivedIndex;
+                    }
+                    break;
+
                 case ClassType.Base:
                     if (derivedIndex !== -1)
                     {
@@ -67,10 +75,18 @@ function getClasses(nodeType: NodeType, classType: ClassType, uri: Uri, position
 
             if (startIndex !== -1)
             {
-                startIndex += 2;
+                let startOffset = 2;
+                let indent = 4;
+                if (classType === ClassType.This)
+                {
+                    startOffset = 1;
+                    indent = 2;
+                }
+                startIndex += startOffset;
+                const classRegex = new RegExp("^ {" + indent.toString() + "}\\w.*");
                 for (let i = startIndex; i <= endIndex; ++i)
                 {
-                    const classInfo = lines[i].match(/^ {4}\w.*/);
+                    const classInfo = lines[i].match(classRegex);
                     if (classInfo)
                     {
                         const [className, loc] =
@@ -82,7 +98,7 @@ function getClasses(nodeType: NodeType, classType: ClassType, uri: Uri, position
 
                         const node: InheritanceNode =
                         {
-                            nodeType: nodeType,
+                            nodeType: NodeType.Common,
                             classType: classType,
                             name: className,
                             location: classLocation,
@@ -129,7 +145,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
                 const document = editor.document;
                 const position = editor.selection.active;
 
-                let promise = getClasses(NodeType.Common, ClassType.Base, document.uri, position, document);
+                let promise = getClasses(ClassType.Base, document.uri, position, document);
 
                 promise.then(
                     (nodes: InheritanceNode[]) : void =>
@@ -173,8 +189,8 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
         let label = element.name;
         if (element.nodeType !== NodeType.BaseRoot)
         {
-            const location: string =
-                basename(element.location.uri.fsPath) + ':' + (element.location.range.start.line + 1);
+            const lineNumber = element.location.range.start.line + 1;
+            const location: string = basename(element.location.uri.fsPath) + ':' + lineNumber.toString();
             label += " (" + location + ')';
         }
         let treeItem = new TreeItem(label, TreeItemCollapsibleState.Collapsed);
@@ -198,87 +214,39 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
             const position = editor.selection.active;
             const document = editor.document;
 
-            const location = toRtagsLocation(document.uri, position);
-
-            const args =
-            [
-                "--json",
-                "--absolute-path",
-                "--no-context",
-                "--symbol-info-include-targets",
-                "--symbol-info",
-                location
-            ];
-
             const resolveCallback =
-                (output: string) : InheritanceNode[] =>
+                (nodes: InheritanceNode[]) : Thenable<InheritanceNode[]> =>
                 {
-                    let jsonObj;
-                    try
+                    if (nodes.length === 0)
                     {
-                        jsonObj = JSON.parse(output);
-                    }
-                    catch (_err)
-                    {
-                        return [];
+                        return Promise.resolve([]);
                     }
 
-                    const symbolName = jsonObj.symbolName;
-                    if (!symbolName)
-                    {
-                        return [];
-                    }
+                    const baseResolveCallback =
+                        (baseNodes: InheritanceNode[]) : InheritanceNode[] =>
+                        {
+                            const classType = (baseNodes.length === 0) ? ClassType.Derived : ClassType.Base;
 
-                    const symbolKind = jsonObj.kind;
-                    if (!symbolKind)
-                    {
-                        return [];
-                    }
+                            const root: InheritanceNode =
+                            {
+                                nodeType: NodeType.Root,
+                                classType: classType,
+                                name: nodes[0].name,
+                                location: nodes[0].location,
+                                document: document
+                            };
+                            return [root];
+                        };
 
-                    const symbolKinds =
-                    [
-                        "ClassDecl",
-                        "StructDecl",
-                        "TypeRef"
-                    ];
-                    if (!symbolKinds.includes(symbolKind))
-                    {
-                        return [];
-                    }
-
-                    let classType = ClassType.Derived;
-                    const baseClasses = jsonObj.baseClasses;
-                    if (baseClasses && (baseClasses.length !== 0))
-                    {
-                        classType = ClassType.Base;
-                    }
-
-                    let classLocation = new Location(document.uri, position);
-                    const targets = jsonObj.targets;
-                    if (targets && (targets.length !== 0))
-                    {
-                        classLocation = fromRtagsLocation(targets[0].location);
-                    }
-
-                    const node: InheritanceNode =
-                    {
-                        nodeType: NodeType.Root,
-                        classType: classType,
-                        name: symbolName,
-                        location: classLocation,
-                        document: document
-                    };
-
-                    return [node];
+                    return getClasses(ClassType.Base, document.uri, position, document).then(baseResolveCallback);
                 };
 
-            return runRc(args, (output) => { return output; }, document).then(resolveCallback);
+            return getClasses(ClassType.This, document.uri, position, document).then(resolveCallback);
         }
 
         if (element.nodeType === NodeType.Root)
         {
-            let promise = getClasses(NodeType.Common,
-                                     ClassType.Derived,
+            let promise = getClasses(ClassType.Derived,
                                      element.location.uri,
                                      element.location.range.start,
                                      element.document);
@@ -306,8 +274,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
             return promise.then(resolveCallback);
         }
 
-        return getClasses(NodeType.Common,
-                          element.classType,
+        return getClasses(element.classType,
                           element.location.uri,
                           element.location.range.start,
                           element.document);
