@@ -222,25 +222,90 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
     {
         if (!element)
         {
-            let nodes: InheritanceNode[] = [];
             const editor = window.activeTextEditor;
-            if (editor)
+            if (!editor)
             {
-                const pos = editor.selection.active;
-                const doc = editor.document;
-                const loc = new Location(doc.uri, pos);
-
-                const node: InheritanceNode =
-                {
-                    nodeType: NodeType.Root,
-                    classType: ClassType.Base,
-                    name: doc.getText(doc.getWordRangeAtPosition(pos)),
-                    location: loc,
-                    document: doc
-                };
-                nodes.push(node);
+                return [];
             }
-            return nodes;
+
+            const position = editor.selection.active;
+            const document = editor.document;
+
+            const location = toRtagsLocation(document.uri, position);
+
+            const args =
+            [
+                "--json",
+                "--absolute-path",
+                "--no-context",
+                "--symbol-info-include-targets",
+                "--symbol-info",
+                location
+            ];
+
+            const resolveCallback =
+                (output: string) : InheritanceNode[] =>
+                {
+                    let jsonObj;
+                    try
+                    {
+                        jsonObj = JSON.parse(output);
+                    }
+                    catch (_err)
+                    {
+                        return [];
+                    }
+
+                    const symbolName = jsonObj.symbolName;
+                    if (!symbolName)
+                    {
+                        return [];
+                    }
+
+                    const symbolKind = jsonObj.kind;
+                    if (!symbolKind)
+                    {
+                        return [];
+                    }
+
+                    const symbolKinds =
+                    [
+                        "ClassDecl",
+                        "StructDecl",
+                        "TypeRef"
+                    ];
+                    if (!symbolKinds.includes(symbolKind))
+                    {
+                        return [];
+                    }
+
+                    let classType = ClassType.Derived;
+                    const baseClasses = jsonObj.baseClasses;
+                    if (baseClasses && (baseClasses.length !== 0))
+                    {
+                        classType = ClassType.Base;
+                    }
+
+                    let classLocation = new Location(document.uri, position);
+                    const targets = jsonObj.targets;
+                    if (targets && (targets.length !== 0))
+                    {
+                        classLocation = fromRtagsLocation(targets[0].location);
+                    }
+
+                    const node: InheritanceNode =
+                    {
+                        nodeType: NodeType.Root,
+                        classType: classType,
+                        name: symbolName,
+                        location: classLocation,
+                        document: document
+                    };
+
+                    return [node];
+                };
+
+            return runRc(args, (output) => { return output; }, document).then(resolveCallback);
         }
 
         if (element.nodeType === NodeType.Root)
@@ -254,16 +319,21 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
             const resolveCallback =
                 (derivedNodes: InheritanceNode[]) : InheritanceNode[] =>
                 {
-                    const baseRoot: InheritanceNode =
+                    if (element.classType === ClassType.Base)
                     {
-                        nodeType: NodeType.BaseRoot,
-                        classType: ClassType.Base,
-                        name: "[[Base]]",
-                        location: element.location,
-                        document: element.document
-                    };
+                        const baseRoot: InheritanceNode =
+                        {
+                            nodeType: NodeType.BaseRoot,
+                            classType: ClassType.Base,
+                            name: "[[Base]]",
+                            location: element.location,
+                            document: element.document
+                        };
 
-                    return [baseRoot].concat(derivedNodes);
+                        derivedNodes.unshift(baseRoot);
+                    }
+
+                    return derivedNodes;
                 };
 
             return promise.then(resolveCallback);
