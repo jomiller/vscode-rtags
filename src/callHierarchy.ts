@@ -202,7 +202,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                         containerLocation = fromRtagsLocation(targets[0].location);
                     }
 
-                    const caller: Caller =
+                    const root: Caller =
                     {
                         location: containerLocation,
                         containerLocation: containerLocation,
@@ -210,7 +210,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                         containerDocument: document
                     };
 
-                    return [caller];
+                    return [root];
                 };
 
             return runRc(args, (output) => { return output; }, document).then(resolveCallback);

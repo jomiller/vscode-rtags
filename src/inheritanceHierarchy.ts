@@ -235,6 +235,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
                                 location: nodes[0].location,
                                 document: document
                             };
+
                             return [root];
                         };
 
