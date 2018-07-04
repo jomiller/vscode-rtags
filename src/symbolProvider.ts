@@ -79,7 +79,7 @@ function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInform
                     name: name,
                     containerName: container,
                     location: fromRtagsLocation(location),
-                    kind: <SymbolKind>localKind
+                    kind: localKind
                 };
                 symbols.push(symbolInfo);
             }
