@@ -1,8 +1,8 @@
 'use strict';
 
 import { languages, CancellationToken, CompletionItemKind, CompletionItem, CompletionItemProvider, CompletionList,
-         Disposable, Position, ProviderResult, Range, SignatureHelp, SignatureHelpProvider, SignatureInformation,
-         SnippetString, TextDocument } from 'vscode';
+         Disposable, ParameterInformation, Position, ProviderResult, Range, SignatureHelp, SignatureHelpProvider,
+         SignatureInformation, SnippetString, TextDocument } from 'vscode';
 
 import { RtagsSelector, toRtagsLocation, runRc } from './rtagsUtil';
 
@@ -169,10 +169,23 @@ export class RtagsCompletionProvider implements
                     const jsonObj = JSON.parse(output);
                     for (const c of jsonObj.completions)
                     {
+                        if (c.kind !== "OverloadCandidate")
+                        {
+                            break;
+                        }
+
+                        let parameters: ParameterInformation[] = [];
+                        const parameterSignature = (/\((.*)\)$/).exec(c.signature);
+                        if (parameterSignature)
+                        {
+                            parameters = parameterSignature[1].split(',').map(
+                                (param) => { return new ParameterInformation(param.trim()); });
+                        }
+
                         const signatureInfo: SignatureInformation =
                         {
                             label: c.signature,
-                            parameters: [c.completion]
+                            parameters: parameters
                         };
                         signatures.push(signatureInfo);
 
