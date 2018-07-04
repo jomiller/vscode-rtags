@@ -63,13 +63,13 @@ function addProject(uri: Uri) : void
 }
 */
 
-function reindex(doc?: TextDocument) : void
+function reindex(document?: TextDocument) : void
 {
-    if (doc)
+    if (document)
     {
-        const uri = doc.uri;
+        const uri = document.uri;
 
-        if (languages.match(RtagsSelector, doc) === 0)
+        if (languages.match(RtagsSelector, document) === 0)
         {
             return;
         }
@@ -77,9 +77,9 @@ function reindex(doc?: TextDocument) : void
         let promise = runRc(["--reindex", uri.fsPath],
                             (output: string) : boolean =>
                             {
-                                return (output !== "No matches");
+                                return !output.startsWith("No matches");
                             },
-                            doc);
+                            document);
 
         promise.then(
             (reindexed: boolean) : void =>
