@@ -119,9 +119,9 @@ export class RtagsSymbolProvider implements
         }
     }
 
-    provideDocumentSymbols(doc: TextDocument, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
+    provideDocumentSymbols(document: TextDocument, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
     {
-        return findSymbols("", ["--path-filter", doc.uri.fsPath]);
+        return findSymbols("", ["--path-filter", document.uri.fsPath]);
     }
 
     provideWorkspaceSymbols(query: string, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
