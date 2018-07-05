@@ -59,7 +59,7 @@ export function runRc(args: string[], process: (stdout: string) => any, document
     const executorCallback =
         (resolve: (value?: any) => any, _reject: (reason?: any) => any) : void =>
         {
-            const unsavedDocs = documents.filter((doc) => { return doc.isDirty; });
+            const unsavedDocs = documents.filter((doc) => { return isUnsavedSourceFile(doc); });
             for (const doc of unsavedDocs)
             {
                 const unsavedFile = doc.uri.fsPath + ':' + doc.getText().length.toString();
