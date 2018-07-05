@@ -2,7 +2,7 @@
 
 import { commands, languages, window, workspace, CancellationToken, Definition, DefinitionProvider, Disposable, Hover,
          HoverProvider, Location, Position, ProviderResult, ReferenceContext, TextDocument, TypeDefinitionProvider,
-         ImplementationProvider, Range, ReferenceProvider, RenameProvider, WorkspaceEdit } from 'vscode';
+         ImplementationProvider, Range, ReferenceProvider, RenameProvider, Uri, WorkspaceEdit } from 'vscode';
 
 import { Nullable, RtagsSelector, isUnsavedSourceFile, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
 
@@ -14,7 +14,7 @@ enum ReferenceType
     Variables
 }
 
-function getLocations(args: string[], document: TextDocument) : Thenable<Location[]>
+function getLocations(args: string[]) : Thenable<Location[]>
 {
     const processCallback =
         (output: string) : Location[] =>
@@ -30,13 +30,13 @@ function getLocations(args: string[], document: TextDocument) : Thenable<Locatio
             return locations;
         };
 
-    return runRc(args, processCallback, document);
+    return runRc(args, processCallback);
 }
 
-function getDefinitions(document: TextDocument, position: Position, type: ReferenceType = ReferenceType.Definition) :
+function getDefinitions(uri: Uri, position: Position, type: ReferenceType = ReferenceType.Definition) :
     Thenable<Location[]>
 {
-    const location = toRtagsLocation(document.uri, position);
+    const location = toRtagsLocation(uri, position);
 
     let args = ["--absolute-path", "--no-context"];
 
@@ -63,7 +63,7 @@ function getDefinitions(document: TextDocument, position: Position, type: Refere
         }
     }
 
-    return getLocations(args, document);
+    return getLocations(args);
 }
 
 export class RtagsDefinitionProvider implements
@@ -88,16 +88,17 @@ export class RtagsDefinitionProvider implements
 
                 const document = editor.document;
                 const position = editor.selection.active;
-                let promise = getDefinitions(document, position, ReferenceType.Variables);
 
-                promise.then(
+                const resolveCallback =
                     (locations: Location[]) : void =>
                     {
                         commands.executeCommand("editor.action.showReferences",
                                                 document.uri,
                                                 position,
                                                 locations);
-                    });
+                    };
+
+                getDefinitions(document.uri, position, ReferenceType.Variables).then(resolveCallback);
             };
 
         this.disposables.push(
@@ -121,7 +122,7 @@ export class RtagsDefinitionProvider implements
     provideDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<Definition>
     {
-        return getDefinitions(document, position);
+        return getDefinitions(document.uri, position);
     }
 
     provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
@@ -199,25 +200,25 @@ export class RtagsDefinitionProvider implements
                     symbolType
                 ];
 
-                return getLocations(localArgs, document);
+                return getLocations(localArgs);
             };
 
-        return runRc(args, processCallback, document).then(resolveCallback);
+        return runRc(args, processCallback).then(resolveCallback);
     }
 
     provideImplementation(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<Definition>
     {
-        return getDefinitions(document, position);
+        return getDefinitions(document.uri, position);
     }
 
     provideReferences(document: TextDocument,
-                    position: Position,
-                    _context: ReferenceContext,
-                    _token: CancellationToken) :
+                      position: Position,
+                      _context: ReferenceContext,
+                      _token: CancellationToken) :
         ProviderResult<Location[]>
     {
-        return getDefinitions(document, position, ReferenceType.References);
+        return getDefinitions(document.uri, position, ReferenceType.References);
     }
 
     provideRenameEdits(document: TextDocument, position: Position, newName: string, _token: CancellationToken) :
@@ -226,7 +227,7 @@ export class RtagsDefinitionProvider implements
         const unsaved: boolean = workspace.textDocuments.some((doc) => { return isUnsavedSourceFile(doc); });
         if (unsaved)
         {
-            window.showInformationMessage("[RTags] Save all source files first before renaming");
+            window.showInformationMessage("[RTags] Save all source files before renaming a symbol");
             return null;
         }
 
@@ -246,7 +247,7 @@ export class RtagsDefinitionProvider implements
                 return edits;
             };
 
-        return getDefinitions(document, position, ReferenceType.Rename).then(resolveCallback);
+        return getDefinitions(document.uri, position, ReferenceType.Rename).then(resolveCallback);
     }
 
     provideHover(document: TextDocument, position: Position, _token: CancellationToken) : ProviderResult<Hover>
@@ -269,14 +270,14 @@ export class RtagsDefinitionProvider implements
                 return definition;
             };
 
-            const resolveCallback =
-                (definition: string) : Nullable<Hover> =>
-                {
-                    // Hover text is not formatted properly unless a tab or 4 spaces are prepended
-                    return ((definition.length !== 0) ? new Hover('\t' + definition) : null);
-                };
+        const resolveCallback =
+            (definition: string) : Nullable<Hover> =>
+            {
+                // Hover text is not formatted properly unless a tab or 4 spaces are prepended
+                return ((definition.length !== 0) ? new Hover('\t' + definition) : null);
+            };
 
-        return runRc(args, processCallback, document).then(resolveCallback);
+        return runRc(args, processCallback).then(resolveCallback);
     }
 
     private disposables: Disposable[] = [];

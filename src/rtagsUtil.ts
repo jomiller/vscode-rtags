@@ -54,18 +54,16 @@ export function jumpToLocation(uri: Uri, range: Range) : void
     window.showTextDocument(uri, options);
 }
 
-export function runRc(args: string[], process: (stdout: string) => any, document?: TextDocument) : Thenable<any>
+export function runRc(args: string[], process: (stdout: string) => any, documents: TextDocument[] = []) : Thenable<any>
 {
     const executorCallback =
         (resolve: (value?: any) => any, _reject: (reason?: any) => any) : void =>
         {
-            if (document && document.isDirty)
+            const unsavedDocs = documents.filter((doc) => { return doc.isDirty; });
+            for (const doc of unsavedDocs)
             {
-                const content = document.getText();
-                const path = document.uri.fsPath;
-
-                const unsaved = path + ':' + content.length.toString();
-                args.push("--unsaved-file", unsaved);
+                const unsavedFile = doc.uri.fsPath + ':' + doc.getText().length.toString();
+                args.push("--unsaved-file", unsavedFile);
             }
 
             const options: ExecFileOptions =
@@ -105,9 +103,12 @@ export function runRc(args: string[], process: (stdout: string) => any, document
 
             let rc = execFile("rc", args, options, exitCallback);
 
-            if (document && document.isDirty)
+            for (const doc of unsavedDocs)
             {
-                rc.stdin.write(document.getText());
+                rc.stdin.write(doc.getText());
+            }
+            if (unsavedDocs.length !== 0)
+            {
                 rc.stdin.end();
             }
         };

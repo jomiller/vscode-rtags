@@ -7,7 +7,7 @@ import { spawn, spawnSync, SpawnOptions } from 'child_process';
 
 import { setTimeout, clearTimeout } from 'timers';
 
-import { Nullable, Locatable, RtagsSelector, isUnsavedSourceFile, jumpToLocation, runRc } from './rtagsUtil';
+import { Nullable, Locatable, RtagsSelector, jumpToLocation, runRc } from './rtagsUtil';
 
 import { RtagsCodeActionProvider } from './codeActionProvider';
 
@@ -65,44 +65,18 @@ function addProject(uri: Uri) : void
 
 function reindex(document?: TextDocument) : void
 {
+    let args = ["--silent", "--reindex"];
+
     if (document)
     {
-        const uri = document.uri;
-
         if (languages.match(RtagsSelector, document) === 0)
         {
             return;
         }
-
-        let promise = runRc(["--reindex", uri.fsPath],
-                            (output: string) : boolean =>
-                            {
-                                return !output.startsWith("No matches");
-                            },
-                            document);
-
-        promise.then(
-            (reindexed: boolean) : void =>
-            {
-                if (reindexed)
-                {
-                    runRc(["--json", "--diagnose", uri.fsPath], (_unused) => {});
-                }
-            });
+        args.push(document.uri.fsPath);
     }
-    else
-    {
-        const unsaved: boolean = workspace.textDocuments.some((doc) => { return isUnsavedSourceFile(doc); });
-        if (unsaved)
-        {
-            window.showInformationMessage("[RTags] Save all source files first before reindexing");
-            return;
-        }
 
-        let promise = runRc(["--reindex", "--silent"], (_unused) => {});
-
-        promise.then(() => { runRc(["--diagnose-all"], (_unused) => {}); });
-    }
+    runRc(args, (_unused) => {}, workspace.textDocuments);
 }
 
 export function activate(context: ExtensionContext) : void

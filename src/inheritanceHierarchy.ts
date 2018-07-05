@@ -1,7 +1,7 @@
 'use strict';
 
-import { commands, window, workspace, Disposable, Event, EventEmitter, Location, Position, ProviderResult,
-         TextDocument, TreeDataProvider, TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
+import { commands, window, Disposable, Event, EventEmitter, Location, Position, ProviderResult, TreeDataProvider,
+         TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
 
 import { basename } from 'path';
 
@@ -26,11 +26,9 @@ interface InheritanceNode extends Locatable
     nodeType: NodeType;
     classType: ClassType;
     name: string;
-    document?: TextDocument;
 }
 
-function getClasses(classType: ClassType, uri: Uri, position: Position, document?: TextDocument) :
-    Thenable<InheritanceNode[]>
+function getClasses(classType: ClassType, uri: Uri, position: Position) : Thenable<InheritanceNode[]>
 {
     const location = toRtagsLocation(uri, position);
 
@@ -89,20 +87,14 @@ function getClasses(classType: ClassType, uri: Uri, position: Position, document
                     const classInfo = lines[i].match(classRegex);
                     if (classInfo)
                     {
-                        const [className, loc] =
-                            classInfo[0].split('\t', 2).map((token) => { return token.trim(); });
-
-                        const classLocation = fromRtagsLocation(loc);
-                        const classDoc = workspace.textDocuments.find(
-                            (val) => { return (val.uri.fsPath === classLocation.uri.fsPath); });
+                        const [name, loc] = classInfo[0].split('\t', 2).map((token) => { return token.trim(); });
 
                         const node: InheritanceNode =
                         {
                             nodeType: NodeType.Common,
                             classType: classType,
-                            name: className,
-                            location: classLocation,
-                            document: classDoc
+                            name: name,
+                            location: fromRtagsLocation(loc)
                         };
                         nodes.push(node);
                     }
@@ -112,7 +104,7 @@ function getClasses(classType: ClassType, uri: Uri, position: Position, document
             return nodes;
         };
 
-    return runRc(args, processCallback, document);
+    return runRc(args, processCallback);
 }
 
 export class InheritanceHierarchyProvider implements TreeDataProvider<InheritanceNode>, Disposable
@@ -145,18 +137,12 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
                 const document = editor.document;
                 const position = editor.selection.active;
 
-                let promise = getClasses(ClassType.Base, document.uri, position, document);
-
-                promise.then(
+                const resolveCallback =
                     (nodes: InheritanceNode[]) : void =>
                     {
                         if (nodes.length === 1)
                         {
-                            const doc = nodes[0].document;
-                            if (doc)
-                            {
-                                jumpToLocation(doc.uri, nodes[0].location.range);
-                            }
+                            jumpToLocation(nodes[0].location.uri, nodes[0].location.range);
                         }
                         else
                         {
@@ -166,7 +152,9 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
                                                     position,
                                                     locations);
                         }
-                    });
+                    };
+
+                getClasses(ClassType.Base, document.uri, position).then(resolveCallback);
             };
 
         this.disposables.push(
@@ -232,25 +220,21 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
                                 nodeType: NodeType.Root,
                                 classType: classType,
                                 name: nodes[0].name,
-                                location: nodes[0].location,
-                                document: document
+                                location: nodes[0].location
                             };
 
                             return [root];
                         };
 
-                    return getClasses(ClassType.Base, document.uri, position, document).then(baseResolveCallback);
+                    return getClasses(ClassType.Base, document.uri, position).then(baseResolveCallback);
                 };
 
-            return getClasses(ClassType.This, document.uri, position, document).then(resolveCallback);
+            return getClasses(ClassType.This, document.uri, position).then(resolveCallback);
         }
 
         if (element.nodeType === NodeType.Root)
         {
-            let promise = getClasses(ClassType.Derived,
-                                     element.location.uri,
-                                     element.location.range.start,
-                                     element.document);
+            let promise = getClasses(ClassType.Derived, element.location.uri, element.location.range.start);
 
             const resolveCallback =
                 (derivedNodes: InheritanceNode[]) : InheritanceNode[] =>
@@ -262,8 +246,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
                             nodeType: NodeType.BaseRoot,
                             classType: ClassType.Base,
                             name: "[[Base]]",
-                            location: element.location,
-                            document: element.document
+                            location: element.location
                         };
 
                         derivedNodes.unshift(baseRoot);
@@ -275,10 +258,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
             return promise.then(resolveCallback);
         }
 
-        return getClasses(element.classType,
-                          element.location.uri,
-                          element.location.range.start,
-                          element.document);
+        return getClasses(element.classType, element.location.uri, element.location.range.start);
     }
 
     private refresh() : void

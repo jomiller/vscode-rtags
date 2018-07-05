@@ -140,7 +140,7 @@ export class RtagsCompletionProvider implements
                 return new CompletionList(completionItems, completionItems.length >= maxCompletions);
             };
 
-        return runRc(args, processCallback, document);
+        return runRc(args, processCallback);
     }
 
     provideSignatureHelp(document: TextDocument, position: Position, _token: CancellationToken) :
@@ -209,7 +209,7 @@ export class RtagsCompletionProvider implements
                 return signatureHelp;
             };
 
-        return runRc(args, processCallback, document);
+        return runRc(args, processCallback);
     }
 
     private disposables: Disposable[] = [];

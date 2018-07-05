@@ -1,7 +1,7 @@
 'use strict';
 
-import { commands, window, workspace, Disposable, Event, EventEmitter, Location, Position, ProviderResult,
-         TextDocument, TreeDataProvider, TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
+import { commands, window, Disposable, Event, EventEmitter, Location, Position, ProviderResult, TreeDataProvider,
+         TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
 
 import { basename } from 'path';
 
@@ -11,10 +11,9 @@ interface Caller extends Locatable
 {
     containerName: string;
     containerLocation: Location;
-    containerDocument?: TextDocument;
 }
 
-function getCallers(uri: Uri, position: Position, document?: TextDocument) : Thenable<Caller[]>
+function getCallers(uri: Uri, position: Position) : Thenable<Caller[]>
 {
     const location = toRtagsLocation(uri, position);
 
@@ -39,16 +38,11 @@ function getCallers(uri: Uri, position: Position, document?: TextDocument) : The
                 const jsonObj = JSON.parse(output);
                 for (const c of jsonObj)
                 {
-                    const containerLocation = fromRtagsLocation(c.cfl);
-                    const containerDoc = workspace.textDocuments.find(
-                        (val) => { return (val.uri.fsPath === containerLocation.uri.fsPath); });
-
                     const caller: Caller =
                     {
                         location: fromRtagsLocation(c.loc),
                         containerName: c.cf.trim(),
-                        containerLocation: containerLocation,
-                        containerDocument: containerDoc
+                        containerLocation: fromRtagsLocation(c.cfl)
                     };
                     callers.push(caller);
                 }
@@ -60,7 +54,7 @@ function getCallers(uri: Uri, position: Position, document?: TextDocument) : The
             return callers;
         };
 
-    return runRc(args, processCallback, document);
+    return runRc(args, processCallback);
 }
 
 export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposable
@@ -93,9 +87,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                 const document = editor.document;
                 const position = editor.selection.active;
 
-                let promise = getCallers(document.uri, position, document);
-
-                promise.then(
+                const resolveCallback =
                     (callers: Caller[]) : void =>
                     {
                         const locations: Location[] = callers.map((c) => { return c.location; });
@@ -103,7 +95,9 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                                                 document.uri,
                                                 position,
                                                 locations);
-                    });
+                    };
+
+                getCallers(document.uri, position).then(resolveCallback);
             };
 
         this.disposables.push(
@@ -206,19 +200,16 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                     {
                         location: containerLocation,
                         containerLocation: containerLocation,
-                        containerName: symbolName,
-                        containerDocument: document
+                        containerName: symbolName
                     };
 
                     return [root];
                 };
 
-            return runRc(args, (output) => { return output; }, document).then(resolveCallback);
+            return runRc(args, (output) => { return output; }).then(resolveCallback);
         }
 
-        return getCallers(element.containerLocation.uri,
-                          element.containerLocation.range.start,
-                          element.containerDocument);
+        return getCallers(element.containerLocation.uri, element.containerLocation.range.start);
     }
 
     private refresh() : void
