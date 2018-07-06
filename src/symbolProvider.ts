@@ -1,6 +1,6 @@
 'use strict';
 
-import { languages, workspace, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult,
+import { languages, window, workspace, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult,
          SymbolInformation, SymbolKind, TextDocument, WorkspaceSymbolProvider } from 'vscode';
 
 import { RtagsSelector, fromRtagsLocation, runRc } from './rtagsUtil';
@@ -121,7 +121,15 @@ export class RtagsSymbolProvider implements
 
     provideDocumentSymbols(document: TextDocument, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
     {
-        return findSymbols("", ["--path-filter", document.uri.fsPath]);
+        const args =
+        [
+            "--path-filter",
+            document.uri.fsPath,
+            "--current-file",
+            document.uri.fsPath
+        ];
+
+        return findSymbols("", args);
     }
 
     provideWorkspaceSymbols(query: string, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
@@ -133,13 +141,37 @@ export class RtagsSymbolProvider implements
 
         const args = ["--max", "50"];
 
-        const folders = workspace.workspaceFolders;
-        if (folders)
+        const editor = window.activeTextEditor;
+        if (editor)
         {
-            folders.forEach((f) => { args.push("--path-filter", f.uri.fsPath); });
+            const uri = editor.document.uri;
+
+            args.push("--current-file", uri.fsPath);
+
+            const folder = workspace.getWorkspaceFolder(uri);
+            if (folder)
+            {
+                args.push("--path-filter", folder.uri.fsPath);
+            }
+
+            return findSymbols(query, args);
         }
 
-        return findSymbols(query, args);
+        const processCallback =
+            (output: string) : string =>
+            {
+                return output.trim();
+            };
+
+        const resolveCallback =
+            (projectPath: string) : Thenable<SymbolInformation[]> =>
+            {
+                args.push("--path-filter", projectPath);
+
+                return findSymbols(query, args);
+            };
+
+        return runRc(["--current-project"], processCallback).then(resolveCallback);
     }
 
     private disposables: Disposable[] = [];
