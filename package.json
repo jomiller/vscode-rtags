@@ -85,10 +85,6 @@
             ],
             "commandPalette": [
                 {
-                    "command": "rtags.freshenIndex",
-                    "when": "resourceLangId == cpp"
-                },
-                {
                     "command": "rtags.callHierarchy",
                     "when": "resourceLangId == cpp"
                 },
