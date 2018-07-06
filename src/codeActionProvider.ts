@@ -73,14 +73,7 @@ export class RtagsCodeActionProvider implements
 
     private startDiagnostics() : void
     {
-        const args =
-        [
-            "--json",
-            "--diagnostics",
-            "--code-completion-enabled"
-        ];
-
-        this.diagnosticProcess = spawn("rc", args);
+        this.diagnosticProcess = spawn("rc", ["--json", "--diagnostics"]);
         if (!this.diagnosticProcess.pid)
         {
             window.showErrorMessage("[RTags] Could not start diagnostics");
