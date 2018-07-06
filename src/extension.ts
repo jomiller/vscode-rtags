@@ -1,13 +1,11 @@
 'use strict';
 
-import { commands, languages, window, workspace, ExtensionContext, TextDocument, TextDocumentChangeEvent }
+import { commands, languages, window, workspace, ExtensionContext, TextDocument, TextDocumentChangeEvent, Uri }
          from 'vscode';
 
 import { spawn, spawnSync, SpawnOptions } from 'child_process';
 
 import { setTimeout, clearTimeout } from 'timers';
-
-import { Nullable, Locatable, RtagsSelector, jumpToLocation, runRc } from './rtagsUtil';
 
 import { RtagsCodeActionProvider } from './codeActionProvider';
 
@@ -20,6 +18,10 @@ import { RtagsSymbolProvider } from './symbolProvider';
 import { CallHierarchyProvider } from './callHierarchy';
 
 import { InheritanceHierarchyProvider } from './inheritanceHierarchy';
+
+import { getCurrentProjectPath } from './projectManager';
+
+import { Nullable, Locatable, RtagsSelector, jumpToLocation, runRc } from './rtagsUtil';
 
 function startServer() : void
 {
@@ -93,19 +95,13 @@ function reindex(document?: TextDocument, saved: boolean = false) : void
         promise.then(
             () : void =>
             {
-                const processCallback =
-                    (output: string) : string =>
-                    {
-                        return output.trim();
-                    };
-
                 const resolveCallback =
-                    (projectPath: string) : void =>
+                    (projectPath: Uri) : void =>
                     {
-                        window.showInformationMessage("Reindexing project: " + projectPath);
+                        window.showInformationMessage("Reindexing project: " + projectPath.fsPath);
                     };
 
-                runRc(["--current-project"], processCallback).then(resolveCallback);
+                getCurrentProjectPath().then(resolveCallback);
             });
     }
 }

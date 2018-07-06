@@ -1,7 +1,9 @@
 'use strict';
 
 import { languages, window, workspace, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult,
-         SymbolInformation, SymbolKind, TextDocument, WorkspaceSymbolProvider } from 'vscode';
+         SymbolInformation, SymbolKind, TextDocument, Uri, WorkspaceSymbolProvider } from 'vscode';
+
+import { getCurrentProjectPath } from './projectManager';
 
 import { RtagsSelector, fromRtagsLocation, runRc } from './rtagsUtil';
 
@@ -59,7 +61,7 @@ function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInform
             let symbols: SymbolInformation[] = [];
             for (const line of output.split('\n'))
             {
-                let [location, name, kind, container] = line.split('\t', 4).map((token) => { return token.trim(); });
+                let [location, name, kind, container] = line.split('\t', 4).map((tok) => { return tok.trim(); });
                 if (!name)
                 {
                     continue;
@@ -157,21 +159,15 @@ export class RtagsSymbolProvider implements
             return findSymbols(query, args);
         }
 
-        const processCallback =
-            (output: string) : string =>
-            {
-                return output.trim();
-            };
-
         const resolveCallback =
-            (projectPath: string) : Thenable<SymbolInformation[]> =>
+            (projectPath: Uri) : Thenable<SymbolInformation[]> =>
             {
-                args.push("--path-filter", projectPath);
+                args.push("--path-filter", projectPath.fsPath);
 
                 return findSymbols(query, args);
             };
 
-        return runRc(["--current-project"], processCallback).then(resolveCallback);
+        return getCurrentProjectPath().then(resolveCallback);
     }
 
     private disposables: Disposable[] = [];
