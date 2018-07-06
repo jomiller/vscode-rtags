@@ -123,9 +123,9 @@ export class RtagsSymbolProvider implements
     {
         const args =
         [
-            "--path-filter",
-            document.uri.fsPath,
             "--current-file",
+            document.uri.fsPath,
+            "--path-filter",
             document.uri.fsPath
         ];
 
