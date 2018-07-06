@@ -139,7 +139,7 @@ export class RtagsSymbolProvider implements
             return [];
         }
 
-        const args = ["--max", "50"];
+        let args = ["--max", "50"];
 
         const editor = window.activeTextEditor;
         if (editor)
