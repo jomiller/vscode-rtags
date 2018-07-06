@@ -2,7 +2,8 @@
 
 import { commands, languages, window, workspace, CancellationToken, Definition, DefinitionProvider, Disposable, Hover,
          HoverProvider, Location, Position, ProviderResult, ReferenceContext, TextDocument, TypeDefinitionProvider,
-         ImplementationProvider, Range, ReferenceProvider, RenameProvider, Uri, WorkspaceEdit } from 'vscode';
+         ImplementationProvider, Range, ReferenceProvider, RenameProvider, TextEditor, TextEditorEdit, Uri,
+         WorkspaceEdit } from 'vscode';
 
 import { Nullable, RtagsSelector, isUnsavedSourceFile, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
 
@@ -78,16 +79,10 @@ export class RtagsDefinitionProvider implements
     constructor()
     {
         const showVariablesCallback =
-            () : void =>
+            (textEditor: TextEditor, _edit: TextEditorEdit) : void =>
             {
-                const editor = window.activeTextEditor;
-                if (!editor)
-                {
-                    return;
-                }
-
-                const document = editor.document;
-                const position = editor.selection.active;
+                const document = textEditor.document;
+                const position = textEditor.selection.active;
 
                 const resolveCallback =
                     (locations: Location[]) : void =>
@@ -108,7 +103,7 @@ export class RtagsDefinitionProvider implements
             languages.registerReferenceProvider(RtagsSelector, this),
             languages.registerRenameProvider(RtagsSelector, this),
             languages.registerHoverProvider(RtagsSelector, this),
-            commands.registerCommand("rtags.showVariables", showVariablesCallback));
+            commands.registerTextEditorCommand("rtags.showVariables", showVariablesCallback));
     }
 
     dispose() : void

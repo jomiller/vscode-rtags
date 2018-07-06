@@ -1,7 +1,7 @@
 'use strict';
 
-import { commands, window, Disposable, Event, EventEmitter, Location, Position, ProviderResult, TreeDataProvider,
-         TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
+import { commands, window, Disposable, Event, EventEmitter, Location, Position, ProviderResult, TextEditor,
+         TextEditorEdit, TreeDataProvider, TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
 
 import { basename } from 'path';
 
@@ -76,16 +76,10 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
             };
 
         const showCallersCallback =
-            () : void =>
+            (textEditor: TextEditor, _edit: TextEditorEdit) : void =>
             {
-                const editor = window.activeTextEditor;
-                if (!editor)
-                {
-                    return;
-                }
-
-                const document = editor.document;
-                const position = editor.selection.active;
+                const document = textEditor.document;
+                const position = textEditor.selection.active;
 
                 const resolveCallback =
                     (callers: Caller[]) : void =>
@@ -104,7 +98,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
             window.registerTreeDataProvider("rtags.callHierarchy", this),
             commands.registerCommand("rtags.callHierarchy", callHierarchyCallback),
             commands.registerCommand("rtags.closeCallHierarchy", closeCallHierarchyCallback),
-            commands.registerCommand("rtags.showCallers", showCallersCallback));
+            commands.registerTextEditorCommand("rtags.showCallers", showCallersCallback));
     }
 
     dispose() : void

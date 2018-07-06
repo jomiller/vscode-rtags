@@ -1,7 +1,7 @@
 'use strict';
 
-import { commands, window, Disposable, Event, EventEmitter, Location, Position, ProviderResult, TreeDataProvider,
-         TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
+import { commands, window, Disposable, Event, EventEmitter, Location, Position, ProviderResult, TextEditor,
+         TextEditorEdit, TreeDataProvider, TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
 
 import { basename } from 'path';
 
@@ -126,16 +126,10 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
             };
 
         const showBaseClassesCallback =
-            () : void =>
+            (textEditor: TextEditor, _edit: TextEditorEdit) : void =>
             {
-                const editor = window.activeTextEditor;
-                if (!editor)
-                {
-                    return;
-                }
-
-                const document = editor.document;
-                const position = editor.selection.active;
+                const document = textEditor.document;
+                const position = textEditor.selection.active;
 
                 const resolveCallback =
                     (nodes: InheritanceNode[]) : void =>
@@ -161,7 +155,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
             window.registerTreeDataProvider("rtags.inheritanceHierarchy", this),
             commands.registerCommand("rtags.inheritanceHierarchy", inheritanceHierarchyCallback),
             commands.registerCommand("rtags.closeInheritanceHierarchy", closeInheritanceHierarchyCallback),
-            commands.registerCommand("rtags.showBaseClasses", showBaseClassesCallback));
+            commands.registerTextEditorCommand("rtags.showBaseClasses", showBaseClassesCallback));
     }
 
     dispose() : void
