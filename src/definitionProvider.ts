@@ -261,7 +261,7 @@ export class RtagsDefinitionProvider implements
             {
                 let _unused: string = "";
                 let definition: string = "";
-                [_unused, definition] = output.split('\t', 2).map((token) => { return token.trim(); });
+                [_unused, definition] = output.split('\t', 2).map((tok) => { return tok.trim(); });
                 return definition;
             };
 
