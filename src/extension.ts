@@ -75,8 +75,37 @@ function reindex(document?: TextDocument) : void
         }
         args.push(document.uri.fsPath);
     }
+    else
+    {
+        const editor = window.activeTextEditor;
+        if (editor)
+        {
+            args.push("--current-file", editor.document.uri.fsPath);
+        }
+    }
 
-    runRc(args, (_unused) => {}, workspace.textDocuments);
+    let promise = runRc(args, (_unused) => {}, workspace.textDocuments);
+
+    if (!document)
+    {
+        promise.then(
+            () : void =>
+            {
+                const processCallback =
+                    (output: string) : string =>
+                    {
+                        return output.trim();
+                    };
+
+                const resolveCallback =
+                    (projectPath: string) : void =>
+                    {
+                        window.showInformationMessage("Reindexing project: " + projectPath);
+                    };
+
+                runRc(["--current-project"], processCallback).then(resolveCallback);
+            });
+    }
 }
 
 export function activate(context: ExtensionContext) : void
