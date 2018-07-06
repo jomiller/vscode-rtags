@@ -63,9 +63,9 @@ function addProject(uri: Uri) : void
 }
 */
 
-function reindex(document?: TextDocument) : void
+function reindex(document?: TextDocument, saved: boolean = false) : void
 {
-    let args = ["--silent", "--reindex"];
+    let args = ["--silent"];
 
     if (document)
     {
@@ -73,7 +73,8 @@ function reindex(document?: TextDocument) : void
         {
             return;
         }
-        args.push(document.uri.fsPath);
+
+        args.push(saved ? "--check-reindex" : "--reindex", document.uri.fsPath);
     }
     else
     {
@@ -82,6 +83,7 @@ function reindex(document?: TextDocument) : void
         {
             args.push("--current-file", editor.document.uri.fsPath);
         }
+        args.push("--reindex");
     }
 
     let promise = runRc(args, (_unused) => {}, workspace.textDocuments);
@@ -152,5 +154,5 @@ export function activate(context: ExtensionContext) : void
                                  1000);
         });
 
-    workspace.onDidSaveTextDocument((doc) => { reindex(doc); });
+    workspace.onDidSaveTextDocument((doc) => { reindex(doc, true); });
 }
