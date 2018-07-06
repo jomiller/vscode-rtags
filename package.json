@@ -85,8 +85,20 @@
             ],
             "commandPalette": [
                 {
+                    "command": "rtags.freshenIndex",
+                    "when": "resourceLangId == cpp"
+                },
+                {
+                    "command": "rtags.callHierarchy",
+                    "when": "resourceLangId == cpp"
+                },
+                {
                     "command": "rtags.closeCallHierarchy",
                     "when": "false"
+                },
+                {
+                    "command": "rtags.inheritanceHierarchy",
+                    "when": "resourceLangId == cpp"
                 },
                 {
                     "command": "rtags.closeInheritanceHierarchy",
@@ -95,6 +107,18 @@
                 {
                     "command": "rtags.gotoLocation",
                     "when": "false"
+                },
+                {
+                    "command": "rtags.showVariables",
+                    "when": "resourceLangId == cpp"
+                },
+                {
+                    "command": "rtags.showCallers",
+                    "when": "resourceLangId == cpp"
+                },
+                {
+                    "command": "rtags.showBaseClasses",
+                    "when": "resourceLangId == cpp"
                 }
             ]
         },
