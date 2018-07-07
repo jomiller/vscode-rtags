@@ -123,8 +123,7 @@ export class RtagsSymbolProvider implements
         }
     }
 
-    public provideDocumentSymbols(document: TextDocument,
-                                  _token: CancellationToken) :
+    public provideDocumentSymbols(document: TextDocument, _token: CancellationToken) :
         ProviderResult<SymbolInformation[]>
     {
         if (!this.projectMgr.isInProject(document.uri))
