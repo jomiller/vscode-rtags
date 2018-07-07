@@ -268,7 +268,7 @@ export class RtagsDefinitionProvider implements
         const wr = document.getWordRangeAtPosition(position);
         const diff = wr ? (wr.end.character - wr.start.character) : undefined;
 
-        let edits: WorkspaceEdit = new WorkspaceEdit;
+        let edit = new WorkspaceEdit();
 
         const resolveCallback =
             (locations: Location[]) : WorkspaceEdit =>
@@ -276,9 +276,9 @@ export class RtagsDefinitionProvider implements
                 for (const l of locations)
                 {
                     const end = l.range.end.translate(0, diff);
-                    edits.replace(l.uri, new Range(l.range.start, end), newName);
+                    edit.replace(l.uri, new Range(l.range.start, end), newName);
                 }
-                return edits;
+                return edit;
             };
 
         return getDefinitions(document.uri, position, ReferenceType.Rename).then(resolveCallback);
