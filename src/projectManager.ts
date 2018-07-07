@@ -43,9 +43,13 @@ export class ProjectManager implements Disposable
         const processCallback =
             (output: string) : Uri | undefined =>
             {
-                const uri = Uri.file(output.trim().replace(/\/$/, ""));
-                const pathFound = this.projectPaths.some((p) => { return (p.fsPath === uri.fsPath); });
-                return (pathFound ? uri : undefined);
+                if (!output)
+                {
+                    return undefined;
+                }
+                const path = Uri.file(output.trim().replace(/\/$/, ""));
+                const pathFound = this.projectPaths.some((p) => { return (p.fsPath === path.fsPath); });
+                return (pathFound ? path : undefined);
             };
 
         return runRc(["--current-project"], processCallback);
@@ -68,14 +72,14 @@ export class ProjectManager implements Disposable
             return;
         }
 
-        let rc = runRcSync(["--project"]);
-        if (rc.error)
-        {
-            return;
-        }
+        let rtagsProjectPaths: Uri[] = [];
 
-        const rtagsProjectPaths = rc.stdout.trim().split('\n').map(
-            (p) => { return Uri.file(p.replace(" <=", "").trim().replace(/\/$/, "")); });
+        let rc = runRcSync(["--project"]);
+        if (rc.stdout)
+        {
+            rtagsProjectPaths = rc.stdout.trim().split('\n').map(
+                (p) => { return Uri.file(p.replace(" <=", "").trim().replace(/\/$/, "")); });
+        }
 
         for (const f of folders)
         {
@@ -97,7 +101,7 @@ export class ProjectManager implements Disposable
     private addProject(uri: Uri) : void
     {
         let rc = runRcSync(["--load-compile-commands", uri.fsPath]);
-        if (!rc.error)
+        if (rc.status === 0)
         {
             this.projectPaths.push(uri);
             window.showInformationMessage("[RTags] Loading project: " + uri.fsPath);
@@ -133,46 +137,60 @@ export class ProjectManager implements Disposable
 
         if (document)
         {
-            if (languages.match(RtagsDocSelector, document) === 0)
+            if (!this.isInProject(document.uri) || (languages.match(RtagsDocSelector, document) === 0))
             {
                 return;
             }
 
             args.push(saved ? "--check-reindex" : "--reindex", document.uri.fsPath);
+
+            runRc(args, (_unused) => {}, this.getTextDocuments());
+
+            return;
         }
-        else
+
+        const editor = window.activeTextEditor;
+        if (editor)
         {
-            const editor = window.activeTextEditor;
-            if (editor)
+            const activeDocPath = editor.document.uri;
+
+            if (!this.isInProject(activeDocPath))
             {
-                args.push("--current-file", editor.document.uri.fsPath);
+                return;
             }
-            args.push("--reindex");
+
+            args.push("--current-file", activeDocPath.fsPath, "--reindex");
+
+            runRc(args, (_unused) => {}, this.getTextDocuments());
+
+            return;
         }
 
-        let promise = runRc(args, (_unused) => {}, this.getTextDocuments());
-
-        if (!document)
-        {
-            promise.then(
-                () : void =>
+        const resolveCallback =
+            (projectPath?: Uri) : void =>
+            {
+                if (!projectPath)
                 {
-                    const resolveCallback =
-                        (projectPath?: Uri) : void =>
-                        {
-                            if (projectPath)
-                            {
-                                window.showInformationMessage("Reindexing project: " + projectPath.fsPath);
-                            }
-                        };
+                    return;
+                }
 
-                    this.getCurrentProjectPath().then(resolveCallback);
-                });
-        }
+                window.showInformationMessage("Reindexing project: " + projectPath.fsPath);
+
+                args.push("--reindex");
+
+                runRc(args, (_unused) => {}, this.getTextDocuments());
+            };
+
+        this.getCurrentProjectPath().then(resolveCallback);
     }
 
     private reindexOnChange(event: TextDocumentChangeEvent) : void
     {
+        if (event.contentChanges.length === 0)
+        {
+            return;
+        }
+
         if (this.timerId)
         {
             clearTimeout(this.timerId);
