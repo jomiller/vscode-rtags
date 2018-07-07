@@ -3,7 +3,8 @@
 import { commands, window, DocumentFilter, Location, Position, Range, TextDocument, TextDocumentShowOptions, Uri }
          from 'vscode';
 
-import { execFile, ExecFileOptions, spawnSync, SpawnSyncReturns } from 'child_process';
+import { execFile, ExecFileOptionsWithStringEncoding, spawnSync, SpawnSyncOptionsWithStringEncoding, SpawnSyncReturns }
+         from 'child_process';
 
 export type Nullable<T> = T | null;
 
@@ -66,8 +67,9 @@ export function runRc(args: string[], process: (stdout: string) => any, document
                 args.push("--unsaved-file", unsavedFile);
             }
 
-            const options: ExecFileOptions =
+            const options: ExecFileOptionsWithStringEncoding =
             {
+                encoding: "utf8",
                 maxBuffer: 4 * 1024 * 1024
             };
 
@@ -120,5 +122,10 @@ export function runRcSync(args: string[]) : SpawnSyncReturns<string>
 {
     args.push("--silent-query");
 
-    return spawnSync("rc", args);
+    const options: SpawnSyncOptionsWithStringEncoding =
+    {
+        encoding: "utf8"
+    };
+
+    return spawnSync("rc", args, options);
 }
