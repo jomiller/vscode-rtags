@@ -5,7 +5,7 @@ import { commands, languages, window, workspace, Disposable, TextDocument, TextD
 
 import { setTimeout, clearTimeout } from 'timers';
 
-import { Nullable, RtagsSelector, runRc, runRcSync } from './rtagsUtil';
+import { Nullable, RtagsDocSelector, runRc, runRcSync } from './rtagsUtil';
 
 export class ProjectManager implements Disposable
 {
@@ -133,7 +133,7 @@ export class ProjectManager implements Disposable
 
         if (document)
         {
-            if (languages.match(RtagsSelector, document) === 0)
+            if (languages.match(RtagsDocSelector, document) === 0)
             {
                 return;
             }

@@ -8,7 +8,7 @@ import { ChildProcess, spawn } from 'child_process';
 
 import { ProjectManager } from './projectManager';
 
-import { Nullable, RtagsSelector, runRc } from './rtagsUtil';
+import { Nullable, RtagsDocSelector, runRc } from './rtagsUtil';
 
 export class RtagsCodeActionProvider implements
     CodeActionProvider,
@@ -21,7 +21,7 @@ export class RtagsCodeActionProvider implements
 
         this.disposables.push(
             this.diagnosticCollection,
-            languages.registerCodeActionsProvider(RtagsSelector, this),
+            languages.registerCodeActionsProvider(RtagsDocSelector, this),
             commands.registerCommand(RtagsCodeActionProvider.commandId, this.runCodeAction, this));
 
         this.startDiagnostics();

@@ -5,7 +5,7 @@ import { languages, window, CancellationToken, Disposable, DocumentSymbolProvide
 
 import { ProjectManager } from './projectManager';
 
-import { RtagsSelector, fromRtagsLocation, runRc } from './rtagsUtil';
+import { RtagsDocSelector, fromRtagsLocation, runRc } from './rtagsUtil';
 
 function toSymbolKind(kind: string) : SymbolKind | undefined
 {
@@ -111,7 +111,7 @@ export class RtagsSymbolProvider implements
         this.projectMgr = projectMgr;
 
         this.disposables.push(
-            languages.registerDocumentSymbolProvider(RtagsSelector, this),
+            languages.registerDocumentSymbolProvider(RtagsDocSelector, this),
             languages.registerWorkspaceSymbolProvider(this));
     }
 

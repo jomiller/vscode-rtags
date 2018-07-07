@@ -13,7 +13,7 @@ export interface Locatable
     location: Location;
 }
 
-export const RtagsSelector: DocumentFilter[] =
+export const RtagsDocSelector: DocumentFilter[] =
 [
     { language: "cpp", scheme: "file" },
     { language: "c",   scheme: "file" }
@@ -25,7 +25,7 @@ export function isUnsavedSourceFile(document: TextDocument) : boolean
     {
         return false;
     }
-    return RtagsSelector.some((filt) => { return (filt.language === document.languageId); });
+    return RtagsDocSelector.some((filt) => { return (filt.language === document.languageId); });
 }
 
 export function setContext(name: any, value: any) : void
