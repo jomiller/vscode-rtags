@@ -1,9 +1,9 @@
 'use strict';
 
-import { languages, window, workspace, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult,
-         SymbolInformation, SymbolKind, TextDocument, Uri, WorkspaceSymbolProvider } from 'vscode';
+import { languages, window, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult, SymbolInformation,
+         SymbolKind, TextDocument, Uri, WorkspaceSymbolProvider } from 'vscode';
 
-import { getCurrentProjectPath } from './projectManager';
+import { ProjectManager } from './projectManager';
 
 import { RtagsSelector, fromRtagsLocation, runRc } from './rtagsUtil';
 
@@ -106,14 +106,15 @@ export class RtagsSymbolProvider implements
     WorkspaceSymbolProvider,
     Disposable
 {
-    constructor()
+    constructor(projectMgr: ProjectManager)
     {
+        this.projectMgr = projectMgr;
         this.disposables.push(
             languages.registerDocumentSymbolProvider(RtagsSelector, this),
             languages.registerWorkspaceSymbolProvider(this));
     }
 
-    dispose() : void
+    public dispose() : void
     {
         for (let d of this.disposables)
         {
@@ -121,7 +122,9 @@ export class RtagsSymbolProvider implements
         }
     }
 
-    provideDocumentSymbols(document: TextDocument, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
+    public provideDocumentSymbols(document: TextDocument,
+                                  _token: CancellationToken) :
+        ProviderResult<SymbolInformation[]>
     {
         const args =
         [
@@ -134,7 +137,7 @@ export class RtagsSymbolProvider implements
         return findSymbols("", args);
     }
 
-    provideWorkspaceSymbols(query: string, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
+    public provideWorkspaceSymbols(query: string, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
     {
         if (query.length < 3)
         {
@@ -150,25 +153,29 @@ export class RtagsSymbolProvider implements
 
             args.push("--current-file", uri.fsPath);
 
-            const folder = workspace.getWorkspaceFolder(uri);
-            if (folder)
+            const path = this.projectMgr.getProjectPath(uri);
+            if (path)
             {
-                args.push("--path-filter", folder.uri.fsPath);
+                args.push("--path-filter", path.fsPath);
             }
 
             return findSymbols(query, args);
         }
 
         const resolveCallback =
-            (projectPath: Uri) : Thenable<SymbolInformation[]> =>
+            (projectPath?: Uri) : Thenable<SymbolInformation[]> =>
             {
-                args.push("--path-filter", projectPath.fsPath);
+                if (projectPath)
+                {
+                    args.push("--path-filter", projectPath.fsPath);
+                }
 
                 return findSymbols(query, args);
             };
 
-        return getCurrentProjectPath().then(resolveCallback);
+        return this.projectMgr.getCurrentProjectPath().then(resolveCallback);
     }
 
+    private projectMgr: ProjectManager;
     private disposables: Disposable[] = [];
 }

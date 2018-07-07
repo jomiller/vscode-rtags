@@ -101,7 +101,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
             commands.registerTextEditorCommand("rtags.showCallers", showCallersCallback));
     }
 
-    dispose() : void
+    public dispose() : void
     {
         for (let d of this.disposables)
         {
@@ -109,7 +109,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
         }
     }
 
-    getTreeItem(element: Caller) : TreeItem | Thenable<TreeItem>
+    public getTreeItem(element: Caller) : TreeItem | Thenable<TreeItem>
     {
         const lineNumber = element.location.range.start.line + 1;
         const location: string = basename(element.location.uri.fsPath) + ':' + lineNumber.toString();
@@ -118,7 +118,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
         return treeItem;
     }
 
-    getChildren(element?: Caller) : ProviderResult<Caller[]>
+    public getChildren(element?: Caller) : ProviderResult<Caller[]>
     {
         if (!element)
         {

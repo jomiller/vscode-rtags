@@ -1,9 +1,11 @@
 'use strict';
 
-import { commands, languages, window, workspace, CancellationToken, Definition, DefinitionProvider, Disposable, Hover,
+import { commands, languages, window, CancellationToken, Definition, DefinitionProvider, Disposable, Hover,
          HoverProvider, Location, Position, ProviderResult, ReferenceContext, TextDocument, TypeDefinitionProvider,
          ImplementationProvider, Range, ReferenceProvider, RenameProvider, TextEditor, TextEditorEdit, Uri,
          WorkspaceEdit } from 'vscode';
+
+import { ProjectManager } from './projectManager';
 
 import { Nullable, RtagsSelector, isUnsavedSourceFile, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
 
@@ -76,8 +78,9 @@ export class RtagsDefinitionProvider implements
     HoverProvider,
     Disposable
 {
-    constructor()
+    constructor(projectMgr: ProjectManager)
     {
+        this.projectMgr = projectMgr;
         const showVariablesCallback =
             (textEditor: TextEditor, _edit: TextEditorEdit) : void =>
             {
@@ -106,7 +109,7 @@ export class RtagsDefinitionProvider implements
             commands.registerTextEditorCommand("rtags.showVariables", showVariablesCallback));
     }
 
-    dispose() : void
+    public dispose() : void
     {
         for (let d of this.disposables)
         {
@@ -114,13 +117,13 @@ export class RtagsDefinitionProvider implements
         }
     }
 
-    provideDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
+    public provideDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<Definition>
     {
         return getDefinitions(document.uri, position);
     }
 
-    provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
+    public provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<Definition>
     {
         const location = toRtagsLocation(document.uri, position);
@@ -201,26 +204,31 @@ export class RtagsDefinitionProvider implements
         return runRc(args, processCallback).then(resolveCallback);
     }
 
-    provideImplementation(document: TextDocument, position: Position, _token: CancellationToken) :
+    public provideImplementation(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<Definition>
     {
         return getDefinitions(document.uri, position);
     }
 
-    provideReferences(document: TextDocument,
-                      position: Position,
-                      _context: ReferenceContext,
-                      _token: CancellationToken) :
+    public provideReferences(document: TextDocument,
+                             position: Position,
+                             _context: ReferenceContext,
+                             _token: CancellationToken) :
         ProviderResult<Location[]>
     {
         return getDefinitions(document.uri, position, ReferenceType.References);
     }
 
-    provideRenameEdits(document: TextDocument, position: Position, newName: string, _token: CancellationToken) :
+    public provideRenameEdits(document: TextDocument,
+                              position: Position,
+                              newName: string,
+                              _token: CancellationToken) :
         ProviderResult<WorkspaceEdit>
     {
-        const unsaved: boolean = workspace.textDocuments.some((doc) => { return isUnsavedSourceFile(doc); });
-        if (unsaved)
+        const unsavedDocFound: boolean =
+            this.projectMgr.getTextDocuments().some((doc) => { return isUnsavedSourceFile(doc); });
+
+        if (unsavedDocFound)
         {
             window.showInformationMessage("[RTags] Save all source files before renaming a symbol");
             return null;
@@ -245,7 +253,7 @@ export class RtagsDefinitionProvider implements
         return getDefinitions(document.uri, position, ReferenceType.Rename).then(resolveCallback);
     }
 
-    provideHover(document: TextDocument, position: Position, _token: CancellationToken) : ProviderResult<Hover>
+    public provideHover(document: TextDocument, position: Position, _token: CancellationToken) : ProviderResult<Hover>
     {
         const location = toRtagsLocation(document.uri, position);
 
@@ -275,5 +283,6 @@ export class RtagsDefinitionProvider implements
         return runRc(args, processCallback).then(resolveCallback);
     }
 
+    private projectMgr: ProjectManager;
     private disposables: Disposable[] = [];
 }

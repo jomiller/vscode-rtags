@@ -24,7 +24,7 @@ export class RtagsCodeActionProvider implements
         this.startDiagnostics();
     }
 
-    dispose() : void
+    public dispose() : void
     {
         this.stopDiagnostics();
 
@@ -34,7 +34,10 @@ export class RtagsCodeActionProvider implements
         }
     }
 
-    provideCodeActions(document: TextDocument, _range: Range, _context: CodeActionContext, _token: CancellationToken) :
+    public provideCodeActions(document: TextDocument,
+                              _range: Range,
+                              _context: CodeActionContext,
+                              _token: CancellationToken) :
         ProviderResult<Command[]>
     {
         const processCallback =

@@ -60,7 +60,7 @@ export class RtagsCompletionProvider implements
             languages.registerSignatureHelpProvider(RtagsSelector, this, '(', ','));
     }
 
-    dispose() : void
+    public dispose() : void
     {
         for (let d of this.disposables)
         {
@@ -68,7 +68,7 @@ export class RtagsCompletionProvider implements
         }
     }
 
-    provideCompletionItems(document: TextDocument, position: Position, _token: CancellationToken) :
+    public provideCompletionItems(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<CompletionItem[] | CompletionList>
     {
         const wordRange = document.getWordRangeAtPosition(position);
@@ -143,7 +143,7 @@ export class RtagsCompletionProvider implements
         return runRc(args, processCallback);
     }
 
-    provideSignatureHelp(document: TextDocument, position: Position, _token: CancellationToken) :
+    public provideSignatureHelp(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<SignatureHelp>
     {
         const maxCompletions = 20;

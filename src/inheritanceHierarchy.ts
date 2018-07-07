@@ -158,7 +158,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
             commands.registerTextEditorCommand("rtags.showBaseClasses", showBaseClassesCallback));
     }
 
-    dispose() : void
+    public dispose() : void
     {
         for (let d of this.disposables)
         {
@@ -166,7 +166,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
         }
     }
 
-    getTreeItem(element: InheritanceNode) : TreeItem | Thenable<TreeItem>
+    public getTreeItem(element: InheritanceNode) : TreeItem | Thenable<TreeItem>
     {
         let label = element.name;
         if (element.nodeType !== NodeType.BaseRoot)
@@ -183,7 +183,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
         return treeItem;
     }
 
-    getChildren(element?: InheritanceNode) : ProviderResult<InheritanceNode[]>
+    public getChildren(element?: InheritanceNode) : ProviderResult<InheritanceNode[]>
     {
         if (!element)
         {

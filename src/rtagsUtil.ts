@@ -3,7 +3,7 @@
 import { commands, window, DocumentFilter, Location, Position, Range, TextDocument, TextDocumentShowOptions, Uri }
          from 'vscode';
 
-import { execFile, ExecFileOptions } from 'child_process';
+import { execFile, ExecFileOptions, spawnSync, SpawnSyncReturns } from 'child_process';
 
 export type Nullable<T> = T | null;
 
@@ -72,7 +72,7 @@ export function runRc(args: string[], process: (stdout: string) => any, document
             };
 
             const exitCallback =
-                (error: Error, stdout: string, stderr: string) : void =>
+                (error: Error | null, stdout: string, stderr: string) : void =>
                 {
                     if (error)
                     {
@@ -114,4 +114,11 @@ export function runRc(args: string[], process: (stdout: string) => any, document
         };
 
     return new Promise(executorCallback);
+}
+
+export function runRcSync(args: string[]) : SpawnSyncReturns<string>
+{
+    args.push("--silent-query");
+
+    return spawnSync("rc", args);
 }
