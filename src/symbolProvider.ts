@@ -126,6 +126,11 @@ export class RtagsSymbolProvider implements
                                   _token: CancellationToken) :
         ProviderResult<SymbolInformation[]>
     {
+        if (!this.projectMgr.isInProject(document.uri))
+        {
+            return [];
+        }
+
         const args =
         [
             "--current-file",
@@ -149,15 +154,18 @@ export class RtagsSymbolProvider implements
         const editor = window.activeTextEditor;
         if (editor)
         {
-            const uri = editor.document.uri;
+            const path = editor.document.uri;
 
-            args.push("--current-file", uri.fsPath);
-
-            const path = this.projectMgr.getProjectPath(uri);
-            if (path)
+            const projectPath = this.projectMgr.getProjectPath(path);
+            if (!projectPath)
             {
-                args.push("--path-filter", path.fsPath);
+                return [];
             }
+
+            args.push("--current-file",
+                      path.fsPath,
+                      "--path-filter",
+                      projectPath.fsPath);
 
             return findSymbols(query, args);
         }
@@ -165,10 +173,12 @@ export class RtagsSymbolProvider implements
         const resolveCallback =
             (projectPath?: Uri) : Thenable<SymbolInformation[]> =>
             {
-                if (projectPath)
+                if (!projectPath)
                 {
-                    args.push("--path-filter", projectPath.fsPath);
+                    return Promise.resolve([]);
                 }
+
+                args.push("--path-filter", projectPath.fsPath);
 
                 return findSymbols(query, args);
             };

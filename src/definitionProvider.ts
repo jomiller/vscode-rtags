@@ -81,11 +81,17 @@ export class RtagsDefinitionProvider implements
     constructor(projectMgr: ProjectManager)
     {
         this.projectMgr = projectMgr;
+
         const showVariablesCallback =
             (textEditor: TextEditor, _edit: TextEditorEdit) : void =>
             {
                 const document = textEditor.document;
                 const position = textEditor.selection.active;
+
+                if (!this.projectMgr.isInProject(document.uri))
+                {
+                    return;
+                }
 
                 const resolveCallback =
                     (locations: Location[]) : void =>
@@ -120,12 +126,22 @@ export class RtagsDefinitionProvider implements
     public provideDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<Definition>
     {
+        if (!this.projectMgr.isInProject(document.uri))
+        {
+            return null;
+        }
+
         return getDefinitions(document.uri, position);
     }
 
     public provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<Definition>
     {
+        if (!this.projectMgr.isInProject(document.uri))
+        {
+            return null;
+        }
+
         const location = toRtagsLocation(document.uri, position);
 
         const args =
@@ -207,6 +223,11 @@ export class RtagsDefinitionProvider implements
     public provideImplementation(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<Definition>
     {
+        if (!this.projectMgr.isInProject(document.uri))
+        {
+            return null;
+        }
+
         return getDefinitions(document.uri, position);
     }
 
@@ -216,6 +237,11 @@ export class RtagsDefinitionProvider implements
                              _token: CancellationToken) :
         ProviderResult<Location[]>
     {
+        if (!this.projectMgr.isInProject(document.uri))
+        {
+            return [];
+        }
+
         return getDefinitions(document.uri, position, ReferenceType.References);
     }
 
@@ -225,6 +251,11 @@ export class RtagsDefinitionProvider implements
                               _token: CancellationToken) :
         ProviderResult<WorkspaceEdit>
     {
+        if (!this.projectMgr.isInProject(document.uri))
+        {
+            return null;
+        }
+
         const unsavedDocFound: boolean =
             this.projectMgr.getTextDocuments().some((doc) => { return isUnsavedSourceFile(doc); });
 
