@@ -33,7 +33,7 @@ export class ProjectManager implements Disposable
         const processCallback =
             (output: string) : Uri | undefined =>
             {
-                const uri = Uri.file(output.trim());
+                const uri = Uri.file(output.trim().replace(/\/$/, ""));
                 const pathFound = this.projectPaths.some((p) => { return (p.fsPath === uri.fsPath); });
                 return (pathFound ? uri : undefined);
             };
@@ -74,15 +74,15 @@ export class ProjectManager implements Disposable
             return;
         }
 
-        const rtagsProjectPaths =
-            rc.stdout.split('\n').map((p) => { return Uri.file(p.replace(" <=", "").trim()); });
+        const rtagsProjectPaths = rc.stdout.trim().split('\n').map(
+            (p) => { return Uri.file(p.replace(" <=", "").trim().replace(/\/$/, "")); });
 
         for (const f of folders)
         {
             const projectAdded = rtagsProjectPaths.some((p) => { return (p.fsPath === f.uri.fsPath); });
             if (projectAdded)
             {
-                if (this.projectPaths.indexOf(f.uri) !== -1)
+                if (this.projectPaths.indexOf(f.uri) === -1)
                 {
                     this.projectPaths.push(f.uri);
                 }

@@ -45,7 +45,7 @@ function getClasses(classType: ClassType, uri: Uri, position: Position) : Thenab
         {
             let nodes: InheritanceNode[] = [];
 
-            const lines = output.split('\n');
+            const lines = output.trim().split('\n');
             const baseIndex = lines.indexOf("Superclasses:");
             const derivedIndex = lines.indexOf("Subclasses:");
             let startIndex = baseIndex;

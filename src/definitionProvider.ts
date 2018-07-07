@@ -25,7 +25,7 @@ function getLocations(args: string[]) : Thenable<Location[]>
             let locations: Location[] = [];
             for (const loc of output.split('\n'))
             {
-                if (loc)
+                if (loc.trim().length !== 0)
                 {
                     locations.push(fromRtagsLocation(loc));
                 }
@@ -255,6 +255,11 @@ export class RtagsDefinitionProvider implements
 
     public provideHover(document: TextDocument, position: Position, _token: CancellationToken) : ProviderResult<Hover>
     {
+        if (!this.projectMgr.isInProject(document.uri))
+        {
+            return null;
+        }
+
         const location = toRtagsLocation(document.uri, position);
 
         const args =
