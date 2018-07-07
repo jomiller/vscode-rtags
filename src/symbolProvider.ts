@@ -154,16 +154,16 @@ export class RtagsSymbolProvider implements
         const editor = window.activeTextEditor;
         if (editor)
         {
-            const path = editor.document.uri;
+            const activeDocPath = editor.document.uri;
 
-            const projectPath = this.projectMgr.getProjectPath(path);
+            const projectPath = this.projectMgr.getProjectPath(activeDocPath);
             if (!projectPath)
             {
                 return [];
             }
 
             args.push("--current-file",
-                      path.fsPath,
+                      activeDocPath.fsPath,
                       "--path-filter",
                       projectPath.fsPath);
 
