@@ -5,6 +5,8 @@ import { commands, window, Disposable, Event, EventEmitter, Location, Position, 
 
 import { basename } from 'path';
 
+import { ProjectManager } from './projectManager';
+
 import { Nullable, Locatable, setContext, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
 
 interface Caller extends Locatable
@@ -59,8 +61,10 @@ function getCallers(uri: Uri, position: Position) : Thenable<Caller[]>
 
 export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposable
 {
-    constructor()
+    constructor(projectMgr: ProjectManager)
     {
+        this.projectMgr = projectMgr;
+
         const callHierarchyCallback =
             () : void =>
             {
@@ -80,6 +84,11 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
             {
                 const document = textEditor.document;
                 const position = textEditor.selection.active;
+
+                if (!this.projectMgr.isInProject(document.uri))
+                {
+                    return;
+                }
 
                 const resolveCallback =
                     (callers: Caller[]) : void =>
@@ -128,8 +137,13 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                 return [];
             }
 
-            const position = editor.selection.active;
             const document = editor.document;
+            const position = editor.selection.active;
+
+            if (!this.projectMgr.isInProject(document.uri))
+            {
+                return [];
+            }
 
             const location = toRtagsLocation(document.uri, position);
 
@@ -211,6 +225,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
         this.onDidChangeEmitter.fire();
     }
 
+    private projectMgr: ProjectManager;
     private onDidChangeEmitter: EventEmitter<Nullable<Caller>> = new EventEmitter<Nullable<Caller>>();
     readonly onDidChangeTreeData: Event<Nullable<Caller>> = this.onDidChangeEmitter.event;
     private disposables: Disposable[] = [];

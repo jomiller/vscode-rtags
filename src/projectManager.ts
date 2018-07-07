@@ -28,6 +28,16 @@ export class ProjectManager implements Disposable
         }
     }
 
+    public getProjectPaths() : Uri[]
+    {
+        return this.projectPaths;
+    }
+
+    public getProjectPath(uri: Uri) : Uri | undefined
+    {
+        return this.projectPaths.find((f) => { return (uri.fsPath.startsWith(f.fsPath)); });
+    }
+
     public getCurrentProjectPath() : Thenable<Uri | undefined>
     {
         const processCallback =
@@ -39,16 +49,6 @@ export class ProjectManager implements Disposable
             };
 
         return runRc(["--current-project"], processCallback);
-    }
-
-    public getProjectPaths() : Uri[]
-    {
-        return this.projectPaths;
-    }
-
-    public getProjectPath(uri: Uri) : Uri | undefined
-    {
-        return this.projectPaths.find((f) => { return (uri.fsPath.startsWith(f.fsPath)); });
     }
 
     public isInProject(uri: Uri) : boolean

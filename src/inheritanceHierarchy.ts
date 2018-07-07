@@ -5,6 +5,8 @@ import { commands, window, Disposable, Event, EventEmitter, Location, Position, 
 
 import { basename } from 'path';
 
+import { ProjectManager } from './projectManager';
+
 import { Nullable, Locatable, setContext, fromRtagsLocation, toRtagsLocation, jumpToLocation, runRc } from './rtagsUtil';
 
 enum NodeType
@@ -109,8 +111,10 @@ function getClasses(classType: ClassType, uri: Uri, position: Position) : Thenab
 
 export class InheritanceHierarchyProvider implements TreeDataProvider<InheritanceNode>, Disposable
 {
-    constructor()
+    constructor(projectMgr: ProjectManager)
     {
+        this.projectMgr = projectMgr;
+
         const inheritanceHierarchyCallback =
             () : void =>
             {
@@ -130,6 +134,11 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
             {
                 const document = textEditor.document;
                 const position = textEditor.selection.active;
+
+                if (!this.projectMgr.isInProject(document.uri))
+                {
+                    return;
+                }
 
                 const resolveCallback =
                     (nodes: InheritanceNode[]) : void =>
@@ -193,8 +202,13 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
                 return [];
             }
 
-            const position = editor.selection.active;
             const document = editor.document;
+            const position = editor.selection.active;
+
+            if (!this.projectMgr.isInProject(document.uri))
+            {
+                return [];
+            }
 
             const resolveCallback =
                 (nodes: InheritanceNode[]) : Thenable<InheritanceNode[]> =>
@@ -260,6 +274,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
         this.onDidChangeEmitter.fire();
     }
 
+    private projectMgr: ProjectManager;
     private onDidChangeEmitter: EventEmitter<Nullable<InheritanceNode>> =
         new EventEmitter<Nullable<InheritanceNode>>();
     readonly onDidChangeTreeData: Event<Nullable<InheritanceNode>> = this.onDidChangeEmitter.event;

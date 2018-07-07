@@ -60,8 +60,8 @@ export function activate(context: ExtensionContext) : void
     let completionProvider = new RtagsCompletionProvider(projectManager);
     let definitionProvider = new RtagsDefinitionProvider(projectManager);
     let symbolProvider = new RtagsSymbolProvider(projectManager);
-    let callHierarchyProvider = new CallHierarchyProvider;
-    let inheritanceHierarchyProvider = new InheritanceHierarchyProvider;
+    let callHierarchyProvider = new CallHierarchyProvider(projectManager);
+    let inheritanceHierarchyProvider = new InheritanceHierarchyProvider(projectManager);
 
     const gotoLocationCallback =
         (element: Locatable) : void =>
