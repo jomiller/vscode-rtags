@@ -11,9 +11,9 @@
             "dev": true
         },
         "@types/node": {
-            "version": "6.0.113",
-            "resolved": "https://registry.npmjs.org/@types/node/-/node-6.0.113.tgz",
-            "integrity": "sha512-f9XXUWFqryzjkZA1EqFvJHSFyqyasV17fq8zCDIzbRV4ctL7RrJGKvG+lcex86Rjbzd1GrER9h9VmF5sSjV0BQ==",
+            "version": "9.6.23",
+            "resolved": "https://registry.npmjs.org/@types/node/-/node-9.6.23.tgz",
+            "integrity": "sha512-d2SJJpwkiPudEQ3+9ysANN2Nvz4QJKUPoe/WL5zyQzI0RaEeZWH5K5xjvUIGszTItHQpFPdH+u51f6G/LkS8Cg==",
             "dev": true
         },
         "ajv": {
@@ -184,9 +184,9 @@
             "integrity": "sha1-ibTRmasr7kneFk6gK4nORi1xt2c="
         },
         "bcrypt-pbkdf": {
-            "version": "1.0.1",
-            "resolved": "https://registry.npmjs.org/bcrypt-pbkdf/-/bcrypt-pbkdf-1.0.1.tgz",
-            "integrity": "sha1-Y7xdy2EzG5K8Bf1SiVPDNGKgb40=",
+            "version": "1.0.2",
+            "resolved": "https://registry.npmjs.org/bcrypt-pbkdf/-/bcrypt-pbkdf-1.0.2.tgz",
+            "integrity": "sha1-pDAdOJtqQ/m2f/PKEaP2Y342Dp4=",
             "optional": true,
             "requires": {
                 "tweetnacl": "0.14.5"
@@ -792,7 +792,7 @@
                 "node.extend": "1.1.6",
                 "request": "2.87.0",
                 "through2": "2.0.3",
-                "vinyl": "2.1.0"
+                "vinyl": "2.2.0"
             },
             "dependencies": {
                 "clone": {
@@ -806,9 +806,9 @@
                     "integrity": "sha1-s3gt/4u1R04Yuba/D9/ngvh3doA="
                 },
                 "vinyl": {
-                    "version": "2.1.0",
-                    "resolved": "https://registry.npmjs.org/vinyl/-/vinyl-2.1.0.tgz",
-                    "integrity": "sha1-Ah+cLPlR1rk5lDyJ617lrdT9kkw=",
+                    "version": "2.2.0",
+                    "resolved": "https://registry.npmjs.org/vinyl/-/vinyl-2.2.0.tgz",
+                    "integrity": "sha512-MBH+yP0kC/GQ5GwBqrTPTzEfiiLjta7hTtvQtbxBgTeSXsmKQRQecjibMbxIXzVT3Y9KJK+drOz1/k+vsu8Nkg==",
                     "requires": {
                         "clone": "2.1.1",
                         "clone-buffer": "1.0.0",
@@ -907,9 +907,9 @@
                 "event-stream": "3.3.4",
                 "queue": "4.4.2",
                 "through2": "2.0.3",
-                "vinyl": "2.1.0",
+                "vinyl": "2.2.0",
                 "vinyl-fs": "2.4.4",
-                "yauzl": "2.9.2",
+                "yauzl": "2.10.0",
                 "yazl": "2.4.3"
             },
             "dependencies": {
@@ -932,9 +932,9 @@
                     }
                 },
                 "vinyl": {
-                    "version": "2.1.0",
-                    "resolved": "https://registry.npmjs.org/vinyl/-/vinyl-2.1.0.tgz",
-                    "integrity": "sha1-Ah+cLPlR1rk5lDyJ617lrdT9kkw=",
+                    "version": "2.2.0",
+                    "resolved": "https://registry.npmjs.org/vinyl/-/vinyl-2.2.0.tgz",
+                    "integrity": "sha512-MBH+yP0kC/GQ5GwBqrTPTzEfiiLjta7hTtvQtbxBgTeSXsmKQRQecjibMbxIXzVT3Y9KJK+drOz1/k+vsu8Nkg==",
                     "requires": {
                         "clone": "2.1.1",
                         "clone-buffer": "1.0.0",
@@ -1575,7 +1575,7 @@
                 "safe-buffer": "5.1.2",
                 "tough-cookie": "2.3.4",
                 "tunnel-agent": "0.6.0",
-                "uuid": "3.2.1"
+                "uuid": "3.3.2"
             }
         },
         "requires-port": {
@@ -1650,7 +1650,7 @@
             "requires": {
                 "asn1": "0.2.3",
                 "assert-plus": "1.0.0",
-                "bcrypt-pbkdf": "1.0.1",
+                "bcrypt-pbkdf": "1.0.2",
                 "dashdash": "1.14.1",
                 "ecc-jsbn": "0.1.1",
                 "getpass": "0.1.7",
@@ -1792,9 +1792,9 @@
             }
         },
         "tslib": {
-            "version": "1.9.2",
-            "resolved": "https://registry.npmjs.org/tslib/-/tslib-1.9.2.tgz",
-            "integrity": "sha512-AVP5Xol3WivEr7hnssHDsaM+lVrVXWUvd1cfXTRkTj80b//6g2wIFEH6hZG0muGZRnHGrfttpdzRk3YlBkWjKw==",
+            "version": "1.9.3",
+            "resolved": "https://registry.npmjs.org/tslib/-/tslib-1.9.3.tgz",
+            "integrity": "sha512-4krF8scpejhaOgqzBEcGM7yDIEfi0/8+8zDRZhNZZ2kjmHJ4hv3zCbQWxoJGz1iw5U0Jl0nma13xzHXcncMavQ==",
             "dev": true
         },
         "tslint": {
@@ -1806,32 +1806,32 @@
                 "babel-code-frame": "6.26.0",
                 "builtin-modules": "1.1.1",
                 "chalk": "2.4.1",
-                "commander": "2.15.1",
+                "commander": "2.16.0",
                 "diff": "3.3.1",
                 "glob": "7.1.2",
                 "js-yaml": "3.12.0",
                 "minimatch": "3.0.4",
                 "resolve": "1.8.1",
                 "semver": "5.5.0",
-                "tslib": "1.9.2",
-                "tsutils": "2.27.1"
+                "tslib": "1.9.3",
+                "tsutils": "2.27.2"
             },
             "dependencies": {
                 "commander": {
-                    "version": "2.15.1",
-                    "resolved": "https://registry.npmjs.org/commander/-/commander-2.15.1.tgz",
-                    "integrity": "sha512-VlfT9F3V0v+jr4yxPc5gg9s62/fIVWsd2Bk2iD435um1NlGMYdVCq+MjcXnhYq2icNOizHr1kK+5TI6H0Hy0ag==",
+                    "version": "2.16.0",
+                    "resolved": "https://registry.npmjs.org/commander/-/commander-2.16.0.tgz",
+                    "integrity": "sha512-sVXqklSaotK9at437sFlFpyOcJonxe0yST/AG9DkQKUdIE6IqGIMv4SfAQSKaJbSdVEJYItASCrBiVQHq1HQew==",
                     "dev": true
                 }
             }
         },
         "tsutils": {
-            "version": "2.27.1",
-            "resolved": "https://registry.npmjs.org/tsutils/-/tsutils-2.27.1.tgz",
-            "integrity": "sha512-AE/7uzp32MmaHvNNFES85hhUDHFdFZp6OAiZcd6y4ZKKIg6orJTm8keYWBhIhrJQH3a4LzNKat7ZPXZt5aTf6w==",
+            "version": "2.27.2",
+            "resolved": "https://registry.npmjs.org/tsutils/-/tsutils-2.27.2.tgz",
+            "integrity": "sha512-qf6rmT84TFMuxAKez2pIfR8UCai49iQsfB7YWVjV1bKpy/d0PWT5rEOSM6La9PiHZ0k1RRZQiwVdVJfQ3BPHgg==",
             "dev": true,
             "requires": {
-                "tslib": "1.9.2"
+                "tslib": "1.9.3"
             }
         },
         "tunnel-agent": {
@@ -1878,9 +1878,9 @@
             "integrity": "sha1-RQ1Nyfpw3nMnYvvS1KKJgUGaDM8="
         },
         "uuid": {
-            "version": "3.2.1",
-            "resolved": "https://registry.npmjs.org/uuid/-/uuid-3.2.1.tgz",
-            "integrity": "sha512-jZnMwlb9Iku/O3smGWvZhauCf6cvvpKi4BKRiliS3cxnI+Gz9j5MEpTz2UFuXiKPJocb7gnsLHwiS05ige5BEA=="
+            "version": "3.3.2",
+            "resolved": "https://registry.npmjs.org/uuid/-/uuid-3.3.2.tgz",
+            "integrity": "sha512-yXJmeNaw3DnnKAOKJE51sL/ZaYfWJRl1pK9dr19YFCu0ObS231AB1/LbqTKRAQ5kw8A90rA6fr4riOUpTZvQZA=="
         },
         "vali-date": {
             "version": "1.0.0",
@@ -1993,9 +1993,9 @@
             "integrity": "sha1-pcbVMr5lbiPbgg77lDofBJmNY68="
         },
         "yauzl": {
-            "version": "2.9.2",
-            "resolved": "https://registry.npmjs.org/yauzl/-/yauzl-2.9.2.tgz",
-            "integrity": "sha1-T7G8euH8L1cDe1SvasyP4QMcW3c=",
+            "version": "2.10.0",
+            "resolved": "https://registry.npmjs.org/yauzl/-/yauzl-2.10.0.tgz",
+            "integrity": "sha1-x+sXyT4RLLEIb6bY5R+wZnt5pfk=",
             "requires": {
                 "buffer-crc32": "0.2.13",
                 "fd-slicer": "1.1.0"

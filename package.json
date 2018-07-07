@@ -11,7 +11,7 @@
         "url": "https://github.com/jomiller/vscode-rtags"
     },
     "engines": {
-        "vscode": "^1.16.0"
+        "vscode": "^1.22.0"
     },
     "categories": [
         "Programming Languages"
@@ -172,12 +172,12 @@
         "test": "npm run compile && node ./node_modules/vscode/bin/test"
     },
     "dependencies": {
-        "vscode": "^1.1.10"
+        "vscode": "^1.1.17"
     },
     "devDependencies": {
-        "typescript": "^2.5.2",
+        "typescript": "^2.8.3",
         "tslint": "^5.8.0",
         "@types/mocha": "^2.2.42",
-        "@types/node": "^6.0.88"
+        "@types/node": "^9.6.14"
     }
 }
