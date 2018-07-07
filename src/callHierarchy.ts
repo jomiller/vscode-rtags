@@ -211,7 +211,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
         this.onDidChangeEmitter.fire();
     }
 
-    private disposables: Disposable[] = [];
     private onDidChangeEmitter: EventEmitter<Nullable<Caller>> = new EventEmitter<Nullable<Caller>>();
     readonly onDidChangeTreeData: Event<Nullable<Caller>> = this.onDidChangeEmitter.event;
+    private disposables: Disposable[] = [];
 }

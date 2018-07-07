@@ -4,6 +4,8 @@ import { languages, CancellationToken, CompletionItemKind, CompletionItem, Compl
          Disposable, ParameterInformation, Position, ProviderResult, Range, SignatureHelp, SignatureHelpProvider,
          SignatureInformation, SnippetString, TextDocument } from 'vscode';
 
+import { ProjectManager } from './projectManager';
+
 import { RtagsSelector, toRtagsLocation, runRc } from './rtagsUtil';
 
 function toCompletionItemKind(kind: string) : CompletionItemKind
@@ -53,8 +55,10 @@ export class RtagsCompletionProvider implements
     SignatureHelpProvider,
     Disposable
 {
-    constructor()
+    constructor(projectMgr: ProjectManager)
     {
+        this.projectMgr = projectMgr;
+
         this.disposables.push(
             languages.registerCompletionItemProvider(RtagsSelector, this, '.', ':', '>'),
             languages.registerSignatureHelpProvider(RtagsSelector, this, '(', ','));
@@ -71,6 +75,11 @@ export class RtagsCompletionProvider implements
     public provideCompletionItems(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<CompletionItem[] | CompletionList>
     {
+        if (!this.projectMgr.isInProject(document.uri))
+        {
+            return [];
+        }
+
         const wordRange = document.getWordRangeAtPosition(position);
         const range = wordRange ? new Range(wordRange.start, position) : null;
         const maxCompletions = 20;
@@ -146,6 +155,11 @@ export class RtagsCompletionProvider implements
     public provideSignatureHelp(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<SignatureHelp>
     {
+        if (!this.projectMgr.isInProject(document.uri))
+        {
+            return null;
+        }
+
         const maxCompletions = 20;
         const location = toRtagsLocation(document.uri, position);
 
@@ -212,5 +226,6 @@ export class RtagsCompletionProvider implements
         return runRc(args, processCallback);
     }
 
+    private projectMgr: ProjectManager;
     private disposables: Disposable[] = [];
 }

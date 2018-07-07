@@ -260,8 +260,8 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
         this.onDidChangeEmitter.fire();
     }
 
-    private disposables: Disposable[] = [];
     private onDidChangeEmitter: EventEmitter<Nullable<InheritanceNode>> =
         new EventEmitter<Nullable<InheritanceNode>>();
     readonly onDidChangeTreeData: Event<Nullable<InheritanceNode>> = this.onDidChangeEmitter.event;
+    private disposables: Disposable[] = [];
 }

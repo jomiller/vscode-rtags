@@ -109,6 +109,7 @@ export class RtagsSymbolProvider implements
     constructor(projectMgr: ProjectManager)
     {
         this.projectMgr = projectMgr;
+
         this.disposables.push(
             languages.registerDocumentSymbolProvider(RtagsSelector, this),
             languages.registerWorkspaceSymbolProvider(this));

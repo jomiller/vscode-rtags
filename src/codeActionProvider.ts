@@ -6,14 +6,17 @@ import { commands, languages, window, workspace, CancellationToken, CodeActionCo
 
 import { ChildProcess, spawn } from 'child_process';
 
+import { ProjectManager } from './projectManager';
+
 import { Nullable, RtagsSelector, runRc } from './rtagsUtil';
 
 export class RtagsCodeActionProvider implements
     CodeActionProvider,
     Disposable
 {
-    constructor()
+    constructor(projectMgr: ProjectManager)
     {
+        this.projectMgr = projectMgr;
         this.diagnosticCollection = languages.createDiagnosticCollection("rtags");
 
         this.disposables.push(
@@ -40,6 +43,11 @@ export class RtagsCodeActionProvider implements
                               _token: CancellationToken) :
         ProviderResult<Command[]>
     {
+        if (!this.projectMgr.isInProject(document.uri))
+        {
+            return [];
+        }
+
         const processCallback =
             (output: string) : Command[] =>
             {
@@ -188,8 +196,9 @@ export class RtagsCodeActionProvider implements
 
     private static readonly commandId: string = "rtags.runCodeAction";
 
-    private disposables: Disposable[] = [];
+    private projectMgr: ProjectManager;
     private diagnosticCollection: DiagnosticCollection;
     private diagnosticProcess: Nullable<ChildProcess> = null;
     private unprocessedDiagnostics: string = "";
+    private disposables: Disposable[] = [];
 }

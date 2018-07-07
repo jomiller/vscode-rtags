@@ -56,8 +56,8 @@ export function activate(context: ExtensionContext) : void
     startServer();
 
     let projectManager = new ProjectManager;
-    let codeActionProvider = new RtagsCodeActionProvider;
-    let completionProvider = new RtagsCompletionProvider;
+    let codeActionProvider = new RtagsCodeActionProvider(projectManager);
+    let completionProvider = new RtagsCompletionProvider(projectManager);
     let definitionProvider = new RtagsDefinitionProvider(projectManager);
     let symbolProvider = new RtagsSymbolProvider(projectManager);
     let callHierarchyProvider = new CallHierarchyProvider;
