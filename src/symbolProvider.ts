@@ -1,7 +1,7 @@
 'use strict';
 
-import { languages, window, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult, SymbolInformation,
-         SymbolKind, TextDocument, Uri, WorkspaceSymbolProvider } from 'vscode';
+import { languages, window, workspace, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult,
+         SymbolInformation, SymbolKind, TextDocument, Uri, WorkspaceSymbolProvider } from 'vscode';
 
 import { RtagsManager } from './rtagsManager';
 
@@ -149,7 +149,8 @@ export class RtagsSymbolProvider implements
             return [];
         }
 
-        let args = ["--max", "50"];
+        let args = ["--max"];
+        let maxSearchResults = 50;
 
         const editor = window.activeTextEditor;
         if (editor)
@@ -162,7 +163,11 @@ export class RtagsSymbolProvider implements
                 return [];
             }
 
-            args.push("--current-file",
+            const config = workspace.getConfiguration("rtags", activeDocPath);
+            maxSearchResults = config.get("maxWorkspaceSearchResults", maxSearchResults);
+
+            args.push(maxSearchResults.toString(),
+                      "--current-file",
                       activeDocPath.fsPath,
                       "--path-filter",
                       projectPath.fsPath);
@@ -178,7 +183,9 @@ export class RtagsSymbolProvider implements
                     return Promise.resolve([]);
                 }
 
-                args.push("--path-filter", projectPath.fsPath);
+                args.push(maxSearchResults.toString(),
+                          "--path-filter",
+                          projectPath.fsPath);
 
                 return findSymbols(this.rtagsMgr, query, args);
             };

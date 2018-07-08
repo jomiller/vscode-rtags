@@ -14,6 +14,10 @@ export class RtagsManager implements Disposable
 {
     constructor()
     {
+        const config = workspace.getConfiguration("rtags");
+
+        this.rcExecutable = config.get("rcExecutable", "rc");
+
         this.disposables.push(
             commands.registerCommand("rtags.freshenIndex", this.reindex, this),
             workspace.onDidChangeTextDocument(this.reindexOnChange, this),
@@ -116,7 +120,7 @@ export class RtagsManager implements Disposable
                         resolve(process(stdout));
                     };
 
-                let rc = execFile("rc", args, options, exitCallback);
+                let rc = execFile(this.rcExecutable, args, options, exitCallback);
 
                 for (const doc of unsavedDocs)
                 {
@@ -138,7 +142,7 @@ export class RtagsManager implements Disposable
             encoding: "utf8"
         };
 
-        return spawnSync("rc", args, options);
+        return spawnSync(this.rcExecutable, args, options);
     }
 
     public runRcPipe(args: string[]) : ChildProcess
@@ -148,11 +152,18 @@ export class RtagsManager implements Disposable
             stdio: "pipe"
         };
 
-        return spawn("rc", args, options);
+        return spawn(this.rcExecutable, args, options);
     }
 
     private startRdm() : void
     {
+        const config = workspace.getConfiguration("rtags");
+        const autoLaunchRdm: boolean = config.get("autoLaunchRdm", true);
+        if (!autoLaunchRdm)
+        {
+            return;
+        }
+
         const rc = this.runRcSync(["--current-project"]);
         if (rc.error)
         {
@@ -168,7 +179,10 @@ export class RtagsManager implements Disposable
                 stdio: "ignore"
             };
 
-            let rdm = spawn("rdm", ["--silent"], options);
+            const rdmExecutable: string = config.get("rdmExecutable", "rdm");
+            const rdmArguments: string[] = config.get("rdmArguments", []);
+
+            let rdm = spawn(rdmExecutable, rdmArguments, options);
 
             if (rdm.pid)
             {
@@ -331,6 +345,7 @@ export class RtagsManager implements Disposable
         this.reindex(document, true);
     }
 
+    private rcExecutable: string;
     private timerId: Nullable<NodeJS.Timer> = null;
     private projectPaths: Uri[] = [];
     private disposables: Disposable[] = [];

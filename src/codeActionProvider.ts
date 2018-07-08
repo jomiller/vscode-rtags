@@ -17,6 +17,14 @@ export class RtagsCodeActionProvider implements
     constructor(rtagsMgr: RtagsManager)
     {
         this.rtagsMgr = rtagsMgr;
+
+        const config = workspace.getConfiguration("rtags");
+        const enableDiagnostics: boolean = config.get("enableDiagnostics", true);
+        if (!enableDiagnostics)
+        {
+            return;
+        }
+
         this.diagnosticCollection = languages.createDiagnosticCollection("rtags");
 
         this.disposables.push(
@@ -103,7 +111,10 @@ export class RtagsCodeActionProvider implements
         const exitCallback =
             (_code: number, signal: string) : void =>
             {
-                this.diagnosticCollection.clear();
+                if (this.diagnosticCollection)
+                {
+                    this.diagnosticCollection.clear();
+                }
                 this.unprocessedDiagnostics = "";
                 if (signal !== "SIGTERM")
                 {
@@ -190,14 +201,18 @@ export class RtagsCodeActionProvider implements
                 };
                 diagnostics.push(diag);
             }
-            this.diagnosticCollection.set(uri, diagnostics);
+
+            if (this.diagnosticCollection)
+            {
+                this.diagnosticCollection.set(uri, diagnostics);
+            }
         }
     }
 
     private static readonly commandId: string = "rtags.runCodeAction";
 
     private rtagsMgr: RtagsManager;
-    private diagnosticCollection: DiagnosticCollection;
+    private diagnosticCollection: Nullable<DiagnosticCollection> = null;
     private diagnosticProcess: Nullable<ChildProcess> = null;
     private unprocessedDiagnostics: string = "";
     private disposables: Disposable[] = [];

@@ -161,7 +161,61 @@
                 "title": "Show Base Classes",
                 "category": "RTags"
             }
-        ]
+        ],
+        "configuration": {
+            "type": "object",
+            "title": "rtags",
+            "properties": {
+                "rtags.rcExecutable": {
+                    "type": "string",
+                    "default": "rc",
+                    "description": "Path to the rc executable (default assumes the executable is in the PATH)",
+                    "scope": "window"
+                },
+                "rtags.autoLaunchRdm": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "If true, rdm will be launched automatically, if it is not already running",
+                    "scope": "window"
+                },
+                "rtags.rdmExecutable": {
+                    "type": "string",
+                    "default": "rdm",
+                    "description": "Path to the rdm executable (default assumes the executable is in the PATH)",
+                    "scope": "window"
+                },
+                "rtags.rdmArguments": {
+                    "type": "array",
+                    "default": ["--silent"],
+                    "description": "Array containing arguments to pass to the rdm executable, if it is launched",
+                    "scope": "window"
+                },
+                "rtags.enableDiagnostics": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "If true, diagnostics and fixits will be enabled",
+                    "scope": "window"
+                },
+                "rtags.enableCodeCompletion": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "If true, code completion will be enabled",
+                    "scope": "window"
+                },
+                "rtags.maxCodeCompletionResults": {
+                    "type": "number",
+                    "default": 20,
+                    "description": "Maximum number of code completion results to report",
+                    "scope": "resource"
+                },
+                "rtags.maxWorkspaceSearchResults": {
+                    "type": "number",
+                    "default": 50,
+                    "description": "Maximum number of global search (ie, Ctrl+P + #foo) search results to report",
+                    "scope": "resource"
+                }
+            }
+        }
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",

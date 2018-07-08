@@ -1,8 +1,8 @@
 'use strict';
 
-import { languages, CancellationToken, CompletionItemKind, CompletionItem, CompletionItemProvider, CompletionList,
-         Disposable, ParameterInformation, Position, ProviderResult, Range, SignatureHelp, SignatureHelpProvider,
-         SignatureInformation, SnippetString, TextDocument } from 'vscode';
+import { languages, workspace, CancellationToken, CompletionItemKind, CompletionItem, CompletionItemProvider,
+         CompletionList, Disposable, ParameterInformation, Position, ProviderResult, Range, SignatureHelp,
+         SignatureHelpProvider, SignatureInformation, SnippetString, TextDocument } from 'vscode';
 
 import { RtagsManager } from './rtagsManager';
 
@@ -59,6 +59,13 @@ export class RtagsCompletionProvider implements
     {
         this.rtagsMgr = rtagsMgr;
 
+        const config = workspace.getConfiguration("rtags");
+        const enableCodeCompletion: boolean = config.get("enableCodeCompletion", true);
+        if (!enableCodeCompletion)
+        {
+            return;
+        }
+
         this.disposables.push(
             languages.registerCompletionItemProvider(RtagsDocSelector, this, '.', ':', '>'),
             languages.registerSignatureHelpProvider(RtagsDocSelector, this, '(', ','));
@@ -82,15 +89,17 @@ export class RtagsCompletionProvider implements
 
         const wordRange = document.getWordRangeAtPosition(position);
         const range = wordRange ? new Range(wordRange.start, position) : null;
-        const maxCompletions = 20;
         const location = toRtagsLocation(document.uri, position);
+
+        const config = workspace.getConfiguration("rtags", document.uri);
+        const maxCompletionResults: number = config.get("maxCodeCompletionResults", 20);
 
         const args =
         [
             "--json",
             "--synchronous-completions",
             "--max",
-            maxCompletions.toString(),
+            maxCompletionResults.toString(),
             "--code-complete-at",
             location
         ];
@@ -136,7 +145,7 @@ export class RtagsCompletionProvider implements
                         };
                         completionItems.push(item);
 
-                        if (completionItems.length === maxCompletions)
+                        if (completionItems.length === maxCompletionResults)
                         {
                             break;
                         }
@@ -146,7 +155,7 @@ export class RtagsCompletionProvider implements
                 {
                 }
 
-                return new CompletionList(completionItems, completionItems.length >= maxCompletions);
+                return new CompletionList(completionItems, completionItems.length >= maxCompletionResults);
             };
 
         return this.rtagsMgr.runRc(args, processCallback);
@@ -160,15 +169,17 @@ export class RtagsCompletionProvider implements
             return null;
         }
 
-        const maxCompletions = 20;
         const location = toRtagsLocation(document.uri, position);
+
+        const config = workspace.getConfiguration("rtags", document.uri);
+        const maxCompletionResults: number = config.get("maxCodeCompletionResults", 20);
 
         const args =
         [
             "--json",
             "--synchronous-completions",
             "--max",
-            maxCompletions.toString(),
+            maxCompletionResults.toString(),
             "--code-complete-at",
             location
         ];
@@ -203,7 +214,7 @@ export class RtagsCompletionProvider implements
                         };
                         signatures.push(signatureInfo);
 
-                        if (signatures.length === maxCompletions)
+                        if (signatures.length === maxCompletionResults)
                         {
                             break;
                         }
