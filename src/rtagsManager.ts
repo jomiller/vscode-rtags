@@ -3,6 +3,8 @@
 import { commands, languages, window, workspace, Disposable, TextDocument, TextDocumentChangeEvent, Uri,
          WorkspaceFolder, WorkspaceFoldersChangeEvent } from 'vscode';
 
+import { SpawnOptions, spawn } from 'child_process';
+
 import { setTimeout, clearTimeout } from 'timers';
 
 import { Nullable, RtagsDocSelector, runRc, runRcSync } from './rtagsUtil';
@@ -16,6 +18,8 @@ export class RtagsManager implements Disposable
             workspace.onDidChangeTextDocument(this.reindexOnChange, this),
             workspace.onDidSaveTextDocument(this.reindexOnSave, this),
             workspace.onDidChangeWorkspaceFolders(this.updateProjects, this));
+
+        this.startRdm();
 
         this.addProjects(workspace.workspaceFolders);
     }
@@ -63,6 +67,37 @@ export class RtagsManager implements Disposable
     public getTextDocuments() : TextDocument[]
     {
         return workspace.textDocuments.filter((doc) => { return this.isInProject(doc.uri); });
+    }
+
+    private startRdm() : void
+    {
+        const rc = runRcSync(["--current-project"]);
+        if (rc.error)
+        {
+            window.showErrorMessage("[RTags] Could not run client");
+            return;
+        }
+
+        if (rc.status !== 0)
+        {
+            const options: SpawnOptions =
+            {
+                detached: true,
+                stdio: "ignore"
+            };
+
+            let rdm = spawn("rdm", ["--silent"], options);
+
+            if (rdm.pid)
+            {
+                rdm.unref();
+                window.showInformationMessage("[RTags] Started server successfully");
+            }
+            else
+            {
+                window.showErrorMessage("[RTags] Could not start server");
+            }
+        }
     }
 
     private addProjects(folders?: WorkspaceFolder[]) : void

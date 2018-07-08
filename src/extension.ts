@@ -1,8 +1,6 @@
 'use strict';
 
-import { commands, window, ExtensionContext } from 'vscode';
-
-import { SpawnOptions, spawn } from 'child_process';
+import { commands, ExtensionContext } from 'vscode';
 
 import { RtagsCodeActionProvider } from './codeActionProvider';
 
@@ -18,43 +16,10 @@ import { InheritanceHierarchyProvider } from './inheritanceHierarchy';
 
 import { RtagsManager } from './rtagsManager';
 
-import { Locatable, jumpToLocation, runRcSync } from './rtagsUtil';
-
-function startServer() : void
-{
-    const rc = runRcSync(["--current-project"]);
-    if (rc.error)
-    {
-        window.showErrorMessage("[RTags] Could not run client");
-        return;
-    }
-
-    if (rc.status !== 0)
-    {
-        const options: SpawnOptions =
-        {
-            detached: true,
-            stdio: "ignore"
-        };
-
-        let rdm = spawn("rdm", ["--silent"], options);
-
-        if (rdm.pid)
-        {
-            rdm.unref();
-            window.showInformationMessage("[RTags] Started server successfully");
-        }
-        else
-        {
-            window.showErrorMessage("[RTags] Could not start server");
-        }
-    }
-}
+import { Locatable, jumpToLocation } from './rtagsUtil';
 
 export function activate(context: ExtensionContext) : void
 {
-    startServer();
-
     let rtagsManager = new RtagsManager;
     let codeActionProvider = new RtagsCodeActionProvider(rtagsManager);
     let completionProvider = new RtagsCompletionProvider(rtagsManager);
