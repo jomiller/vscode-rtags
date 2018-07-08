@@ -5,7 +5,7 @@ import { commands, languages, window, CancellationToken, Definition, DefinitionP
          ImplementationProvider, Range, ReferenceProvider, RenameProvider, TextEditor, TextEditorEdit, Uri,
          WorkspaceEdit } from 'vscode';
 
-import { ProjectManager } from './projectManager';
+import { ProjectManager } from './rtagsManager';
 
 import { Nullable, RtagsDocSelector, isUnsavedSourceFile, fromRtagsLocation, toRtagsLocation, runRc }
          from './rtagsUtil';

@@ -4,7 +4,7 @@ import { languages, CancellationToken, CompletionItemKind, CompletionItem, Compl
          Disposable, ParameterInformation, Position, ProviderResult, Range, SignatureHelp, SignatureHelpProvider,
          SignatureInformation, SnippetString, TextDocument } from 'vscode';
 
-import { ProjectManager } from './projectManager';
+import { ProjectManager } from './rtagsManager';
 
 import { RtagsDocSelector, toRtagsLocation, runRc } from './rtagsUtil';
 

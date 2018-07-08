@@ -16,7 +16,7 @@ import { CallHierarchyProvider } from './callHierarchy';
 
 import { InheritanceHierarchyProvider } from './inheritanceHierarchy';
 
-import { ProjectManager } from './projectManager';
+import { ProjectManager } from './rtagsManager';
 
 import { Locatable, jumpToLocation, runRcSync } from './rtagsUtil';
 

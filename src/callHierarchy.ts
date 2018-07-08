@@ -5,7 +5,7 @@ import { commands, window, Disposable, Event, EventEmitter, Location, Position, 
 
 import { basename } from 'path';
 
-import { ProjectManager } from './projectManager';
+import { ProjectManager } from './rtagsManager';
 
 import { Nullable, Locatable, setContext, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
 

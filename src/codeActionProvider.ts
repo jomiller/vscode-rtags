@@ -6,7 +6,7 @@ import { commands, languages, window, workspace, CancellationToken, CodeActionCo
 
 import { ChildProcess } from 'child_process';
 
-import { ProjectManager } from './projectManager';
+import { ProjectManager } from './rtagsManager';
 
 import { Nullable, RtagsDocSelector, runRc, runRcPipe } from './rtagsUtil';
 

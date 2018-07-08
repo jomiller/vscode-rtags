@@ -3,7 +3,7 @@
 import { languages, window, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult, SymbolInformation,
          SymbolKind, TextDocument, Uri, WorkspaceSymbolProvider } from 'vscode';
 
-import { ProjectManager } from './projectManager';
+import { ProjectManager } from './rtagsManager';
 
 import { RtagsDocSelector, fromRtagsLocation, runRc } from './rtagsUtil';
 
