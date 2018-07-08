@@ -175,8 +175,9 @@
         "vscode": "^1.1.17"
     },
     "devDependencies": {
+        "@types/node": "^9.6.14",
         "typescript": "^2.8.3",
         "tslint": "^5.8.0",
-        "@types/node": "^9.6.14"
+        "vsce": "^1.40.0"
     }
 }
