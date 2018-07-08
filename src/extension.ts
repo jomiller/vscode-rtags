@@ -2,7 +2,7 @@
 
 import { commands, window, ExtensionContext } from 'vscode';
 
-import { spawn, SpawnOptions } from 'child_process';
+import { SpawnOptions, spawn } from 'child_process';
 
 import { RtagsCodeActionProvider } from './codeActionProvider';
 
@@ -37,7 +37,7 @@ function startServer() : void
             stdio: "ignore"
         };
 
-        let rdm = spawn("rdm", [], options);
+        let rdm = spawn("rdm", ["--silent"], options);
 
         if (rdm.pid)
         {
@@ -46,7 +46,7 @@ function startServer() : void
         }
         else
         {
-            window.showErrorMessage("[RTags] Could not start server; start it by running 'rdm'");
+            window.showErrorMessage("[RTags] Could not start server");
         }
     }
 }

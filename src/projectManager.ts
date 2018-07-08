@@ -74,7 +74,7 @@ export class ProjectManager implements Disposable
 
         let rtagsProjectPaths: Uri[] = [];
 
-        let rc = runRcSync(["--project"]);
+        const rc = runRcSync(["--project"]);
         if (rc.stdout)
         {
             rtagsProjectPaths = rc.stdout.trim().split('\n').map(
@@ -100,7 +100,7 @@ export class ProjectManager implements Disposable
 
     private addProject(uri: Uri) : void
     {
-        let rc = runRcSync(["--load-compile-commands", uri.fsPath]);
+        const rc = runRcSync(["--load-compile-commands", uri.fsPath]);
         if (rc.status === 0)
         {
             this.projectPaths.push(uri);
@@ -133,8 +133,6 @@ export class ProjectManager implements Disposable
 
     private reindex(document?: TextDocument, saved: boolean = false) : void
     {
-        let args = ["--silent"];
-
         if (document)
         {
             if (!this.isInProject(document.uri) || (languages.match(RtagsDocSelector, document) === 0))
@@ -142,7 +140,11 @@ export class ProjectManager implements Disposable
                 return;
             }
 
-            args.push(saved ? "--check-reindex" : "--reindex", document.uri.fsPath);
+            const args =
+            [
+                saved ? "--check-reindex" : "--reindex",
+                document.uri.fsPath
+            ];
 
             runRc(args, (_unused) => {}, this.getTextDocuments());
 
@@ -159,7 +161,12 @@ export class ProjectManager implements Disposable
                 return;
             }
 
-            args.push("--current-file", activeDocPath.fsPath, "--reindex");
+            const args =
+            [
+                "--current-file",
+                activeDocPath.fsPath,
+                "--reindex"
+            ];
 
             runRc(args, (_unused) => {}, this.getTextDocuments());
 
@@ -176,9 +183,7 @@ export class ProjectManager implements Disposable
 
                 window.showInformationMessage("Reindexing project: " + projectPath.fsPath);
 
-                args.push("--reindex");
-
-                runRc(args, (_unused) => {}, this.getTextDocuments());
+                runRc(["--reindex"], (_unused) => {}, this.getTextDocuments());
             };
 
         this.getCurrentProjectPath().then(resolveCallback);

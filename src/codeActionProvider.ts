@@ -4,11 +4,11 @@ import { commands, languages, window, workspace, CancellationToken, CodeActionCo
          Diagnostic, DiagnosticCollection, DiagnosticSeverity, Disposable, Position, ProviderResult, Range,
          TextDocument, Uri, WorkspaceEdit } from 'vscode';
 
-import { ChildProcess, spawn } from 'child_process';
+import { ChildProcess } from 'child_process';
 
 import { ProjectManager } from './projectManager';
 
-import { Nullable, RtagsDocSelector, runRc } from './rtagsUtil';
+import { Nullable, RtagsDocSelector, runRc, runRcPipe } from './rtagsUtil';
 
 export class RtagsCodeActionProvider implements
     CodeActionProvider,
@@ -84,7 +84,7 @@ export class RtagsCodeActionProvider implements
 
     private startDiagnostics() : void
     {
-        this.diagnosticProcess = spawn("rc", ["--json", "--diagnostics"]);
+        this.diagnosticProcess = runRcPipe(["--json", "--diagnostics"]);
         if (!this.diagnosticProcess.pid)
         {
             window.showErrorMessage("[RTags] Could not start diagnostics");
