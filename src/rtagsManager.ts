@@ -7,7 +7,7 @@ import { setTimeout, clearTimeout } from 'timers';
 
 import { Nullable, RtagsDocSelector, runRc, runRcSync } from './rtagsUtil';
 
-export class ProjectManager implements Disposable
+export class RtagsManager implements Disposable
 {
     constructor()
     {

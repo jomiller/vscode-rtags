@@ -4,7 +4,7 @@ import { languages, CancellationToken, CompletionItemKind, CompletionItem, Compl
          Disposable, ParameterInformation, Position, ProviderResult, Range, SignatureHelp, SignatureHelpProvider,
          SignatureInformation, SnippetString, TextDocument } from 'vscode';
 
-import { ProjectManager } from './rtagsManager';
+import { RtagsManager } from './rtagsManager';
 
 import { RtagsDocSelector, toRtagsLocation, runRc } from './rtagsUtil';
 
@@ -55,9 +55,9 @@ export class RtagsCompletionProvider implements
     SignatureHelpProvider,
     Disposable
 {
-    constructor(projectMgr: ProjectManager)
+    constructor(rtagsMgr: RtagsManager)
     {
-        this.projectMgr = projectMgr;
+        this.rtagsMgr = rtagsMgr;
 
         this.disposables.push(
             languages.registerCompletionItemProvider(RtagsDocSelector, this, '.', ':', '>'),
@@ -75,7 +75,7 @@ export class RtagsCompletionProvider implements
     public provideCompletionItems(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<CompletionItem[] | CompletionList>
     {
-        if (!this.projectMgr.isInProject(document.uri))
+        if (!this.rtagsMgr.isInProject(document.uri))
         {
             return [];
         }
@@ -155,7 +155,7 @@ export class RtagsCompletionProvider implements
     public provideSignatureHelp(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<SignatureHelp>
     {
-        if (!this.projectMgr.isInProject(document.uri))
+        if (!this.rtagsMgr.isInProject(document.uri))
         {
             return null;
         }
@@ -226,6 +226,6 @@ export class RtagsCompletionProvider implements
         return runRc(args, processCallback);
     }
 
-    private projectMgr: ProjectManager;
+    private rtagsMgr: RtagsManager;
     private disposables: Disposable[] = [];
 }

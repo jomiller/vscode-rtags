@@ -3,7 +3,7 @@
 import { languages, window, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult, SymbolInformation,
          SymbolKind, TextDocument, Uri, WorkspaceSymbolProvider } from 'vscode';
 
-import { ProjectManager } from './rtagsManager';
+import { RtagsManager } from './rtagsManager';
 
 import { RtagsDocSelector, fromRtagsLocation, runRc } from './rtagsUtil';
 
@@ -106,9 +106,9 @@ export class RtagsSymbolProvider implements
     WorkspaceSymbolProvider,
     Disposable
 {
-    constructor(projectMgr: ProjectManager)
+    constructor(rtagsMgr: RtagsManager)
     {
-        this.projectMgr = projectMgr;
+        this.rtagsMgr = rtagsMgr;
 
         this.disposables.push(
             languages.registerDocumentSymbolProvider(RtagsDocSelector, this),
@@ -126,7 +126,7 @@ export class RtagsSymbolProvider implements
     public provideDocumentSymbols(document: TextDocument, _token: CancellationToken) :
         ProviderResult<SymbolInformation[]>
     {
-        if (!this.projectMgr.isInProject(document.uri))
+        if (!this.rtagsMgr.isInProject(document.uri))
         {
             return [];
         }
@@ -156,7 +156,7 @@ export class RtagsSymbolProvider implements
         {
             const activeDocPath = editor.document.uri;
 
-            const projectPath = this.projectMgr.getProjectPath(activeDocPath);
+            const projectPath = this.rtagsMgr.getProjectPath(activeDocPath);
             if (!projectPath)
             {
                 return [];
@@ -183,9 +183,9 @@ export class RtagsSymbolProvider implements
                 return findSymbols(query, args);
             };
 
-        return this.projectMgr.getCurrentProjectPath().then(resolveCallback);
+        return this.rtagsMgr.getCurrentProjectPath().then(resolveCallback);
     }
 
-    private projectMgr: ProjectManager;
+    private rtagsMgr: RtagsManager;
     private disposables: Disposable[] = [];
 }

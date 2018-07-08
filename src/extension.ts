@@ -16,7 +16,7 @@ import { CallHierarchyProvider } from './callHierarchy';
 
 import { InheritanceHierarchyProvider } from './inheritanceHierarchy';
 
-import { ProjectManager } from './rtagsManager';
+import { RtagsManager } from './rtagsManager';
 
 import { Locatable, jumpToLocation, runRcSync } from './rtagsUtil';
 
@@ -55,13 +55,13 @@ export function activate(context: ExtensionContext) : void
 {
     startServer();
 
-    let projectManager = new ProjectManager;
-    let codeActionProvider = new RtagsCodeActionProvider(projectManager);
-    let completionProvider = new RtagsCompletionProvider(projectManager);
-    let definitionProvider = new RtagsDefinitionProvider(projectManager);
-    let symbolProvider = new RtagsSymbolProvider(projectManager);
-    let callHierarchyProvider = new CallHierarchyProvider(projectManager);
-    let inheritanceHierarchyProvider = new InheritanceHierarchyProvider(projectManager);
+    let rtagsManager = new RtagsManager;
+    let codeActionProvider = new RtagsCodeActionProvider(rtagsManager);
+    let completionProvider = new RtagsCompletionProvider(rtagsManager);
+    let definitionProvider = new RtagsDefinitionProvider(rtagsManager);
+    let symbolProvider = new RtagsSymbolProvider(rtagsManager);
+    let callHierarchyProvider = new CallHierarchyProvider(rtagsManager);
+    let inheritanceHierarchyProvider = new InheritanceHierarchyProvider(rtagsManager);
 
     const gotoLocationCallback =
         (element: Locatable) : void =>
@@ -70,7 +70,7 @@ export function activate(context: ExtensionContext) : void
         };
 
     context.subscriptions.push(
-        projectManager,
+        rtagsManager,
         codeActionProvider,
         completionProvider,
         definitionProvider,

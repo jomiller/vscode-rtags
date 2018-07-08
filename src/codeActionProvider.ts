@@ -6,7 +6,7 @@ import { commands, languages, window, workspace, CancellationToken, CodeActionCo
 
 import { ChildProcess } from 'child_process';
 
-import { ProjectManager } from './rtagsManager';
+import { RtagsManager } from './rtagsManager';
 
 import { Nullable, RtagsDocSelector, runRc, runRcPipe } from './rtagsUtil';
 
@@ -14,9 +14,9 @@ export class RtagsCodeActionProvider implements
     CodeActionProvider,
     Disposable
 {
-    constructor(projectMgr: ProjectManager)
+    constructor(rtagsMgr: RtagsManager)
     {
-        this.projectMgr = projectMgr;
+        this.rtagsMgr = rtagsMgr;
         this.diagnosticCollection = languages.createDiagnosticCollection("rtags");
 
         this.disposables.push(
@@ -43,7 +43,7 @@ export class RtagsCodeActionProvider implements
                               _token: CancellationToken) :
         ProviderResult<Command[]>
     {
-        if (!this.projectMgr.isInProject(document.uri))
+        if (!this.rtagsMgr.isInProject(document.uri))
         {
             return [];
         }
@@ -196,7 +196,7 @@ export class RtagsCodeActionProvider implements
 
     private static readonly commandId: string = "rtags.runCodeAction";
 
-    private projectMgr: ProjectManager;
+    private rtagsMgr: RtagsManager;
     private diagnosticCollection: DiagnosticCollection;
     private diagnosticProcess: Nullable<ChildProcess> = null;
     private unprocessedDiagnostics: string = "";

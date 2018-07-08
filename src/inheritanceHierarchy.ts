@@ -5,7 +5,7 @@ import { commands, window, Disposable, Event, EventEmitter, Location, Position, 
 
 import { basename } from 'path';
 
-import { ProjectManager } from './rtagsManager';
+import { RtagsManager } from './rtagsManager';
 
 import { Nullable, Locatable, setContext, fromRtagsLocation, toRtagsLocation, jumpToLocation, runRc } from './rtagsUtil';
 
@@ -111,9 +111,9 @@ function getClasses(classType: ClassType, uri: Uri, position: Position) : Thenab
 
 export class InheritanceHierarchyProvider implements TreeDataProvider<InheritanceNode>, Disposable
 {
-    constructor(projectMgr: ProjectManager)
+    constructor(rtagsMgr: RtagsManager)
     {
-        this.projectMgr = projectMgr;
+        this.rtagsMgr = rtagsMgr;
 
         const inheritanceHierarchyCallback =
             () : void =>
@@ -135,7 +135,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
                 const document = textEditor.document;
                 const position = textEditor.selection.active;
 
-                if (!this.projectMgr.isInProject(document.uri))
+                if (!this.rtagsMgr.isInProject(document.uri))
                 {
                     return;
                 }
@@ -205,7 +205,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
             const document = editor.document;
             const position = editor.selection.active;
 
-            if (!this.projectMgr.isInProject(document.uri))
+            if (!this.rtagsMgr.isInProject(document.uri))
             {
                 return [];
             }
@@ -274,7 +274,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
         this.onDidChangeEmitter.fire();
     }
 
-    private projectMgr: ProjectManager;
+    private rtagsMgr: RtagsManager;
     private onDidChangeEmitter: EventEmitter<Nullable<InheritanceNode>> =
         new EventEmitter<Nullable<InheritanceNode>>();
     readonly onDidChangeTreeData: Event<Nullable<InheritanceNode>> = this.onDidChangeEmitter.event;

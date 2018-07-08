@@ -5,7 +5,7 @@ import { commands, window, Disposable, Event, EventEmitter, Location, Position, 
 
 import { basename } from 'path';
 
-import { ProjectManager } from './rtagsManager';
+import { RtagsManager } from './rtagsManager';
 
 import { Nullable, Locatable, setContext, fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
 
@@ -61,9 +61,9 @@ function getCallers(uri: Uri, position: Position) : Thenable<Caller[]>
 
 export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposable
 {
-    constructor(projectMgr: ProjectManager)
+    constructor(rtagsMgr: RtagsManager)
     {
-        this.projectMgr = projectMgr;
+        this.rtagsMgr = rtagsMgr;
 
         const callHierarchyCallback =
             () : void =>
@@ -85,7 +85,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                 const document = textEditor.document;
                 const position = textEditor.selection.active;
 
-                if (!this.projectMgr.isInProject(document.uri))
+                if (!this.rtagsMgr.isInProject(document.uri))
                 {
                     return;
                 }
@@ -140,7 +140,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
             const document = editor.document;
             const position = editor.selection.active;
 
-            if (!this.projectMgr.isInProject(document.uri))
+            if (!this.rtagsMgr.isInProject(document.uri))
             {
                 return [];
             }
@@ -225,7 +225,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
         this.onDidChangeEmitter.fire();
     }
 
-    private projectMgr: ProjectManager;
+    private rtagsMgr: RtagsManager;
     private onDidChangeEmitter: EventEmitter<Nullable<Caller>> = new EventEmitter<Nullable<Caller>>();
     readonly onDidChangeTreeData: Event<Nullable<Caller>> = this.onDidChangeEmitter.event;
     private disposables: Disposable[] = [];

@@ -5,7 +5,7 @@ import { commands, languages, window, CancellationToken, Definition, DefinitionP
          ImplementationProvider, Range, ReferenceProvider, RenameProvider, TextEditor, TextEditorEdit, Uri,
          WorkspaceEdit } from 'vscode';
 
-import { ProjectManager } from './rtagsManager';
+import { RtagsManager } from './rtagsManager';
 
 import { Nullable, RtagsDocSelector, isUnsavedSourceFile, fromRtagsLocation, toRtagsLocation, runRc }
          from './rtagsUtil';
@@ -79,9 +79,9 @@ export class RtagsDefinitionProvider implements
     HoverProvider,
     Disposable
 {
-    constructor(projectMgr: ProjectManager)
+    constructor(rtagsMgr: RtagsManager)
     {
-        this.projectMgr = projectMgr;
+        this.rtagsMgr = rtagsMgr;
 
         const showVariablesCallback =
             (textEditor: TextEditor, _edit: TextEditorEdit) : void =>
@@ -89,7 +89,7 @@ export class RtagsDefinitionProvider implements
                 const document = textEditor.document;
                 const position = textEditor.selection.active;
 
-                if (!this.projectMgr.isInProject(document.uri))
+                if (!this.rtagsMgr.isInProject(document.uri))
                 {
                     return;
                 }
@@ -127,7 +127,7 @@ export class RtagsDefinitionProvider implements
     public provideDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<Definition>
     {
-        if (!this.projectMgr.isInProject(document.uri))
+        if (!this.rtagsMgr.isInProject(document.uri))
         {
             return null;
         }
@@ -138,7 +138,7 @@ export class RtagsDefinitionProvider implements
     public provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<Definition>
     {
-        if (!this.projectMgr.isInProject(document.uri))
+        if (!this.rtagsMgr.isInProject(document.uri))
         {
             return null;
         }
@@ -224,7 +224,7 @@ export class RtagsDefinitionProvider implements
     public provideImplementation(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<Definition>
     {
-        if (!this.projectMgr.isInProject(document.uri))
+        if (!this.rtagsMgr.isInProject(document.uri))
         {
             return null;
         }
@@ -238,7 +238,7 @@ export class RtagsDefinitionProvider implements
                              _token: CancellationToken) :
         ProviderResult<Location[]>
     {
-        if (!this.projectMgr.isInProject(document.uri))
+        if (!this.rtagsMgr.isInProject(document.uri))
         {
             return [];
         }
@@ -252,13 +252,13 @@ export class RtagsDefinitionProvider implements
                               _token: CancellationToken) :
         ProviderResult<WorkspaceEdit>
     {
-        if (!this.projectMgr.isInProject(document.uri))
+        if (!this.rtagsMgr.isInProject(document.uri))
         {
             return null;
         }
 
         const unsavedDocFound: boolean =
-            this.projectMgr.getTextDocuments().some((doc) => { return isUnsavedSourceFile(doc); });
+            this.rtagsMgr.getTextDocuments().some((doc) => { return isUnsavedSourceFile(doc); });
 
         if (unsavedDocFound)
         {
@@ -287,7 +287,7 @@ export class RtagsDefinitionProvider implements
 
     public provideHover(document: TextDocument, position: Position, _token: CancellationToken) : ProviderResult<Hover>
     {
-        if (!this.projectMgr.isInProject(document.uri))
+        if (!this.rtagsMgr.isInProject(document.uri))
         {
             return null;
         }
@@ -320,6 +320,6 @@ export class RtagsDefinitionProvider implements
         return runRc(args, processCallback).then(resolveCallback);
     }
 
-    private projectMgr: ProjectManager;
+    private rtagsMgr: RtagsManager;
     private disposables: Disposable[] = [];
 }
