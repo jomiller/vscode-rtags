@@ -6,7 +6,7 @@ import { languages, CancellationToken, CompletionItemKind, CompletionItem, Compl
 
 import { RtagsManager } from './rtagsManager';
 
-import { RtagsDocSelector, toRtagsLocation, runRc } from './rtagsUtil';
+import { RtagsDocSelector, toRtagsLocation } from './rtagsUtil';
 
 function toCompletionItemKind(kind: string) : CompletionItemKind
 {
@@ -149,7 +149,7 @@ export class RtagsCompletionProvider implements
                 return new CompletionList(completionItems, completionItems.length >= maxCompletions);
             };
 
-        return runRc(args, processCallback);
+        return this.rtagsMgr.runRc(args, processCallback);
     }
 
     public provideSignatureHelp(document: TextDocument, position: Position, _token: CancellationToken) :
@@ -223,7 +223,7 @@ export class RtagsCompletionProvider implements
                 return signatureHelp;
             };
 
-        return runRc(args, processCallback);
+        return this.rtagsMgr.runRc(args, processCallback);
     }
 
     private rtagsMgr: RtagsManager;

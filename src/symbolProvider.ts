@@ -5,7 +5,7 @@ import { languages, window, CancellationToken, Disposable, DocumentSymbolProvide
 
 import { RtagsManager } from './rtagsManager';
 
-import { RtagsDocSelector, fromRtagsLocation, runRc } from './rtagsUtil';
+import { RtagsDocSelector, fromRtagsLocation } from './rtagsUtil';
 
 function toSymbolKind(kind: string) : SymbolKind | undefined
 {
@@ -51,7 +51,7 @@ function toSymbolKind(kind: string) : SymbolKind | undefined
     return undefined;
 }
 
-function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInformation[]>
+function findSymbols(rtagsMgr: RtagsManager, query: string, args: string[] = []) : Thenable<SymbolInformation[]>
 {
     query += '*';
 
@@ -98,7 +98,7 @@ function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInform
               "--find-symbols",
               query);
 
-    return runRc(args, processCallback);
+    return rtagsMgr.runRc(args, processCallback);
 }
 
 export class RtagsSymbolProvider implements
@@ -139,7 +139,7 @@ export class RtagsSymbolProvider implements
             document.uri.fsPath
         ];
 
-        return findSymbols("", args);
+        return findSymbols(this.rtagsMgr, "", args);
     }
 
     public provideWorkspaceSymbols(query: string, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
@@ -167,7 +167,7 @@ export class RtagsSymbolProvider implements
                       "--path-filter",
                       projectPath.fsPath);
 
-            return findSymbols(query, args);
+            return findSymbols(this.rtagsMgr, query, args);
         }
 
         const resolveCallback =
@@ -180,7 +180,7 @@ export class RtagsSymbolProvider implements
 
                 args.push("--path-filter", projectPath.fsPath);
 
-                return findSymbols(query, args);
+                return findSymbols(this.rtagsMgr, query, args);
             };
 
         return this.rtagsMgr.getCurrentProjectPath().then(resolveCallback);

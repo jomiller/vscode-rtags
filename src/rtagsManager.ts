@@ -3,11 +3,12 @@
 import { commands, languages, window, workspace, Disposable, TextDocument, TextDocumentChangeEvent, Uri,
          WorkspaceFolder, WorkspaceFoldersChangeEvent } from 'vscode';
 
-import { SpawnOptions, spawn } from 'child_process';
+import { ChildProcess, ExecFileOptionsWithStringEncoding, SpawnOptions, SpawnSyncOptionsWithStringEncoding,
+         SpawnSyncReturns, execFile, spawn, spawnSync } from 'child_process';
 
 import { setTimeout, clearTimeout } from 'timers';
 
-import { Nullable, RtagsDocSelector, runRc, runRcSync } from './rtagsUtil';
+import { Nullable, RtagsDocSelector, isUnsavedSourceFile } from './rtagsUtil';
 
 export class RtagsManager implements Disposable
 {
@@ -56,7 +57,7 @@ export class RtagsManager implements Disposable
                 return (pathFound ? path : undefined);
             };
 
-        return runRc(["--current-project"], processCallback);
+        return this.runRc(["--current-project"], processCallback);
     }
 
     public isInProject(uri: Uri) : boolean
@@ -69,9 +70,90 @@ export class RtagsManager implements Disposable
         return workspace.textDocuments.filter((doc) => { return this.isInProject(doc.uri); });
     }
 
+    public runRc(args: string[], process: (stdout: string) => any, documents: TextDocument[] = []) : Thenable<any>
+    {
+        const executorCallback =
+            (resolve: (value?: any) => any, _reject: (reason?: any) => any) : void =>
+            {
+                const unsavedDocs = documents.filter((doc) => { return isUnsavedSourceFile(doc); });
+                for (const doc of unsavedDocs)
+                {
+                    const unsavedFile = doc.uri.fsPath + ':' + doc.getText().length.toString();
+                    args.push("--unsaved-file", unsavedFile);
+                }
+
+                const options: ExecFileOptionsWithStringEncoding =
+                {
+                    encoding: "utf8",
+                    maxBuffer: 4 * 1024 * 1024
+                };
+
+                const exitCallback =
+                    (error: Error | null, stdout: string, stderr: string) : void =>
+                    {
+                        if (error)
+                        {
+                            if ((stdout && !stdout.startsWith("null")) || stderr)
+                            {
+                                let message: string = "[RTags] ";
+                                if (stderr)
+                                {
+                                    message += "Client error: " + stderr;
+                                }
+                                else if (error.message)
+                                {
+                                    message += "Client error: " + error.message;
+                                }
+                                else
+                                {
+                                    message += "Unknown client error";
+                                }
+                                window.showErrorMessage(message);
+                            }
+                            resolve([]);
+                            return;
+                        }
+                        resolve(process(stdout));
+                    };
+
+                let rc = execFile("rc", args, options, exitCallback);
+
+                for (const doc of unsavedDocs)
+                {
+                    rc.stdin.write(doc.getText());
+                }
+                if (unsavedDocs.length !== 0)
+                {
+                    rc.stdin.end();
+                }
+            };
+
+        return new Promise(executorCallback);
+    }
+
+    public runRcSync(args: string[]) : SpawnSyncReturns<string>
+    {
+        const options: SpawnSyncOptionsWithStringEncoding =
+        {
+            encoding: "utf8"
+        };
+
+        return spawnSync("rc", args, options);
+    }
+
+    public runRcPipe(args: string[]) : ChildProcess
+    {
+        const options: SpawnOptions =
+        {
+            stdio: "pipe"
+        };
+
+        return spawn("rc", args, options);
+    }
+
     private startRdm() : void
     {
-        const rc = runRcSync(["--current-project"]);
+        const rc = this.runRcSync(["--current-project"]);
         if (rc.error)
         {
             window.showErrorMessage("[RTags] Could not run client");
@@ -109,7 +191,7 @@ export class RtagsManager implements Disposable
 
         let rtagsProjectPaths: Uri[] = [];
 
-        const rc = runRcSync(["--project"]);
+        const rc = this.runRcSync(["--project"]);
         if (rc.stdout)
         {
             rtagsProjectPaths = rc.stdout.trim().split('\n').map(
@@ -135,7 +217,7 @@ export class RtagsManager implements Disposable
 
     private addProject(uri: Uri) : void
     {
-        const rc = runRcSync(["--load-compile-commands", uri.fsPath]);
+        const rc = this.runRcSync(["--load-compile-commands", uri.fsPath]);
         if (rc.status === 0)
         {
             this.projectPaths.push(uri);
@@ -181,7 +263,7 @@ export class RtagsManager implements Disposable
                 document.uri.fsPath
             ];
 
-            runRc(args, (_unused) => {}, this.getTextDocuments());
+            this.runRc(args, (_unused) => {}, this.getTextDocuments());
 
             return;
         }
@@ -203,7 +285,7 @@ export class RtagsManager implements Disposable
                 "--reindex"
             ];
 
-            runRc(args, (_unused) => {}, this.getTextDocuments());
+            this.runRc(args, (_unused) => {}, this.getTextDocuments());
 
             return;
         }
@@ -218,7 +300,7 @@ export class RtagsManager implements Disposable
 
                 window.showInformationMessage("Reindexing project: " + projectPath.fsPath);
 
-                runRc(["--reindex"], (_unused) => {}, this.getTextDocuments());
+                this.runRc(["--reindex"], (_unused) => {}, this.getTextDocuments());
             };
 
         this.getCurrentProjectPath().then(resolveCallback);

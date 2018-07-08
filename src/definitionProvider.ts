@@ -7,8 +7,7 @@ import { commands, languages, window, CancellationToken, Definition, DefinitionP
 
 import { RtagsManager } from './rtagsManager';
 
-import { Nullable, RtagsDocSelector, isUnsavedSourceFile, fromRtagsLocation, toRtagsLocation, runRc }
-         from './rtagsUtil';
+import { Nullable, RtagsDocSelector, isUnsavedSourceFile, fromRtagsLocation, toRtagsLocation } from './rtagsUtil';
 
 enum ReferenceType
 {
@@ -18,7 +17,7 @@ enum ReferenceType
     Variables
 }
 
-function getLocations(args: string[]) : Thenable<Location[]>
+function getLocations(rtagsMgr: RtagsManager, args: string[]) : Thenable<Location[]>
 {
     const processCallback =
         (output: string) : Location[] =>
@@ -34,10 +33,13 @@ function getLocations(args: string[]) : Thenable<Location[]>
             return locations;
         };
 
-    return runRc(args, processCallback);
+    return rtagsMgr.runRc(args, processCallback);
 }
 
-function getDefinitions(uri: Uri, position: Position, type: ReferenceType = ReferenceType.Definition) :
+function getDefinitions(rtagsMgr: RtagsManager,
+                        uri: Uri,
+                        position: Position,
+                        type: ReferenceType = ReferenceType.Definition) :
     Thenable<Location[]>
 {
     const location = toRtagsLocation(uri, position);
@@ -67,7 +69,7 @@ function getDefinitions(uri: Uri, position: Position, type: ReferenceType = Refe
         }
     }
 
-    return getLocations(args);
+    return getLocations(rtagsMgr, args);
 }
 
 export class RtagsDefinitionProvider implements
@@ -103,7 +105,7 @@ export class RtagsDefinitionProvider implements
                                                 locations);
                     };
 
-                getDefinitions(document.uri, position, ReferenceType.Variables).then(resolveCallback);
+                getDefinitions(this.rtagsMgr, document.uri, position, ReferenceType.Variables).then(resolveCallback);
             };
 
         this.disposables.push(
@@ -132,7 +134,7 @@ export class RtagsDefinitionProvider implements
             return null;
         }
 
-        return getDefinitions(document.uri, position);
+        return getDefinitions(this.rtagsMgr, document.uri, position);
     }
 
     public provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
@@ -215,10 +217,10 @@ export class RtagsDefinitionProvider implements
                     symbolType
                 ];
 
-                return getLocations(localArgs);
+                return getLocations(this.rtagsMgr, localArgs);
             };
 
-        return runRc(args, processCallback).then(resolveCallback);
+        return this.rtagsMgr.runRc(args, processCallback).then(resolveCallback);
     }
 
     public provideImplementation(document: TextDocument, position: Position, _token: CancellationToken) :
@@ -229,7 +231,7 @@ export class RtagsDefinitionProvider implements
             return null;
         }
 
-        return getDefinitions(document.uri, position);
+        return getDefinitions(this.rtagsMgr, document.uri, position);
     }
 
     public provideReferences(document: TextDocument,
@@ -243,7 +245,7 @@ export class RtagsDefinitionProvider implements
             return [];
         }
 
-        return getDefinitions(document.uri, position, ReferenceType.References);
+        return getDefinitions(this.rtagsMgr, document.uri, position, ReferenceType.References);
     }
 
     public provideRenameEdits(document: TextDocument,
@@ -282,7 +284,7 @@ export class RtagsDefinitionProvider implements
                 return edit;
             };
 
-        return getDefinitions(document.uri, position, ReferenceType.Rename).then(resolveCallback);
+        return getDefinitions(this.rtagsMgr, document.uri, position, ReferenceType.Rename).then(resolveCallback);
     }
 
     public provideHover(document: TextDocument, position: Position, _token: CancellationToken) : ProviderResult<Hover>
@@ -317,7 +319,7 @@ export class RtagsDefinitionProvider implements
                 return ((definition.length !== 0) ? new Hover('\t' + definition) : null);
             };
 
-        return runRc(args, processCallback).then(resolveCallback);
+        return this.rtagsMgr.runRc(args, processCallback).then(resolveCallback);
     }
 
     private rtagsMgr: RtagsManager;

@@ -3,9 +3,6 @@
 import { commands, window, DocumentFilter, Location, Position, Range, TextDocument, TextDocumentShowOptions, Uri }
          from 'vscode';
 
-import { ChildProcess, ExecFileOptionsWithStringEncoding, SpawnOptions, SpawnSyncOptionsWithStringEncoding,
-         SpawnSyncReturns, execFile, spawn, spawnSync } from 'child_process';
-
 export type Nullable<T> = T | null;
 
 export interface Locatable
@@ -53,85 +50,4 @@ export function jumpToLocation(uri: Uri, range: Range) : void
 {
     const options: TextDocumentShowOptions = {selection: range};
     window.showTextDocument(uri, options);
-}
-
-export function runRc(args: string[], process: (stdout: string) => any, documents: TextDocument[] = []) : Thenable<any>
-{
-    const executorCallback =
-        (resolve: (value?: any) => any, _reject: (reason?: any) => any) : void =>
-        {
-            const unsavedDocs = documents.filter((doc) => { return isUnsavedSourceFile(doc); });
-            for (const doc of unsavedDocs)
-            {
-                const unsavedFile = doc.uri.fsPath + ':' + doc.getText().length.toString();
-                args.push("--unsaved-file", unsavedFile);
-            }
-
-            const options: ExecFileOptionsWithStringEncoding =
-            {
-                encoding: "utf8",
-                maxBuffer: 4 * 1024 * 1024
-            };
-
-            const exitCallback =
-                (error: Error | null, stdout: string, stderr: string) : void =>
-                {
-                    if (error)
-                    {
-                        if ((stdout && !stdout.startsWith("null")) || stderr)
-                        {
-                            let message: string = "[RTags] ";
-                            if (stderr)
-                            {
-                                message += "Client error: " + stderr;
-                            }
-                            else if (error.message)
-                            {
-                                message += "Client error: " + error.message;
-                            }
-                            else
-                            {
-                                message += "Unknown client error";
-                            }
-                            window.showErrorMessage(message);
-                        }
-                        resolve([]);
-                        return;
-                    }
-                    resolve(process(stdout));
-                };
-
-            let rc = execFile("rc", args, options, exitCallback);
-
-            for (const doc of unsavedDocs)
-            {
-                rc.stdin.write(doc.getText());
-            }
-            if (unsavedDocs.length !== 0)
-            {
-                rc.stdin.end();
-            }
-        };
-
-    return new Promise(executorCallback);
-}
-
-export function runRcSync(args: string[]) : SpawnSyncReturns<string>
-{
-    const options: SpawnSyncOptionsWithStringEncoding =
-    {
-        encoding: "utf8"
-    };
-
-    return spawnSync("rc", args, options);
-}
-
-export function runRcPipe(args: string[]) : ChildProcess
-{
-    const options: SpawnOptions =
-    {
-        stdio: "pipe"
-    };
-
-    return spawn("rc", args, options);
 }
