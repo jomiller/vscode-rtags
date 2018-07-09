@@ -3,7 +3,7 @@
 import { languages, window, workspace, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult,
          SymbolInformation, SymbolKind, TextDocument, Uri, WorkspaceSymbolProvider } from 'vscode';
 
-import { RtagsManager } from './rtagsManager';
+import { RtagsManager, runRc } from './rtagsManager';
 
 import { RtagsDocSelector, fromRtagsLocation } from './rtagsUtil';
 
@@ -51,7 +51,7 @@ function toSymbolKind(kind: string) : SymbolKind | undefined
     return undefined;
 }
 
-function findSymbols(rtagsMgr: RtagsManager, query: string, args: string[] = []) : Thenable<SymbolInformation[]>
+function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInformation[]>
 {
     query += '*';
 
@@ -98,7 +98,7 @@ function findSymbols(rtagsMgr: RtagsManager, query: string, args: string[] = [])
               "--find-symbols",
               query);
 
-    return rtagsMgr.runRc(args, processCallback);
+    return runRc(args, processCallback);
 }
 
 export class RtagsSymbolProvider implements
@@ -139,7 +139,7 @@ export class RtagsSymbolProvider implements
             document.uri.fsPath
         ];
 
-        return findSymbols(this.rtagsMgr, "", args);
+        return findSymbols("", args);
     }
 
     public provideWorkspaceSymbols(query: string, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
@@ -172,7 +172,7 @@ export class RtagsSymbolProvider implements
                       "--path-filter",
                       projectPath.fsPath);
 
-            return findSymbols(this.rtagsMgr, query, args);
+            return findSymbols(query, args);
         }
 
         const resolveCallback =
@@ -187,7 +187,7 @@ export class RtagsSymbolProvider implements
                           "--path-filter",
                           projectPath.fsPath);
 
-                return findSymbols(this.rtagsMgr, query, args);
+                return findSymbols(query, args);
             };
 
         return this.rtagsMgr.getCurrentProjectPath().then(resolveCallback);

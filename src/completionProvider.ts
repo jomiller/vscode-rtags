@@ -4,7 +4,7 @@ import { languages, workspace, CancellationToken, CompletionItemKind, Completion
          CompletionList, Disposable, ParameterInformation, Position, ProviderResult, Range, SignatureHelp,
          SignatureHelpProvider, SignatureInformation, SnippetString, TextDocument } from 'vscode';
 
-import { RtagsManager } from './rtagsManager';
+import { RtagsManager, runRc } from './rtagsManager';
 
 import { RtagsDocSelector, toRtagsLocation } from './rtagsUtil';
 
@@ -158,7 +158,7 @@ export class RtagsCompletionProvider implements
                 return new CompletionList(completionItems, completionItems.length >= maxCompletionResults);
             };
 
-        return this.rtagsMgr.runRc(args, processCallback);
+        return runRc(args, processCallback);
     }
 
     public provideSignatureHelp(document: TextDocument, position: Position, _token: CancellationToken) :
@@ -234,7 +234,7 @@ export class RtagsCompletionProvider implements
                 return signatureHelp;
             };
 
-        return this.rtagsMgr.runRc(args, processCallback);
+        return runRc(args, processCallback);
     }
 
     private rtagsMgr: RtagsManager;

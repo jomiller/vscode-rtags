@@ -5,7 +5,7 @@ import { commands, window, Disposable, Event, EventEmitter, Location, Position, 
 
 import { basename } from 'path';
 
-import { RtagsManager } from './rtagsManager';
+import { RtagsManager, runRc } from './rtagsManager';
 
 import { Nullable, Locatable, setContext, fromRtagsLocation, toRtagsLocation } from './rtagsUtil';
 
@@ -15,7 +15,7 @@ interface Caller extends Locatable
     containerLocation: Location;
 }
 
-function getCallers(rtagsMgr: RtagsManager, uri: Uri, position: Position) : Thenable<Caller[]>
+function getCallers(uri: Uri, position: Position) : Thenable<Caller[]>
 {
     const location = toRtagsLocation(uri, position);
 
@@ -56,7 +56,7 @@ function getCallers(rtagsMgr: RtagsManager, uri: Uri, position: Position) : Then
             return callers;
         };
 
-    return rtagsMgr.runRc(args, processCallback);
+    return runRc(args, processCallback);
 }
 
 export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposable
@@ -100,7 +100,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                                                 locations);
                     };
 
-                getCallers(this.rtagsMgr, document.uri, position).then(resolveCallback);
+                getCallers(document.uri, position).then(resolveCallback);
             };
 
         this.disposables.push(
@@ -214,10 +214,10 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                     return [root];
                 };
 
-            return this.rtagsMgr.runRc(args, (output) => { return output; }).then(resolveCallback);
+            return runRc(args, (output) => { return output; }).then(resolveCallback);
         }
 
-        return getCallers(this.rtagsMgr, element.containerLocation.uri, element.containerLocation.range.start);
+        return getCallers(element.containerLocation.uri, element.containerLocation.range.start);
     }
 
     private refresh() : void

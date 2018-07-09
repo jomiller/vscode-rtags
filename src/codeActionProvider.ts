@@ -6,7 +6,7 @@ import { commands, languages, window, workspace, CancellationToken, CodeActionCo
 
 import { ChildProcess } from 'child_process';
 
-import { RtagsManager } from './rtagsManager';
+import { RtagsManager, runRc, runRcPipe } from './rtagsManager';
 
 import { Nullable, RtagsDocSelector } from './rtagsUtil';
 
@@ -87,12 +87,12 @@ export class RtagsCodeActionProvider implements
                 return cmds;
             };
 
-        return this.rtagsMgr.runRc(["--fixits", document.fileName], processCallback);
+        return runRc(["--fixits", document.fileName], processCallback);
     }
 
     private startDiagnostics() : void
     {
-        this.diagnosticProcess = this.rtagsMgr.runRcPipe(["--json", "--diagnostics"]);
+        this.diagnosticProcess = runRcPipe(["--json", "--diagnostics"]);
         if (!this.diagnosticProcess.pid)
         {
             window.showErrorMessage("[RTags] Could not start diagnostics");

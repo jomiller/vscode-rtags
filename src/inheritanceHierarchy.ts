@@ -5,7 +5,7 @@ import { commands, window, Disposable, Event, EventEmitter, Location, Position, 
 
 import { basename } from 'path';
 
-import { RtagsManager } from './rtagsManager';
+import { RtagsManager, runRc } from './rtagsManager';
 
 import { Nullable, Locatable, setContext, fromRtagsLocation, toRtagsLocation, jumpToLocation } from './rtagsUtil';
 
@@ -30,8 +30,7 @@ interface InheritanceNode extends Locatable
     name: string;
 }
 
-function getClasses(rtagsMgr: RtagsManager, classType: ClassType, uri: Uri, position: Position) :
-    Thenable<InheritanceNode[]>
+function getClasses(classType: ClassType, uri: Uri, position: Position) : Thenable<InheritanceNode[]>
 {
     const location = toRtagsLocation(uri, position);
 
@@ -107,7 +106,7 @@ function getClasses(rtagsMgr: RtagsManager, classType: ClassType, uri: Uri, posi
             return nodes;
         };
 
-    return rtagsMgr.runRc(args, processCallback);
+    return runRc(args, processCallback);
 }
 
 export class InheritanceHierarchyProvider implements TreeDataProvider<InheritanceNode>, Disposable
@@ -158,7 +157,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
                         }
                     };
 
-                getClasses(this.rtagsMgr, ClassType.Base, document.uri, position).then(resolveCallback);
+                getClasses(ClassType.Base, document.uri, position).then(resolveCallback);
             };
 
         this.disposables.push(
@@ -235,16 +234,15 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
                             return [root];
                         };
 
-                    return getClasses(this.rtagsMgr, ClassType.Base, document.uri, position).then(baseResolveCallback);
+                    return getClasses(ClassType.Base, document.uri, position).then(baseResolveCallback);
                 };
 
-            return getClasses(this.rtagsMgr, ClassType.This, document.uri, position).then(resolveCallback);
+            return getClasses(ClassType.This, document.uri, position).then(resolveCallback);
         }
 
         if (element.nodeType === NodeType.Root)
         {
-            let promise =
-                getClasses(this.rtagsMgr, ClassType.Derived, element.location.uri, element.location.range.start);
+            let promise = getClasses(ClassType.Derived, element.location.uri, element.location.range.start);
 
             const resolveCallback =
                 (derivedNodes: InheritanceNode[]) : InheritanceNode[] =>
@@ -268,7 +266,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
             return promise.then(resolveCallback);
         }
 
-        return getClasses(this.rtagsMgr, element.classType, element.location.uri, element.location.range.start);
+        return getClasses(element.classType, element.location.uri, element.location.range.start);
     }
 
     private refresh() : void
