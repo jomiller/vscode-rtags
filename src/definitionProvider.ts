@@ -181,6 +181,8 @@ export class RtagsDefinitionProvider implements
                     "ParmDecl",
                     "VarDecl",
                     "TypeRef",
+                    "MemberRef",
+                    "VariableRef",
                     "MemberRefExpr",
                     "DeclRefExpr"
                 ];
@@ -210,6 +212,7 @@ export class RtagsDefinitionProvider implements
                 [
                     "--absolute-path",
                     "--no-context",
+                    "--definition-only",
                     "--find-symbols",
                     symbolType
                 ];
