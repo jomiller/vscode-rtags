@@ -1,6 +1,6 @@
 'use strict';
 
-import { commands, ExtensionContext } from 'vscode';
+import { commands, window, workspace, ConfigurationChangeEvent, ExtensionContext } from 'vscode';
 
 import { RtagsCodeActionProvider } from './codeActionProvider';
 
@@ -34,6 +34,27 @@ export function activate(context: ExtensionContext) : void
             jumpToLocation(element.location.uri, element.location.range);
         };
 
+    const changeConfigCallback =
+        (event: ConfigurationChangeEvent) : void =>
+        {
+            if (event.affectsConfiguration("rtags"))
+            {
+                const reload = "Reload";
+                const message = "Please reload to apply the configuration change";
+
+                const resolveCallback =
+                    (selected?: string) : void =>
+                    {
+                        if (selected === reload)
+                        {
+                            commands.executeCommand("workbench.action.reloadWindow");
+                        }
+                    };
+
+                window.showInformationMessage(message, reload).then(resolveCallback);
+            }
+        };
+
     context.subscriptions.push(
         rtagsManager,
         codeActionProvider,
@@ -42,5 +63,6 @@ export function activate(context: ExtensionContext) : void
         symbolProvider,
         callHierarchyProvider,
         inheritanceHierarchyProvider,
-        commands.registerCommand("rtags.gotoLocation", gotoLocationCallback));
+        commands.registerCommand("rtags.gotoLocation", gotoLocationCallback),
+        workspace.onDidChangeConfiguration(changeConfigCallback));
 }
