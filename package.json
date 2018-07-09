@@ -1,7 +1,15 @@
 {
     "name": "rtags-client",
-    "description": "RTags client",
-    "author": "yorver",
+    "displayName": "RTags Client",
+    "description": "Use the RTags C/C++ language server in Visual Studio Code",
+    "author": {
+        "name": "jomiller"
+    },
+    "contributors": [
+        {
+            "name": "yorver"
+        }
+    ],
     "license": "SEE LICENSE IN License.txt",
     "version": "0.4.0",
     "publisher": "jomiller",
