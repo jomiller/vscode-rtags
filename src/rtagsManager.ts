@@ -335,7 +335,8 @@ export class RtagsManager implements Disposable
         {
             const activeDocPath = editor.document.uri;
 
-            if (!this.isInProject(activeDocPath))
+            const projectPath = this.getProjectPath(activeDocPath);
+            if (!projectPath)
             {
                 return;
             }
@@ -346,6 +347,8 @@ export class RtagsManager implements Disposable
                 activeDocPath.fsPath,
                 "--reindex"
             ];
+
+            window.showInformationMessage("Reindexing project: " + projectPath.fsPath);
 
             runRc(args, (_unused) => {}, this.getTextDocuments());
 
