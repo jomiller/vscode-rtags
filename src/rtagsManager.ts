@@ -52,7 +52,7 @@ export function runRc(args: string[], process: (stdout: string) => any, document
                 {
                     if (error)
                     {
-                        if ((stdout && !stdout.startsWith("null")) || stderr)
+                        if ((stdout && (stdout.trim() !== "null")) || stderr)
                         {
                             let message: string = "[RTags] ";
                             if (stderr)
