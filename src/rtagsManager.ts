@@ -21,7 +21,11 @@ function getRcExecutable() : string
 function isIndexing() : boolean
 {
     const rc = runRcSync(["--is-indexing"]);
-    return (rc.stdout === "1");
+    if (rc.stdout && (rc.stdout.trim() === "1"))
+    {
+        return true;
+    }
+    return false;
 }
 
 export function runRc(args: string[], process: (stdout: string) => any, documents: TextDocument[] = []) :
