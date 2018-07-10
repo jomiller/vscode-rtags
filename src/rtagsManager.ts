@@ -6,7 +6,9 @@ import { commands, languages, window, workspace, Disposable, TextDocument, TextD
 import { ChildProcess, ExecFileOptionsWithStringEncoding, SpawnOptions, SpawnSyncOptionsWithStringEncoding,
          SpawnSyncReturns, execFile, spawn, spawnSync } from 'child_process';
 
-import { setTimeout, clearTimeout } from 'timers';
+import { setTimeout, clearTimeout, setInterval, clearInterval } from 'timers';
+
+import { existsSync } from 'fs';
 
 import { Nullable, RtagsDocSelector, isUnsavedSourceFile } from './rtagsUtil';
 
@@ -14,6 +16,12 @@ function getRcExecutable() : string
 {
     const config = workspace.getConfiguration("rtags");
     return config.get("rcExecutable", "rc");
+}
+
+function isIndexing() : boolean
+{
+    const rc = runRcSync(["--is-indexing"]);
+    return (rc.stdout === "1");
 }
 
 export function runRc(args: string[], process: (stdout: string) => any, documents: TextDocument[] = []) :
@@ -227,19 +235,52 @@ export class RtagsManager implements Disposable
             }
             else
             {
-                this.addProject(f.uri);
+                this.projectQueue.push(f.uri);
+                this.processProjectQueue();
             }
         }
     }
 
-    private addProject(uri: Uri) : void
+    private processProjectQueue() : void
     {
-        const rc = runRcSync(["--load-compile-commands", uri.fsPath]);
-        if (rc.status === 0)
+        if (!this.loadTimer)
         {
-            this.projectPaths.push(uri);
-            window.showInformationMessage("[RTags] Loading project: " + uri.fsPath);
+            const uri = this.projectQueue.shift();
+            if (uri)
+            {
+                this.loadProject(uri);
+            }
         }
+    }
+
+    private loadProject(uri: Uri) : void
+    {
+        if (existsSync(uri.fsPath + "/compile_commands.json"))
+        {
+            const rc = runRcSync(["--load-compile-commands", uri.fsPath]);
+            if (rc.status === 0)
+            {
+                window.showInformationMessage("[RTags] Loading project: " + uri.fsPath);
+                this.finishLoadingProject(uri);
+            }
+        }
+    }
+
+    private finishLoadingProject(uri: Uri) : void
+    {
+        this.loadTimer =
+            setInterval(() : void =>
+                        {
+                            if (!isIndexing() && this.loadTimer)
+                            {
+                                clearInterval(this.loadTimer);
+                                this.loadTimer = null;
+                                this.projectPaths.push(uri);
+                                window.showInformationMessage("[RTags] Finished loading project: " + uri.fsPath);
+                                this.processProjectQueue();
+                            }
+                        },
+                        5000);
     }
 
     private removeProjects(folders?: WorkspaceFolder[]) : void
@@ -330,17 +371,18 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        if (this.timerId)
+        if (this.reindexTimer)
         {
-            clearTimeout(this.timerId);
+            clearTimeout(this.reindexTimer);
         }
 
-        this.timerId = setTimeout(() : void =>
-                                  {
-                                      this.reindex(event.document);
-                                      this.timerId = null;
-                                  },
-                                  1000);
+        this.reindexTimer =
+            setTimeout(() : void =>
+                       {
+                           this.reindex(event.document);
+                           this.reindexTimer = null;
+                       },
+                       1000);
     }
 
     private reindexOnSave(document: TextDocument) : void
@@ -348,7 +390,9 @@ export class RtagsManager implements Disposable
         this.reindex(document, true);
     }
 
-    private timerId: Nullable<NodeJS.Timer> = null;
+    private reindexTimer: Nullable<NodeJS.Timer> = null;
+    private loadTimer: Nullable<NodeJS.Timer> = null;
+    private projectQueue: Uri[] = [];
     private projectPaths: Uri[] = [];
     private disposables: Disposable[] = [];
 }
