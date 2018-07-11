@@ -68,7 +68,7 @@
                     "group": "navigation@5"
                 },
                 {
-                    "command": "rtags.showBaseClasses",
+                    "command": "rtags.showBase",
                     "when": "resourceLangId == cpp",
                     "group": "navigation@6"
                 }
@@ -121,7 +121,7 @@
                     "when": "resourceLangId == cpp"
                 },
                 {
-                    "command": "rtags.showBaseClasses",
+                    "command": "rtags.showBase",
                     "when": "resourceLangId == cpp"
                 }
             ]
@@ -165,8 +165,8 @@
                 "category": "RTags"
             },
             {
-                "command": "rtags.showBaseClasses",
-                "title": "Show Base Classes",
+                "command": "rtags.showBase",
+                "title": "Show Base",
                 "category": "RTags"
             }
         ],

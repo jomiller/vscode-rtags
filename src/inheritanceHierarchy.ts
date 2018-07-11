@@ -129,7 +129,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
                 this.refresh();
             };
 
-        const showBaseClassesCallback =
+        const showBaseCallback =
             (textEditor: TextEditor, _edit: TextEditorEdit) : void =>
             {
                 const document = textEditor.document;
@@ -164,7 +164,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
             window.registerTreeDataProvider("rtags.inheritanceHierarchy", this),
             commands.registerCommand("rtags.inheritanceHierarchy", inheritanceHierarchyCallback),
             commands.registerCommand("rtags.closeInheritanceHierarchy", closeInheritanceHierarchyCallback),
-            commands.registerTextEditorCommand("rtags.showBaseClasses", showBaseClassesCallback));
+            commands.registerTextEditorCommand("rtags.showBase", showBaseCallback));
     }
 
     public dispose() : void
