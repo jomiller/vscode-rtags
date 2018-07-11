@@ -1,7 +1,8 @@
 'use strict';
 
-import { commands, languages, window, workspace, Disposable, TextDocument, TextDocumentChangeEvent, Uri,
-         WorkspaceFolder, WorkspaceFoldersChangeEvent } from 'vscode';
+import { commands, languages, window, workspace, Diagnostic, DiagnosticCollection, DiagnosticSeverity, Disposable,
+         Position, Range, TextDocument, TextDocumentChangeEvent, Uri, WorkspaceFolder, WorkspaceFoldersChangeEvent }
+         from 'vscode';
 
 import { ChildProcess, ExecFileOptionsWithStringEncoding, SpawnOptions, SpawnSyncOptionsWithStringEncoding,
          SpawnSyncReturns, execFile, spawn, spawnSync } from 'child_process';
@@ -152,19 +153,30 @@ export class RtagsManager implements Disposable
 {
     constructor()
     {
+        startRdm();
+
+        const config = workspace.getConfiguration("rtags");
+        const enableDiagnostics: boolean = config.get("enableDiagnostics", true);
+        if (enableDiagnostics)
+        {
+            this.diagnosticCollection = languages.createDiagnosticCollection("rtags");
+            this.disposables.push(this.diagnosticCollection);
+            this.startDiagnostics();
+        }
+
         this.disposables.push(
             commands.registerCommand("rtags.freshenIndex", this.reindex, this),
             workspace.onDidChangeTextDocument(this.reindexOnChange, this),
             workspace.onDidSaveTextDocument(this.reindexOnSave, this),
             workspace.onDidChangeWorkspaceFolders(this.updateProjects, this));
 
-        startRdm();
-
         this.addProjects(workspace.workspaceFolders);
     }
 
     public dispose() : void
     {
+        this.stopDiagnostics();
+
         for (let d of this.disposables)
         {
             d.dispose();
@@ -206,6 +218,118 @@ export class RtagsManager implements Disposable
     public getTextDocuments() : TextDocument[]
     {
         return workspace.textDocuments.filter((doc) => { return this.isInProject(doc.uri); });
+    }
+
+    private startDiagnostics() : void
+    {
+        this.diagnosticProcess = runRcPipe(["--json", "--diagnostics"]);
+        if (!this.diagnosticProcess.pid)
+        {
+            window.showErrorMessage("[RTags] Could not start diagnostics");
+            this.diagnosticProcess = null;
+            return;
+        }
+
+        const dataCallback =
+            (data: string) : void =>
+            {
+                this.unprocessedDiagnostics = this.processDiagnostics(this.unprocessedDiagnostics + data);
+            };
+
+        this.diagnosticProcess.stdout.on("data", dataCallback);
+
+        const exitCallback =
+            (_code: number, signal: string) : void =>
+            {
+                if (this.diagnosticCollection)
+                {
+                    this.diagnosticCollection.clear();
+                }
+                this.unprocessedDiagnostics = "";
+                if (signal !== "SIGTERM")
+                {
+                    window.showErrorMessage("[RTags] Diagnostics stopped; restarting");
+                    setTimeout(() => { this.startDiagnostics(); }, 10000);
+                }
+            };
+
+        this.diagnosticProcess.on("exit", exitCallback);
+    }
+
+    private stopDiagnostics() : void
+    {
+        if (this.diagnosticProcess)
+        {
+            this.diagnosticProcess.kill("SIGTERM");
+            this.diagnosticProcess = null;
+        }
+    }
+
+    private processDiagnostics(data: string) : string
+    {
+        let end: number;
+        while ((end = data.indexOf('\n')) !== -1)
+        {
+            this.processDiagnosticsLine(data.slice(0, end));
+            data = data.substr(end + 1);
+        }
+
+        return data.trim();
+    }
+
+    private processDiagnosticsLine(output: string) : void
+    {
+        if (output.trim().length === 0)
+        {
+            return;
+        }
+
+        let jsonObj;
+        try
+        {
+            jsonObj = JSON.parse(output);
+        }
+        catch (_err)
+        {
+            window.showErrorMessage("[RTags] Diagnostics parse error: " + output);
+            return;
+        }
+
+        if (!jsonObj.checkStyle)
+        {
+            return;
+        }
+
+        for (const file in jsonObj.checkStyle)
+        {
+            if (!jsonObj.checkStyle.hasOwnProperty(file))
+            {
+                continue;
+            }
+
+            let diagnostics: Diagnostic[] = [];
+            const uri = Uri.file(file);
+
+            for (const d of jsonObj.checkStyle[file])
+            {
+                const pos = new Position(d.line - 1, d.column - 1);
+
+                const diag: Diagnostic =
+                {
+                    message: d.message,
+                    range: new Range(pos, pos),
+                    severity: DiagnosticSeverity.Error,
+                    source: "RTags",
+                    code: 0
+                };
+                diagnostics.push(diag);
+            }
+
+            if (this.diagnosticCollection)
+            {
+                this.diagnosticCollection.set(uri, diagnostics);
+            }
+        }
     }
 
     private addProjects(folders?: WorkspaceFolder[]) : void
@@ -394,9 +518,12 @@ export class RtagsManager implements Disposable
         this.reindex(document, true);
     }
 
-    private reindexTimer: Nullable<NodeJS.Timer> = null;
-    private loadTimer: Nullable<NodeJS.Timer> = null;
+    private diagnosticCollection: Nullable<DiagnosticCollection> = null;
+    private diagnosticProcess: Nullable<ChildProcess> = null;
+    private unprocessedDiagnostics: string = "";
     private projectQueue: Uri[] = [];
     private projectPaths: Uri[] = [];
+    private reindexTimer: Nullable<NodeJS.Timer> = null;
+    private loadTimer: Nullable<NodeJS.Timer> = null;
     private disposables: Disposable[] = [];
 }
