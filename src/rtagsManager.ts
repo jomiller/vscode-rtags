@@ -91,7 +91,7 @@ export function runRc(args: string[],
     return new Promise(executorCallback);
 }
 
-export function runRcSync(args: string[]) : SpawnSyncReturns<string>
+function runRcSync(args: string[]) : SpawnSyncReturns<string>
 {
     const options: SpawnSyncOptionsWithStringEncoding =
     {
@@ -101,7 +101,7 @@ export function runRcSync(args: string[]) : SpawnSyncReturns<string>
     return spawnSync(getRcExecutable(), args, options);
 }
 
-export function runRcPipe(args: string[]) : ChildProcess
+function runRcPipe(args: string[]) : ChildProcess
 {
     const options: SpawnOptions =
     {
@@ -223,6 +223,105 @@ export class RtagsManager implements Disposable
         return workspace.textDocuments.filter((doc) => { return this.isInProject(doc.uri); });
     }
 
+    private addProjects(folders?: WorkspaceFolder[]) : void
+    {
+        if (!folders || (folders.length === 0))
+        {
+            return;
+        }
+
+        let rtagsProjectPaths: Uri[] = [];
+
+        const rc = runRcSync(["--project"]);
+        if (rc.stdout)
+        {
+            rtagsProjectPaths = rc.stdout.trim().split('\n').map(
+                (p) => { return Uri.file(p.replace(" <=", "").trim().replace(/\/$/, "")); });
+        }
+
+        for (const f of folders)
+        {
+            const projectAdded = rtagsProjectPaths.some((p) => { return (p.fsPath === f.uri.fsPath); });
+            if (projectAdded)
+            {
+                if (this.projectPaths.indexOf(f.uri) === -1)
+                {
+                    this.projectPaths.push(f.uri);
+                }
+            }
+            else
+            {
+                this.projectQueue.push(f.uri);
+                this.processProjectQueue();
+            }
+        }
+    }
+
+    private processProjectQueue() : void
+    {
+        if (!this.loadTimer)
+        {
+            const uri = this.projectQueue.shift();
+            if (uri)
+            {
+                this.loadProject(uri);
+            }
+        }
+    }
+
+    private loadProject(uri: Uri) : void
+    {
+        if (existsSync(uri.fsPath + "/compile_commands.json"))
+        {
+            const rc = runRcSync(["--load-compile-commands", uri.fsPath]);
+            if (rc.status === 0)
+            {
+                window.showInformationMessage("[RTags] Loading project: " + uri.fsPath);
+                this.finishLoadingProject(uri);
+            }
+        }
+    }
+
+    private finishLoadingProject(uri: Uri) : void
+    {
+        this.loadTimer =
+            setInterval(() : void =>
+                        {
+                            if (!isIndexing() && this.loadTimer)
+                            {
+                                clearInterval(this.loadTimer);
+                                this.loadTimer = null;
+                                this.projectPaths.push(uri);
+                                window.showInformationMessage("[RTags] Finished loading project: " + uri.fsPath);
+                                this.processProjectQueue();
+                            }
+                        },
+                        5000);
+    }
+
+    private removeProjects(folders?: WorkspaceFolder[]) : void
+    {
+        if (!folders)
+        {
+            return;
+        }
+
+        for (const f of folders)
+        {
+            const index = this.projectPaths.indexOf(f.uri);
+            if (index !== -1)
+            {
+                this.projectPaths.splice(index, 1);
+            }
+        }
+    }
+
+    private updateProjects(event: WorkspaceFoldersChangeEvent) : void
+    {
+        this.removeProjects(event.removed);
+        this.addProjects(event.added);
+    }
+
     private startDiagnostics() : void
     {
         this.diagnosticProcess = runRcPipe(["--json", "--diagnostics"]);
@@ -335,105 +434,6 @@ export class RtagsManager implements Disposable
         }
     }
 
-    private addProjects(folders?: WorkspaceFolder[]) : void
-    {
-        if (!folders || (folders.length === 0))
-        {
-            return;
-        }
-
-        let rtagsProjectPaths: Uri[] = [];
-
-        const rc = runRcSync(["--project"]);
-        if (rc.stdout)
-        {
-            rtagsProjectPaths = rc.stdout.trim().split('\n').map(
-                (p) => { return Uri.file(p.replace(" <=", "").trim().replace(/\/$/, "")); });
-        }
-
-        for (const f of folders)
-        {
-            const projectAdded = rtagsProjectPaths.some((p) => { return (p.fsPath === f.uri.fsPath); });
-            if (projectAdded)
-            {
-                if (this.projectPaths.indexOf(f.uri) === -1)
-                {
-                    this.projectPaths.push(f.uri);
-                }
-            }
-            else
-            {
-                this.projectQueue.push(f.uri);
-                this.processProjectQueue();
-            }
-        }
-    }
-
-    private processProjectQueue() : void
-    {
-        if (!this.loadTimer)
-        {
-            const uri = this.projectQueue.shift();
-            if (uri)
-            {
-                this.loadProject(uri);
-            }
-        }
-    }
-
-    private loadProject(uri: Uri) : void
-    {
-        if (existsSync(uri.fsPath + "/compile_commands.json"))
-        {
-            const rc = runRcSync(["--load-compile-commands", uri.fsPath]);
-            if (rc.status === 0)
-            {
-                window.showInformationMessage("[RTags] Loading project: " + uri.fsPath);
-                this.finishLoadingProject(uri);
-            }
-        }
-    }
-
-    private finishLoadingProject(uri: Uri) : void
-    {
-        this.loadTimer =
-            setInterval(() : void =>
-                        {
-                            if (!isIndexing() && this.loadTimer)
-                            {
-                                clearInterval(this.loadTimer);
-                                this.loadTimer = null;
-                                this.projectPaths.push(uri);
-                                window.showInformationMessage("[RTags] Finished loading project: " + uri.fsPath);
-                                this.processProjectQueue();
-                            }
-                        },
-                        5000);
-    }
-
-    private removeProjects(folders?: WorkspaceFolder[]) : void
-    {
-        if (!folders)
-        {
-            return;
-        }
-
-        for (const f of folders)
-        {
-            const index = this.projectPaths.indexOf(f.uri);
-            if (index !== -1)
-            {
-                this.projectPaths.splice(index, 1);
-            }
-        }
-    }
-
-    private updateProjects(event: WorkspaceFoldersChangeEvent) : void
-    {
-        this.removeProjects(event.removed);
-        this.addProjects(event.added);
-    }
-
     private reindex(document?: TextDocument, saved: boolean = false) : void
     {
         if (document)
@@ -521,11 +521,11 @@ export class RtagsManager implements Disposable
         this.reindex(document, true);
     }
 
+    private projectQueue: Uri[] = [];
+    private projectPaths: Uri[] = [];
     private diagnosticCollection: Nullable<DiagnosticCollection> = null;
     private diagnosticProcess: Nullable<ChildProcess> = null;
     private unprocessedDiagnostics: string = "";
-    private projectQueue: Uri[] = [];
-    private projectPaths: Uri[] = [];
     private reindexTimer: Nullable<NodeJS.Timer> = null;
     private loadTimer: Nullable<NodeJS.Timer> = null;
     private disposables: Disposable[] = [];
