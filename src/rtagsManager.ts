@@ -52,20 +52,17 @@ export function runRc(args: string[], process: (stdout: string) => any, document
                 {
                     if (error)
                     {
-                        if ((stdout && (stdout.trim() !== "null")) || stderr)
+                        if (stderr || (stdout && (stdout.trim() !== "null")))
                         {
                             let message: string = "[RTags] ";
-                            if (stderr)
+                            if (error.message)
                             {
-                                message += "Client error: " + stderr;
+                                message += error.message + " (";
                             }
-                            else if (error.message)
+                            message += "Client error: " + (stderr ? stderr : stdout).trim();
+                            if (error.message)
                             {
-                                message += "Client error: " + error.message;
-                            }
-                            else
-                            {
-                                message += "Unknown client error";
+                                message += ')';
                             }
                             window.showErrorMessage(message);
                         }
