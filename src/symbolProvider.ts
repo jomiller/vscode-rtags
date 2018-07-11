@@ -133,6 +133,7 @@ export class RtagsSymbolProvider implements
 
         const args =
         [
+            "--filter-system-headers",
             "--current-file",
             document.uri.fsPath,
             "--path-filter",
@@ -149,7 +150,7 @@ export class RtagsSymbolProvider implements
             return [];
         }
 
-        let args = ["--max"];
+        let args = ["--filter-system-headers", "--max"];
         let maxSearchResults = 50;
 
         const editor = window.activeTextEditor;
