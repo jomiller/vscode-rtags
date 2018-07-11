@@ -14,7 +14,8 @@ enum ReferenceType
     Definition,
     References,
     Rename,
-    Variables
+    Variables,
+    Virtuals
 }
 
 function getLocations(args: string[]) : Thenable<Location[]>
@@ -64,6 +65,10 @@ function getDefinitions(uri: Uri, position: Position, type: ReferenceType = Refe
             args.push("--references", location);
             break;
         }
+
+        case ReferenceType.Virtuals:
+            args.push("--find-virtuals", "--references", location);
+            break;
     }
 
     return getLocations(args);
@@ -82,27 +87,33 @@ export class RtagsDefinitionProvider implements
     {
         this.rtagsMgr = rtagsMgr;
 
-        const showVariablesCallback =
-            (textEditor: TextEditor, _edit: TextEditorEdit) : void =>
+        const makeReferencesCallback =
+            (type: ReferenceType) : (textEditor: TextEditor, edit: TextEditorEdit) => void =>
             {
-                const document = textEditor.document;
-                const position = textEditor.selection.active;
-
-                if (!this.rtagsMgr.isInProject(document.uri))
-                {
-                    return;
-                }
-
-                const resolveCallback =
-                    (locations: Location[]) : void =>
+                const callback =
+                    (textEditor: TextEditor, _edit: TextEditorEdit) : void =>
                     {
-                        commands.executeCommand("editor.action.showReferences",
-                                                document.uri,
-                                                position,
-                                                locations);
+                        const document = textEditor.document;
+                        const position = textEditor.selection.active;
+
+                        if (!this.rtagsMgr.isInProject(document.uri))
+                        {
+                            return;
+                        }
+
+                        const resolveCallback =
+                            (locations: Location[]) : void =>
+                            {
+                                commands.executeCommand("editor.action.showReferences",
+                                                        document.uri,
+                                                        position,
+                                                        locations);
+                            };
+
+                        getDefinitions(document.uri, position, type).then(resolveCallback);
                     };
 
-                getDefinitions(document.uri, position, ReferenceType.Variables).then(resolveCallback);
+                return callback;
             };
 
         this.disposables.push(
@@ -112,7 +123,10 @@ export class RtagsDefinitionProvider implements
             languages.registerReferenceProvider(RtagsDocSelector, this),
             languages.registerRenameProvider(RtagsDocSelector, this),
             languages.registerHoverProvider(RtagsDocSelector, this),
-            commands.registerTextEditorCommand("rtags.showVariables", showVariablesCallback));
+            commands.registerTextEditorCommand("rtags.showVariables",
+                                               makeReferencesCallback(ReferenceType.Variables)),
+            commands.registerTextEditorCommand("rtags.showVirtuals",
+                                               makeReferencesCallback(ReferenceType.Virtuals)));
     }
 
     public dispose() : void

@@ -71,6 +71,11 @@
                     "command": "rtags.showBase",
                     "when": "resourceLangId == cpp",
                     "group": "navigation@6"
+                },
+                {
+                    "command": "rtags.showVirtuals",
+                    "when": "resourceLangId == cpp",
+                    "group": "navigation@7"
                 }
             ],
             "view/title": [
@@ -123,6 +128,10 @@
                 {
                     "command": "rtags.showBase",
                     "when": "resourceLangId == cpp"
+                },
+                {
+                    "command": "rtags.showVirtuals",
+                    "when": "resourceLangId == cpp"
                 }
             ]
         },
@@ -167,6 +176,11 @@
             {
                 "command": "rtags.showBase",
                 "title": "Show Base",
+                "category": "RTags"
+            },
+            {
+                "command": "rtags.showVirtuals",
+                "title": "Show Virtuals",
                 "category": "RTags"
             }
         ],
