@@ -30,6 +30,11 @@ export function setContext(name: any, value: any) : void
     commands.executeCommand("setContext", name, value);
 }
 
+export function showReferences(uri: Uri, position: Position, locations: Location[]) : void
+{
+    commands.executeCommand("editor.action.showReferences", uri, position, locations);
+}
+
 export function fromRtagsLocation(location: string) : Location
 {
     const [file, line, col] = location.split(':');

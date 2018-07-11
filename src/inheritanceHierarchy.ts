@@ -7,7 +7,8 @@ import { basename } from 'path';
 
 import { RtagsManager, runRc } from './rtagsManager';
 
-import { Nullable, Locatable, setContext, fromRtagsLocation, toRtagsLocation, jumpToLocation } from './rtagsUtil';
+import { Nullable, Locatable, setContext, showReferences, fromRtagsLocation, toRtagsLocation, jumpToLocation }
+         from './rtagsUtil';
 
 enum NodeType
 {
@@ -150,10 +151,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
                         else
                         {
                             const locations: Location[] = nodes.map((n) => { return n.location; });
-                            commands.executeCommand("editor.action.showReferences",
-                                                    document.uri,
-                                                    position,
-                                                    locations);
+                            showReferences(document.uri, position, locations);
                         }
                     };
 

@@ -7,7 +7,7 @@ import { basename } from 'path';
 
 import { RtagsManager, runRc } from './rtagsManager';
 
-import { Nullable, Locatable, setContext, fromRtagsLocation, toRtagsLocation } from './rtagsUtil';
+import { Nullable, Locatable, setContext, showReferences, fromRtagsLocation, toRtagsLocation } from './rtagsUtil';
 
 interface Caller extends Locatable
 {
@@ -94,10 +94,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                     (callers: Caller[]) : void =>
                     {
                         const locations: Location[] = callers.map((c) => { return c.location; });
-                        commands.executeCommand("editor.action.showReferences",
-                                                document.uri,
-                                                position,
-                                                locations);
+                        showReferences(document.uri, position, locations);
                     };
 
                 getCallers(document.uri, position).then(resolveCallback);

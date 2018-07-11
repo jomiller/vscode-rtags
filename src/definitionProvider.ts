@@ -7,7 +7,8 @@ import { commands, languages, window, CancellationToken, Definition, DefinitionP
 
 import { RtagsManager, runRc } from './rtagsManager';
 
-import { Nullable, RtagsDocSelector, isUnsavedSourceFile, fromRtagsLocation, toRtagsLocation } from './rtagsUtil';
+import { Nullable, RtagsDocSelector, isUnsavedSourceFile, showReferences, fromRtagsLocation, toRtagsLocation }
+         from './rtagsUtil';
 
 enum ReferenceType
 {
@@ -104,10 +105,7 @@ export class RtagsDefinitionProvider implements
                         const resolveCallback =
                             (locations: Location[]) : void =>
                             {
-                                commands.executeCommand("editor.action.showReferences",
-                                                        document.uri,
-                                                        position,
-                                                        locations);
+                                showReferences(document.uri, position, locations);
                             };
 
                         getDefinitions(document.uri, position, type).then(resolveCallback);
