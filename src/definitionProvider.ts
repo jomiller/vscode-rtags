@@ -333,7 +333,7 @@ export class RtagsDefinitionProvider implements
                 return ((definition.length !== 0) ? new Hover('\t' + definition) : null);
             };
 
-        return runRc(args, processCallback, undefined, true).then(resolveCallback);
+        return runRc(args, processCallback).then(resolveCallback);
     }
 
     private rtagsMgr: RtagsManager;

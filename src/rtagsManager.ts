@@ -29,10 +29,7 @@ function isIndexing() : boolean
     return false;
 }
 
-export function runRc(args: string[],
-                      process: (stdout: string) => any,
-                      documents: TextDocument[] = [],
-                      suppressError: boolean = false) :
+export function runRc(args: string[], process: (stdout: string) => any, documents: TextDocument[] = []) :
     Thenable<any>
 {
     const executorCallback =
@@ -56,14 +53,16 @@ export function runRc(args: string[],
                 {
                     if (error)
                     {
-                        if ((stderr || (stdout && (stdout.trim() !== "null"))) && !suppressError)
+                        const stderrMsg = stderr.trim();
+                        const stdoutMsg = stdout.trim();
+                        if (stderrMsg || (stdoutMsg && (stdoutMsg !== "null") && (stdoutMsg !== "Not indexed")))
                         {
                             let message: string = "[RTags] ";
                             if (error.message)
                             {
                                 message += error.message + " (";
                             }
-                            message += "Client error: " + (stderr ? stderr : stdout).trim();
+                            message += "Client error: " + (stderrMsg ? stderrMsg : stdoutMsg);
                             if (error.message)
                             {
                                 message += ')';
