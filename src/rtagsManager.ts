@@ -151,8 +151,28 @@ export class RtagsManager implements Disposable
         const enableDiagnostics: boolean = config.get("enableDiagnostics", true);
         if (enableDiagnostics)
         {
+            const diagnoseCallback =
+                (document: TextDocument) : void =>
+                {
+                    if (!this.isInProject(document.uri) || (languages.match(RtagsDocSelector, document) === 0))
+                    {
+                        return;
+                    }
+
+                    const args =
+                    [
+                        "--json",
+                        "--diagnose",
+                        document.uri.fsPath
+                    ];
+
+                    runRc(args, (_unused) => {});
+                };
+
             this.diagnosticCollection = languages.createDiagnosticCollection("rtags");
-            this.disposables.push(this.diagnosticCollection);
+            this.disposables.push(this.diagnosticCollection,
+                                  workspace.onDidOpenTextDocument(diagnoseCallback));
+
             this.startDiagnostics();
         }
 
