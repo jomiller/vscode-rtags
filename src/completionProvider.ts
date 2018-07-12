@@ -87,12 +87,9 @@ export class RtagsCompletionProvider implements
             return [];
         }
 
-        const wordRange = document.getWordRangeAtPosition(position);
-        const range = wordRange ? new Range(wordRange.start, position) : null;
-        const location = toRtagsLocation(document.uri, position);
-
         const config = workspace.getConfiguration("rtags", document.uri);
         const maxCompletionResults: number = config.get("maxCodeCompletionResults", 20);
+        const location = toRtagsLocation(document.uri, position);
 
         const args =
         [
@@ -104,10 +101,12 @@ export class RtagsCompletionProvider implements
             location
         ];
 
-        if (range)
+        const wordRange = document.getWordRangeAtPosition(position);
+        if (wordRange)
         {
-           const prefix = document.getText(range);
-           args.push("--code-complete-prefix", prefix);
+            const range = new Range(wordRange.start, position);
+            const prefix = document.getText(range);
+            args.push("--code-complete-prefix", prefix);
         }
 
         const processCallback =
@@ -169,10 +168,9 @@ export class RtagsCompletionProvider implements
             return null;
         }
 
-        const location = toRtagsLocation(document.uri, position);
-
         const config = workspace.getConfiguration("rtags", document.uri);
         const maxCompletionResults: number = config.get("maxCodeCompletionResults", 20);
+        const location = toRtagsLocation(document.uri, position);
 
         const args =
         [
@@ -184,10 +182,25 @@ export class RtagsCompletionProvider implements
             location
         ];
 
+        const wordRange = document.getWordRangeAtPosition(position, /\b\w+\(.*/);
+        let incompleteSignature = "";
+        if (wordRange)
+        {
+            const range = new Range(wordRange.start, position);
+            incompleteSignature = document.getText(range);
+        }
+
+        let activeParamCount = 1;
+        if (incompleteSignature)
+        {
+            activeParamCount = incompleteSignature.trim().split(',').length;
+        }
+
         const processCallback =
             (output: string) : SignatureHelp =>
             {
                 let signatures: SignatureInformation[] = [];
+                let activeSigIndex = -1;
 
                 try
                 {
@@ -212,7 +225,17 @@ export class RtagsCompletionProvider implements
                             label: c.signature,
                             parameters: parameters
                         };
-                        signatures.push(signatureInfo);
+
+                        if (signatureInfo.parameters.length >= activeParamCount)
+                        {
+                            signatures.push(signatureInfo);
+
+                            if ((activeSigIndex === -1) ||
+                                (signatureInfo.parameters.length < signatures[activeSigIndex].parameters.length))
+                            {
+                                activeSigIndex = signatures.length - 1;
+                            }
+                        }
 
                         if (signatures.length === maxCompletionResults)
                         {
@@ -227,8 +250,8 @@ export class RtagsCompletionProvider implements
                 const signatureHelp: SignatureHelp =
                 {
                     signatures: signatures,
-                    activeSignature: 0,
-                    activeParameter: 0
+                    activeSignature: Math.max(activeSigIndex, 0),
+                    activeParameter: activeParamCount - 1
                 };
 
                 return signatureHelp;
