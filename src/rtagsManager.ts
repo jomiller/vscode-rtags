@@ -217,6 +217,15 @@ export class RtagsManager implements Disposable
         return (this.getProjectPath(uri) !== undefined);
     }
 
+    public isInLoadingProject(uri: Uri) : boolean
+    {
+        if (!this.loadingProjectPath)
+        {
+            return false;
+        }
+        return (uri.fsPath.startsWith(this.loadingProjectPath.fsPath));
+    }
+
     public getTextDocuments() : TextDocument[]
     {
         return workspace.textDocuments.filter((doc) => { return this.isInProject(doc.uri); });
@@ -250,17 +259,17 @@ export class RtagsManager implements Disposable
             }
             else
             {
-                this.projectQueue.push(f.uri);
-                this.processProjectQueue();
+                this.projectLoadQueue.push(f.uri);
+                this.serviceProjectLoadQueue();
             }
         }
     }
 
-    private processProjectQueue() : void
+    private serviceProjectLoadQueue() : void
     {
-        if (!this.loadTimer)
+        if (!this.loadingProjectPath)
         {
-            const uri = this.projectQueue.shift();
+            const uri = this.projectLoadQueue.shift();
             if (uri)
             {
                 this.loadProject(uri);
@@ -283,16 +292,21 @@ export class RtagsManager implements Disposable
 
     private finishLoadingProject(uri: Uri) : void
     {
+        this.loadingProjectPath = uri;
         this.loadTimer =
             setInterval(() : void =>
                         {
-                            if (!isIndexing() && this.loadTimer)
+                            if (!isIndexing())
                             {
-                                clearInterval(this.loadTimer);
-                                this.loadTimer = null;
+                                if (this.loadTimer)
+                                {
+                                    clearInterval(this.loadTimer);
+                                    this.loadTimer = null;
+                                }
+                                this.loadingProjectPath = null;
                                 this.projectPaths.push(uri);
                                 window.showInformationMessage("[RTags] Finished loading project: " + uri.fsPath);
-                                this.processProjectQueue();
+                                this.serviceProjectLoadQueue();
                             }
                         },
                         5000);
@@ -410,7 +424,7 @@ export class RtagsManager implements Disposable
 
             const uri = Uri.file(file);
 
-            if (!this.isInProject(uri))
+            if (!this.isInProject(uri) && !this.isInLoadingProject(uri))
             {
                 continue;
             }
@@ -526,7 +540,8 @@ export class RtagsManager implements Disposable
         this.reindex(document, true);
     }
 
-    private projectQueue: Uri[] = [];
+    private projectLoadQueue: Uri[] = [];
+    private loadingProjectPath: Nullable<Uri> = null;
     private projectPaths: Uri[] = [];
     private diagnosticCollection: Nullable<DiagnosticCollection> = null;
     private diagnosticProcess: Nullable<ChildProcess> = null;
