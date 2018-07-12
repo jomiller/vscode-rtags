@@ -19,16 +19,6 @@ function getRcExecutable() : string
     return config.get("rcExecutable", "rc");
 }
 
-function isIndexing() : boolean
-{
-    const rc = runRcSync(["--is-indexing"]);
-    if (rc.stdout && (rc.stdout.trim() === "1"))
-    {
-        return true;
-    }
-    return false;
-}
-
 export function runRc(args: string[], process: (stdout: string) => any, documents: TextDocument[] = []) :
     Thenable<any>
 {
@@ -293,6 +283,17 @@ export class RtagsManager implements Disposable
     private finishLoadingProject(uri: Uri) : void
     {
         this.loadingProjectPath = uri;
+
+        function isIndexing() : boolean
+        {
+            const rc = runRcSync(["--is-indexing"]);
+            if (rc.stdout && (rc.stdout.trim() === "1"))
+            {
+                return true;
+            }
+            return false;
+        }
+
         this.loadTimer =
             setInterval(() : void =>
                         {
