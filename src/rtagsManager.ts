@@ -408,8 +408,14 @@ export class RtagsManager implements Disposable
                 continue;
             }
 
-            let diagnostics: Diagnostic[] = [];
             const uri = Uri.file(file);
+
+            if (!this.isInProject(uri))
+            {
+                continue;
+            }
+
+            let diagnostics: Diagnostic[] = [];
 
             for (const d of jsonObj.checkStyle[file])
             {
