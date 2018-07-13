@@ -271,10 +271,10 @@ export class RtagsDefinitionProvider implements
             return null;
         }
 
-        const unsavedDocFound: boolean =
+        const unsavedDocExists: boolean =
             this.rtagsMgr.getTextDocuments().some((doc) => { return isUnsavedSourceFile(doc); });
 
-        if (unsavedDocFound)
+        if (unsavedDocExists)
         {
             window.showInformationMessage("[RTags] Save all source files before renaming a symbol");
             return null;

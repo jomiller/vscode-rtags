@@ -195,8 +195,8 @@ export class RtagsManager implements Disposable
                     return undefined;
                 }
                 const path = Uri.file(output.trim().replace(/\/$/, ""));
-                const pathFound = this.projectPaths.some((p) => { return (p.fsPath === path.fsPath); });
-                return (pathFound ? path : undefined);
+                const pathExists = this.projectPaths.some((p) => { return (p.fsPath === path.fsPath); });
+                return (pathExists ? path : undefined);
             };
 
         return runRc(["--current-project"], processCallback);
@@ -237,25 +237,38 @@ export class RtagsManager implements Disposable
                 (p) => { return Uri.file(p.replace(" <=", "").trim().replace(/\/$/, "")); });
         }
 
+        function diagnoseProject(uri: Uri) : void
+        {
+            const args =
+            [
+                "--project",
+                uri.fsPath,
+                "--diagnose-all"
+            ];
+
+            runRc(args, (_unused) => {});
+        }
+
         for (const f of folders)
         {
-            const projectAdded = rtagsProjectPaths.some((p) => { return (p.fsPath === f.uri.fsPath); });
-            if (projectAdded)
+            const projectExists = rtagsProjectPaths.some((p) => { return (p.fsPath === f.uri.fsPath); });
+            if (projectExists)
             {
                 if (this.projectPaths.indexOf(f.uri) === -1)
                 {
                     this.projectPaths.push(f.uri);
+                    diagnoseProject(f.uri);
                 }
             }
             else
             {
                 this.projectLoadQueue.push(f.uri);
-                this.serviceProjectLoadQueue();
+                this.loadNextProject();
             }
         }
     }
 
-    private serviceProjectLoadQueue() : void
+    private loadNextProject() : void
     {
         if (!this.loadingProjectPath)
         {
@@ -284,7 +297,7 @@ export class RtagsManager implements Disposable
     {
         this.loadingProjectPath = uri;
 
-        function isIndexing() : boolean
+        function isIndexingProject() : boolean
         {
             const rc = runRcSync(["--is-indexing"]);
             if (rc.stdout && (rc.stdout.trim() === "1"))
@@ -297,7 +310,7 @@ export class RtagsManager implements Disposable
         this.loadTimer =
             setInterval(() : void =>
                         {
-                            if (!isIndexing())
+                            if (!isIndexingProject())
                             {
                                 if (this.loadTimer)
                                 {
@@ -307,7 +320,7 @@ export class RtagsManager implements Disposable
                                 this.loadingProjectPath = null;
                                 this.projectPaths.push(uri);
                                 window.showInformationMessage("[RTags] Finished loading project: " + uri.fsPath);
-                                this.serviceProjectLoadQueue();
+                                this.loadNextProject();
                             }
                         },
                         5000);
