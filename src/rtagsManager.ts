@@ -182,16 +182,7 @@ export class RtagsManager implements Disposable
 
     public getProjectPath(uri: Uri) : Uri | undefined
     {
-        const candidatePaths = this.projectPaths.filter((p) => { return (uri.fsPath.startsWith(p.fsPath)); });
-        let projectPath = candidatePaths.pop();
-        for (const p of candidatePaths)
-        {
-            if (projectPath && (p.fsPath.length > projectPath.fsPath.length))
-            {
-                projectPath = p;
-            }
-        }
-        return projectPath;
+        return this.projectPaths.find((f) => { return (uri.fsPath.startsWith(f.fsPath)); });
     }
 
     public getCurrentProjectPath() : Thenable<Uri | undefined>
@@ -222,19 +213,7 @@ export class RtagsManager implements Disposable
         {
             return false;
         }
-
-        const inLoadingProjectPath = uri.fsPath.startsWith(this.loadingProjectPath.fsPath);
-        if (!inLoadingProjectPath)
-        {
-            return false;
-        }
-
-        const projectPath = this.getProjectPath(uri);
-        if (!projectPath)
-        {
-            return true;
-        }
-        return (this.loadingProjectPath.fsPath.length > projectPath.fsPath.length);
+        return (uri.fsPath.startsWith(this.loadingProjectPath.fsPath));
     }
 
     public getTextDocuments() : TextDocument[]
