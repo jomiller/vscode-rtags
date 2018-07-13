@@ -11,7 +11,7 @@ import { setTimeout, clearTimeout, setInterval, clearInterval } from 'timers';
 
 import { existsSync } from 'fs';
 
-import { Nullable, RtagsDocSelector, isUnsavedSourceFile } from './rtagsUtil';
+import { Nullable, isSourceFile, isUnsavedSourceFile } from './rtagsUtil';
 
 function getRcExecutable() : string
 {
@@ -474,7 +474,7 @@ export class RtagsManager implements Disposable
     {
         if (document)
         {
-            if (!this.isInProject(document.uri) || (languages.match(RtagsDocSelector, document) === 0))
+            if (!this.isInProject(document.uri) || !isSourceFile(document))
             {
                 return;
             }

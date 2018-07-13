@@ -6,7 +6,7 @@ import { languages, workspace, CancellationToken, CompletionItemKind, Completion
 
 import { RtagsManager, runRc } from './rtagsManager';
 
-import { RtagsDocSelector, toRtagsLocation } from './rtagsUtil';
+import { SourceFileSelector, toRtagsLocation } from './rtagsUtil';
 
 function toCompletionItemKind(kind: string) : CompletionItemKind
 {
@@ -67,8 +67,8 @@ export class RtagsCompletionProvider implements
         }
 
         this.disposables.push(
-            languages.registerCompletionItemProvider(RtagsDocSelector, this, '.', ':', '>'),
-            languages.registerSignatureHelpProvider(RtagsDocSelector, this, '(', ','));
+            languages.registerCompletionItemProvider(SourceFileSelector, this, '.', ':', '>'),
+            languages.registerSignatureHelpProvider(SourceFileSelector, this, '(', ','));
     }
 
     public dispose() : void

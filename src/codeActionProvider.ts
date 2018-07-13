@@ -5,7 +5,7 @@ import { commands, languages, workspace, CancellationToken, CodeActionContext, C
 
 import { RtagsManager, runRc } from './rtagsManager';
 
-import { RtagsDocSelector } from './rtagsUtil';
+import { SourceFileSelector } from './rtagsUtil';
 
 export class RtagsCodeActionProvider implements
     CodeActionProvider,
@@ -16,7 +16,7 @@ export class RtagsCodeActionProvider implements
         this.rtagsMgr = rtagsMgr;
 
         this.disposables.push(
-            languages.registerCodeActionsProvider(RtagsDocSelector, this),
+            languages.registerCodeActionsProvider(SourceFileSelector, this),
             commands.registerCommand(RtagsCodeActionProvider.commandId, this.runCodeAction, this));
     }
 

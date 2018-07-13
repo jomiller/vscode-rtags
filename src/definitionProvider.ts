@@ -7,7 +7,7 @@ import { commands, languages, window, CancellationToken, Definition, DefinitionP
 
 import { RtagsManager, runRc } from './rtagsManager';
 
-import { Nullable, RtagsDocSelector, isUnsavedSourceFile, showReferences, fromRtagsLocation, toRtagsLocation }
+import { Nullable, SourceFileSelector, isUnsavedSourceFile, showReferences, fromRtagsLocation, toRtagsLocation }
          from './rtagsUtil';
 
 enum ReferenceType
@@ -115,12 +115,12 @@ export class RtagsDefinitionProvider implements
             };
 
         this.disposables.push(
-            languages.registerDefinitionProvider(RtagsDocSelector, this),
-            languages.registerTypeDefinitionProvider(RtagsDocSelector, this),
-            languages.registerImplementationProvider(RtagsDocSelector, this),
-            languages.registerReferenceProvider(RtagsDocSelector, this),
-            languages.registerRenameProvider(RtagsDocSelector, this),
-            languages.registerHoverProvider(RtagsDocSelector, this),
+            languages.registerDefinitionProvider(SourceFileSelector, this),
+            languages.registerTypeDefinitionProvider(SourceFileSelector, this),
+            languages.registerImplementationProvider(SourceFileSelector, this),
+            languages.registerReferenceProvider(SourceFileSelector, this),
+            languages.registerRenameProvider(SourceFileSelector, this),
+            languages.registerHoverProvider(SourceFileSelector, this),
             commands.registerTextEditorCommand("rtags.showVariables",
                                                makeReferencesCallback(ReferenceType.Variables)),
             commands.registerTextEditorCommand("rtags.showVirtuals",

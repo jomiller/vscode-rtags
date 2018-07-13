@@ -1,7 +1,7 @@
 'use strict';
 
-import { commands, window, DocumentFilter, Location, Position, Range, TextDocument, TextDocumentShowOptions, Uri }
-         from 'vscode';
+import { commands, languages, window, DocumentFilter, Location, Position, Range, TextDocument, TextDocumentShowOptions,
+         Uri } from 'vscode';
 
 export type Nullable<T> = T | null;
 
@@ -10,11 +10,16 @@ export interface Locatable
     location: Location;
 }
 
-export const RtagsDocSelector: DocumentFilter[] =
+export const SourceFileSelector: DocumentFilter[] =
 [
     { language: "cpp", scheme: "file" },
     { language: "c",   scheme: "file" }
 ];
+
+export function isSourceFile(document: TextDocument) : boolean
+{
+    return (languages.match(SourceFileSelector, document) > 0);
+}
 
 export function isUnsavedSourceFile(document: TextDocument) : boolean
 {
@@ -22,7 +27,7 @@ export function isUnsavedSourceFile(document: TextDocument) : boolean
     {
         return false;
     }
-    return RtagsDocSelector.some((filt) => { return (filt.language === document.languageId); });
+    return isSourceFile(document);
 }
 
 export function setContext(name: any, value: any) : void
