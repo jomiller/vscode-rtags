@@ -148,8 +148,8 @@ export class RtagsManager implements Disposable
         startRdm();
 
         const config = workspace.getConfiguration("rtags");
-        const enableDiagnostics: boolean = config.get("enableDiagnostics", true);
-        if (enableDiagnostics)
+        this.diagnosticsEnabled = config.get("enableDiagnostics", true);
+        if (this.diagnosticsEnabled)
         {
             this.diagnosticCollection = languages.createDiagnosticCollection("rtags");
             this.disposables.push(this.diagnosticCollection);
@@ -257,7 +257,10 @@ export class RtagsManager implements Disposable
                 if (this.projectPaths.indexOf(f.uri) === -1)
                 {
                     this.projectPaths.push(f.uri);
-                    diagnoseProject(f.uri);
+                    if (this.diagnosticsEnabled)
+                    {
+                        diagnoseProject(f.uri);
+                    }
                 }
             }
             else
@@ -557,6 +560,7 @@ export class RtagsManager implements Disposable
     private projectLoadQueue: Uri[] = [];
     private loadingProjectPath: Nullable<Uri> = null;
     private projectPaths: Uri[] = [];
+    private diagnosticsEnabled: boolean = true;
     private diagnosticCollection: Nullable<DiagnosticCollection> = null;
     private diagnosticProcess: Nullable<ChildProcess> = null;
     private unprocessedDiagnostics: string = "";
