@@ -217,7 +217,7 @@
                 "rtags.enableDiagnostics": {
                     "type": "boolean",
                     "default": true,
-                    "description": "If true, diagnostics and fixits will be enabled",
+                    "description": "If true, diagnostics and fix-its will be enabled",
                     "scope": "window"
                 },
                 "rtags.enableCodeCompletion": {
@@ -235,7 +235,7 @@
                 "rtags.maxWorkspaceSearchResults": {
                     "type": "number",
                     "default": 50,
-                    "description": "Maximum number of global search (ie, Ctrl+P + #foo) search results to report",
+                    "description": "Maximum number of global search (i.e., Ctrl+T + #foo) results to report",
                     "scope": "resource"
                 }
             }
