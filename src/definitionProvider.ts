@@ -283,11 +283,10 @@ export class RtagsDefinitionProvider implements
         const wr = document.getWordRangeAtPosition(position);
         const diff = wr ? (wr.end.character - wr.start.character) : undefined;
 
-        let edit = new WorkspaceEdit();
-
         const resolveCallback =
             (locations: Location[]) : WorkspaceEdit =>
             {
+                let edit = new WorkspaceEdit();
                 for (const l of locations)
                 {
                     const end = l.range.end.translate(0, diff);
