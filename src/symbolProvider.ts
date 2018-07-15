@@ -66,8 +66,8 @@ function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInform
                 {
                     continue;
                 }
-                const localKind = toSymbolKind(kind);
-                if (!localKind)
+                const symbolKind = toSymbolKind(kind);
+                if (!symbolKind)
                 {
                     continue;
                 }
@@ -81,7 +81,7 @@ function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInform
                     name: name,
                     containerName: container,
                     location: fromRtagsLocation(location),
-                    kind: localKind
+                    kind: symbolKind
                 };
                 symbols.push(symbolInfo);
             }
@@ -156,6 +156,8 @@ export class RtagsSymbolProvider implements
         const editor = window.activeTextEditor;
         if (editor)
         {
+            // Find symbols in the project to which the active document belongs
+
             const activeDocPath = editor.document.uri;
 
             const projectPath = this.rtagsMgr.getProjectPath(activeDocPath);
@@ -175,6 +177,8 @@ export class RtagsSymbolProvider implements
 
             return findSymbols(query, args);
         }
+
+        // Find symbols in the current project
 
         const resolveCallback =
             (projectPath?: Uri) : Thenable<SymbolInformation[]> =>

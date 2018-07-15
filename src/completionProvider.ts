@@ -230,6 +230,7 @@ export class RtagsCompletionProvider implements
                         {
                             signatures.push(signatureInfo);
 
+                            // Select the signature with the fewest parameters
                             if ((activeSigIndex === -1) ||
                                 (signatureInfo.parameters.length < signatures[activeSigIndex].parameters.length))
                             {

@@ -39,7 +39,7 @@ export function runRc(args: string[], process: (stdout: string) => any, document
             };
 
             const exitCallback =
-                (error: Error | null, stdout: string, stderr: string) : void =>
+                (error: Nullable<Error>, stdout: string, stderr: string) : void =>
                 {
                     if (error)
                     {
@@ -186,6 +186,7 @@ export class RtagsManager implements Disposable
         let projectPath = candidatePaths.pop();
         for (const p of candidatePaths)
         {
+            // Assume that the uri belongs to the project with the deepest path
             if (projectPath && (p.fsPath.length > projectPath.fsPath.length))
             {
                 projectPath = p;
@@ -234,6 +235,8 @@ export class RtagsManager implements Disposable
         {
             return true;
         }
+
+        // Assume that the uri belongs to the project with the deepest path
         return (this.loadingProjectPath.fsPath.length > projectPath.fsPath.length);
     }
 
@@ -270,22 +273,26 @@ export class RtagsManager implements Disposable
             runRc(args, (_unused) => {});
         }
 
+        // Consider only VS Code workspace folders, and ignore RTags projects that are not known to VS Code
         for (const f of folders)
         {
             const projectExists = rtagsProjectPaths.some((p) => { return (p.fsPath === f.uri.fsPath); });
             if (projectExists)
             {
+                // The project is already loaded into RTags
                 if (this.projectPaths.indexOf(f.uri) === -1)
                 {
                     this.projectPaths.push(f.uri);
                     if (this.diagnosticsEnabled)
                     {
+                        // Resend diagnostics for all files in the project
                         diagnoseProject(f.uri);
                     }
                 }
             }
             else
             {
+                // Add the project to the loading queue
                 this.projectLoadQueue.push(f.uri);
                 this.loadNextProject();
             }
@@ -294,6 +301,8 @@ export class RtagsManager implements Disposable
 
     private loadNextProject() : void
     {
+        // Allow loading only one project at a time because RTags reports only a global status of whether or not it is
+        // currently indexing
         if (!this.loadingProjectPath)
         {
             const uri = this.projectLoadQueue.shift();
@@ -331,6 +340,7 @@ export class RtagsManager implements Disposable
             return false;
         }
 
+        // Keep polling RTags until it is finished indexing the project
         this.loadTimer =
             setInterval(() : void =>
                         {
@@ -375,6 +385,7 @@ export class RtagsManager implements Disposable
 
     private startDiagnostics() : void
     {
+        // Start a separate process for receiving asynchronous diagnostics
         this.diagnosticProcess = runRcPipe(["--json", "--diagnostics"]);
         if (!this.diagnosticProcess.pid)
         {
@@ -401,6 +412,7 @@ export class RtagsManager implements Disposable
                 this.unprocessedDiagnostics = "";
                 if (signal !== "SIGTERM")
                 {
+                    // Restart the diagnostics process if it was killed unexpectedly
                     window.showErrorMessage("[RTags] Diagnostics stopped; restarting");
                     setTimeout(() => { this.startDiagnostics(); }, 10000);
                 }
@@ -495,6 +507,8 @@ export class RtagsManager implements Disposable
     {
         if (document)
         {
+            // Reindex only the document
+    
             if (!this.isInProject(document.uri) || !isSourceFile(document))
             {
                 return;
@@ -514,6 +528,8 @@ export class RtagsManager implements Disposable
         const editor = window.activeTextEditor;
         if (editor)
         {
+            // Reindex the project to which the active document belongs
+
             const activeDocPath = editor.document.uri;
 
             const projectPath = this.getProjectPath(activeDocPath);
@@ -535,6 +551,8 @@ export class RtagsManager implements Disposable
 
             return;
         }
+
+        // Reindex the current project
 
         const resolveCallback =
             (projectPath?: Uri) : void =>
