@@ -251,12 +251,12 @@ export class RtagsManager implements Disposable
 
     public isInLoadingProject(uri: Uri) : boolean
     {
-        if (!this.indexingProject || (this.indexingProject.indexType !== IndexType.Load))
+        if (!this.currentIndexingProject || (this.currentIndexingProject.indexType !== IndexType.Load))
         {
             return false;
         }
 
-        const loadingProjectPath = this.indexingProject.uri;
+        const loadingProjectPath = this.currentIndexingProject.uri;
 
         if (!uri.fsPath.startsWith(loadingProjectPath.fsPath))
         {
@@ -443,14 +443,14 @@ export class RtagsManager implements Disposable
     {
         if (enqueuedProject)
         {
-            this.projectIndexQueue.push(enqueuedProject);
+            this.projectIndexingQueue.push(enqueuedProject);
         }
 
         // Allow indexing only one project at a time because RTags reports only a global status of whether or not
         // it is currently indexing
-        if (!this.indexingProject)
+        if (!this.currentIndexingProject)
         {
-            const dequeuedProject = this.projectIndexQueue.shift();
+            const dequeuedProject = this.projectIndexingQueue.shift();
             if (dequeuedProject)
             {
                 switch (dequeuedProject.indexType)
@@ -502,20 +502,20 @@ export class RtagsManager implements Disposable
 
     private finishIndexingProject(project: Project) : void
     {
-        this.indexingProject = project;
+        this.currentIndexingProject = project;
 
         const resolveCallback =
             (output: string) : void =>
             {
-                const indexingProject = (output === "1");
-                if (!indexingProject)
+                const indexing = (output === "1");
+                if (!indexing)
                 {
                     if (this.indexPollTimer)
                     {
                         clearInterval(this.indexPollTimer);
                         this.indexPollTimer = null;
                     }
-                    this.indexingProject = null;
+                    this.currentIndexingProject = null;
                     let indexMsg = "reindexing";
                     if (project.indexType === IndexType.Load)
                     {
@@ -656,8 +656,8 @@ export class RtagsManager implements Disposable
         }
     }
 
-    private projectIndexQueue: Project[] = [];
-    private indexingProject: Nullable<Project> = null;
+    private projectIndexingQueue: Project[] = [];
+    private currentIndexingProject: Nullable<Project> = null;
     private projectPaths: Uri[] = [];
     private diagnosticsEnabled: boolean = true;
     private diagnosticCollection: Nullable<DiagnosticCollection> = null;
