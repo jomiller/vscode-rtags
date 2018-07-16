@@ -25,7 +25,7 @@ The extension will become active when you open a folder or workspace that contai
 
 Multi-root workspaces are supported.
 
-The commands are available through both the editor context menu and the command palette (Shift+Ctrl+P).
+The commands are available through both the editor context menu and the command palette (Ctrl+Shift+P).
 
 ### Configuration Settings
 
