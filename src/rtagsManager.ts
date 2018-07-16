@@ -382,9 +382,7 @@ export class RtagsManager implements Disposable
         {
             // Reindex the project to which the active document belongs
 
-            const activeDocPath = editor.document.uri;
-
-            const projectPath = this.getProjectPath(activeDocPath);
+            const projectPath = this.getProjectPath(editor.document.uri);
             if (!projectPath)
             {
                 return;
