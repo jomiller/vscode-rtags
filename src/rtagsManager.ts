@@ -13,6 +13,18 @@ import { existsSync } from 'fs';
 
 import { Nullable, isSourceFile, isUnsavedSourceFile } from './rtagsUtil';
 
+enum IndexType
+{
+    Load,
+    Reindex
+}
+
+interface Project
+{
+    uri: Uri;
+    indexType: IndexType;
+}
+
 function getRcExecutable() : string
 {
     const config = workspace.getConfiguration("rtags");
@@ -59,9 +71,11 @@ export function runRc(args: string[], process: (stdout: string) => any, document
                             }
                             window.showErrorMessage(message);
                         }
+
                         resolve([]);
                         return;
                     }
+
                     resolve(process(stdout));
                 };
 
@@ -80,11 +94,29 @@ export function runRc(args: string[], process: (stdout: string) => any, document
     return new Promise(executorCallback);
 }
 
-function runRcSync(args: string[]) : SpawnSyncReturns<string>
+function runRcSync(args: string[], documents: TextDocument[] = []) : SpawnSyncReturns<string>
 {
+    const unsavedDocs = documents.filter((doc) => { return isUnsavedSourceFile(doc); });
+    let inputLength = 0;
+    unsavedDocs.forEach((doc) => { inputLength += doc.getText().length; });
+    let inputBuffer = (inputLength !== 0) ? Buffer.allocUnsafe(inputLength) : undefined;
+
+    let inputOffset = 0;
+    for (const doc of unsavedDocs)
+    {
+        const textLength = doc.getText().length;
+        const unsavedFile = doc.uri.fsPath + ':' + textLength.toString();
+        args.push("--unsaved-file", unsavedFile);
+        if (inputBuffer)
+        {
+            inputOffset += inputBuffer.write(doc.getText(), inputOffset, textLength, "utf8");
+        }
+    }
+
     const options: SpawnSyncOptionsWithStringEncoding =
     {
-        encoding: "utf8"
+        encoding: "utf8",
+        input: inputBuffer
     };
 
     return spawnSync(getRcExecutable(), args, options);
@@ -186,7 +218,7 @@ export class RtagsManager implements Disposable
         let projectPath = candidatePaths.pop();
         for (const p of candidatePaths)
         {
-            // Assume that the uri belongs to the project with the deepest path
+            // Assume that the URI belongs to the project with the deepest path
             if (projectPath && (p.fsPath.length > projectPath.fsPath.length))
             {
                 projectPath = p;
@@ -219,13 +251,14 @@ export class RtagsManager implements Disposable
 
     public isInLoadingProject(uri: Uri) : boolean
     {
-        if (!this.loadingProjectPath)
+        if (!this.indexingProject || (this.indexingProject.indexType !== IndexType.Load))
         {
             return false;
         }
 
-        const inLoadingProjectPath = uri.fsPath.startsWith(this.loadingProjectPath.fsPath);
-        if (!inLoadingProjectPath)
+        const loadingProjectPath = this.indexingProject.uri;
+
+        if (!uri.fsPath.startsWith(loadingProjectPath.fsPath))
         {
             return false;
         }
@@ -236,8 +269,8 @@ export class RtagsManager implements Disposable
             return true;
         }
 
-        // Assume that the uri belongs to the project with the deepest path
-        return (this.loadingProjectPath.fsPath.length > projectPath.fsPath.length);
+        // Assume that the URI belongs to the project with the deepest path
+        return (loadingProjectPath.fsPath.length > projectPath.fsPath.length);
     }
 
     public getTextDocuments() : TextDocument[]
@@ -292,72 +325,11 @@ export class RtagsManager implements Disposable
             }
             else
             {
-                // Add the project to the loading queue
-                this.projectLoadQueue.push(f.uri);
-                this.loadNextProject();
+                // Add the project to the indexing queue
+                const project: Project = {uri: f.uri, indexType: IndexType.Load};
+                this.indexNextProject(project);
             }
         }
-    }
-
-    private loadNextProject() : void
-    {
-        // Allow loading only one project at a time because RTags reports only a global status of whether or not it is
-        // currently indexing
-        if (!this.loadingProjectPath)
-        {
-            const uri = this.projectLoadQueue.shift();
-            if (uri)
-            {
-                this.loadProject(uri);
-            }
-        }
-    }
-
-    private loadProject(uri: Uri) : void
-    {
-        if (existsSync(uri.fsPath + "/compile_commands.json"))
-        {
-            const rc = runRcSync(["--load-compile-commands", uri.fsPath]);
-            if (rc.status === 0)
-            {
-                window.showInformationMessage("[RTags] Loading project: " + uri.fsPath);
-                this.finishLoadingProject(uri);
-            }
-        }
-    }
-
-    private finishLoadingProject(uri: Uri) : void
-    {
-        this.loadingProjectPath = uri;
-
-        function isIndexingProject() : boolean
-        {
-            const rc = runRcSync(["--is-indexing"]);
-            if (rc.stdout && (rc.stdout.trim() === "1"))
-            {
-                return true;
-            }
-            return false;
-        }
-
-        // Keep polling RTags until it is finished indexing the project
-        this.loadTimer =
-            setInterval(() : void =>
-                        {
-                            if (!isIndexingProject())
-                            {
-                                if (this.loadTimer)
-                                {
-                                    clearInterval(this.loadTimer);
-                                    this.loadTimer = null;
-                                }
-                                this.loadingProjectPath = null;
-                                this.projectPaths.push(uri);
-                                window.showInformationMessage("[RTags] Finished loading project: " + uri.fsPath);
-                                this.loadNextProject();
-                            }
-                        },
-                        5000);
     }
 
     private removeProjects(folders?: WorkspaceFolder[]) : void
@@ -381,6 +353,192 @@ export class RtagsManager implements Disposable
     {
         this.removeProjects(event.removed);
         this.addProjects(event.added);
+    }
+
+    private reindex(document?: TextDocument, saved: boolean = false) : void
+    {
+        if (document)
+        {
+            // Reindex only the document
+
+            if (!isSourceFile(document) || !this.isInProject(document.uri))
+            {
+                return;
+            }
+
+            const args =
+            [
+                saved ? "--check-reindex" : "--reindex",
+                document.uri.fsPath
+            ];
+
+            runRc(args, (_unused) => {}, this.getTextDocuments());
+
+            return;
+        }
+
+        const editor = window.activeTextEditor;
+        if (editor)
+        {
+            // Reindex the project to which the active document belongs
+
+            const activeDocPath = editor.document.uri;
+
+            const projectPath = this.getProjectPath(activeDocPath);
+            if (!projectPath)
+            {
+                return;
+            }
+
+            // Add the project to the indexing queue
+            const project: Project = {uri: projectPath, indexType: IndexType.Reindex};
+            this.indexNextProject(project);
+
+            return;
+        }
+
+        // Reindex the current project
+
+        const resolveCallback =
+            (projectPath?: Uri) : void =>
+            {
+                if (!projectPath)
+                {
+                    return;
+                }
+
+                // Add the project to the indexing queue
+                const project: Project = {uri: projectPath, indexType: IndexType.Reindex};
+                this.indexNextProject(project);
+            };
+
+        this.getCurrentProjectPath().then(resolveCallback);
+    }
+
+    private reindexOnChange(event: TextDocumentChangeEvent) : void
+    {
+        if (event.contentChanges.length === 0)
+        {
+            return;
+        }
+
+        if (this.reindexDelayTimer)
+        {
+            clearTimeout(this.reindexDelayTimer);
+        }
+
+        this.reindexDelayTimer =
+            setTimeout(() : void =>
+                       {
+                           this.reindex(event.document);
+                           this.reindexDelayTimer = null;
+                       },
+                       1000);
+    }
+
+    private reindexOnSave(document: TextDocument) : void
+    {
+        this.reindex(document, true);
+    }
+
+    private indexNextProject(enqueuedProject?: Project) : void
+    {
+        if (enqueuedProject)
+        {
+            this.projectIndexQueue.push(enqueuedProject);
+        }
+
+        // Allow indexing only one project at a time because RTags reports only a global status of whether or not
+        // it is currently indexing
+        if (!this.indexingProject)
+        {
+            const dequeuedProject = this.projectIndexQueue.shift();
+            if (dequeuedProject)
+            {
+                switch (dequeuedProject.indexType)
+                {
+                    case IndexType.Load:
+                        this.loadProject(dequeuedProject);
+                        break;
+
+                    case IndexType.Reindex:
+                        this.reindexProject(dequeuedProject);
+                        break;
+                }
+            }
+        }
+        else if (enqueuedProject)
+        {
+            const indexMsg = (enqueuedProject.indexType === IndexType.Load) ? "loading" : "reindexing";
+            window.showInformationMessage("[RTags] Project queued for " + indexMsg + ": " +
+                                          enqueuedProject.uri.fsPath);
+        }
+    }
+
+    private loadProject(project: Project) : void
+    {
+        const projectPath = project.uri.fsPath;
+
+        if (existsSync(projectPath + "/compile_commands.json"))
+        {
+            const rc = runRcSync(["--load-compile-commands", projectPath]);
+            if (rc.status === 0)
+            {
+                window.showInformationMessage("[RTags] Loading project: " + projectPath);
+                this.finishIndexingProject(project);
+            }
+        }
+    }
+
+    private reindexProject(project: Project) : void
+    {
+        const projectPath = project.uri.fsPath;
+
+        const rc = runRcSync(["--project", projectPath, "--reindex"], this.getTextDocuments());
+        if (rc.status === 0)
+        {
+            window.showInformationMessage("Reindexing project: " + projectPath);
+            this.finishIndexingProject(project);
+        }
+    }
+
+    private finishIndexingProject(project: Project) : void
+    {
+        this.indexingProject = project;
+
+        function isIndexingProject() : boolean
+        {
+            const rc = runRcSync(["--is-indexing"]);
+            if (rc.stdout && (rc.stdout.trim() === "1"))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        // Keep polling RTags until it is finished indexing the project
+        this.indexPollTimer =
+            setInterval(() : void =>
+                        {
+                            if (!isIndexingProject())
+                            {
+                                if (this.indexPollTimer)
+                                {
+                                    clearInterval(this.indexPollTimer);
+                                    this.indexPollTimer = null;
+                                }
+                                this.indexingProject = null;
+                                let indexMsg = "reindexing";
+                                if (project.indexType === IndexType.Load)
+                                {
+                                    this.projectPaths.push(project.uri);
+                                    indexMsg = "loading";
+                                }
+                                window.showInformationMessage("[RTags] Finished " + indexMsg + " project: " + project.uri.fsPath);
+                                this.indexNextProject();
+                            }
+                        },
+                        5000);
     }
 
     private startDiagnostics() : void
@@ -503,107 +661,14 @@ export class RtagsManager implements Disposable
         }
     }
 
-    private reindex(document?: TextDocument, saved: boolean = false) : void
-    {
-        if (document)
-        {
-            // Reindex only the document
-    
-            if (!this.isInProject(document.uri) || !isSourceFile(document))
-            {
-                return;
-            }
-
-            const args =
-            [
-                saved ? "--check-reindex" : "--reindex",
-                document.uri.fsPath
-            ];
-
-            runRc(args, (_unused) => {}, this.getTextDocuments());
-
-            return;
-        }
-
-        const editor = window.activeTextEditor;
-        if (editor)
-        {
-            // Reindex the project to which the active document belongs
-
-            const activeDocPath = editor.document.uri;
-
-            const projectPath = this.getProjectPath(activeDocPath);
-            if (!projectPath)
-            {
-                return;
-            }
-
-            const args =
-            [
-                "--current-file",
-                activeDocPath.fsPath,
-                "--reindex"
-            ];
-
-            window.showInformationMessage("Reindexing project: " + projectPath.fsPath);
-
-            runRc(args, (_unused) => {}, this.getTextDocuments());
-
-            return;
-        }
-
-        // Reindex the current project
-
-        const resolveCallback =
-            (projectPath?: Uri) : void =>
-            {
-                if (!projectPath)
-                {
-                    return;
-                }
-
-                window.showInformationMessage("Reindexing project: " + projectPath.fsPath);
-
-                runRc(["--reindex"], (_unused) => {}, this.getTextDocuments());
-            };
-
-        this.getCurrentProjectPath().then(resolveCallback);
-    }
-
-    private reindexOnChange(event: TextDocumentChangeEvent) : void
-    {
-        if (event.contentChanges.length === 0)
-        {
-            return;
-        }
-
-        if (this.reindexTimer)
-        {
-            clearTimeout(this.reindexTimer);
-        }
-
-        this.reindexTimer =
-            setTimeout(() : void =>
-                       {
-                           this.reindex(event.document);
-                           this.reindexTimer = null;
-                       },
-                       1000);
-    }
-
-    private reindexOnSave(document: TextDocument) : void
-    {
-        this.reindex(document, true);
-    }
-
-    private projectLoadQueue: Uri[] = [];
-    private loadingProjectPath: Nullable<Uri> = null;
+    private projectIndexQueue: Project[] = [];
+    private indexingProject: Nullable<Project> = null;
     private projectPaths: Uri[] = [];
     private diagnosticsEnabled: boolean = true;
     private diagnosticCollection: Nullable<DiagnosticCollection> = null;
     private diagnosticProcess: Nullable<ChildProcess> = null;
     private unprocessedDiagnostics: string = "";
-    private reindexTimer: Nullable<NodeJS.Timer> = null;
-    private loadTimer: Nullable<NodeJS.Timer> = null;
+    private reindexDelayTimer: Nullable<NodeJS.Timer> = null;
+    private indexPollTimer: Nullable<NodeJS.Timer> = null;
     private disposables: Disposable[] = [];
 }
