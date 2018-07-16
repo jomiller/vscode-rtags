@@ -446,30 +446,34 @@ export class RtagsManager implements Disposable
             this.projectIndexingQueue.push(enqueuedProject);
         }
 
+        let dequeuedProject: Project | undefined = undefined;
+
         // Allow indexing only one project at a time because RTags reports only a global status of whether or not
         // it is currently indexing
         if (!this.currentIndexingProject)
         {
-            const dequeuedProject = this.projectIndexingQueue.shift();
-            if (dequeuedProject)
-            {
-                switch (dequeuedProject.indexType)
-                {
-                    case IndexType.Load:
-                        this.loadProject(dequeuedProject);
-                        break;
-
-                    case IndexType.Reindex:
-                        this.reindexProject(dequeuedProject);
-                        break;
-                }
-            }
+            dequeuedProject = this.projectIndexingQueue.shift();
         }
-        else if (enqueuedProject)
+
+        if (enqueuedProject && (this.projectIndexingQueue.length !== 0))
         {
             const indexMsg = (enqueuedProject.indexType === IndexType.Load) ? "loading" : "reindexing";
             window.showInformationMessage("[RTags] Project queued for " + indexMsg + ": " +
                                           enqueuedProject.uri.fsPath);
+        }
+
+        if (dequeuedProject)
+        {
+            switch (dequeuedProject.indexType)
+            {
+                case IndexType.Load:
+                    this.loadProject(dequeuedProject);
+                    break;
+
+                case IndexType.Reindex:
+                    this.reindexProject(dequeuedProject);
+                    break;
+            }
         }
     }
 
@@ -495,7 +499,7 @@ export class RtagsManager implements Disposable
         const rc = runRcSync(["--project", projectPath, "--reindex"], this.getTextDocuments());
         if (rc.status === 0)
         {
-            window.showInformationMessage("Reindexing project: " + projectPath);
+            window.showInformationMessage("[RTags] Reindexing project: " + projectPath);
             this.finishIndexingProject(project);
         }
     }
