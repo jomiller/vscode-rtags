@@ -189,6 +189,8 @@ export class RtagsSymbolProvider implements
                 }
 
                 args.push(maxSearchResults.toString(),
+                          "--project",
+                          projectPath.fsPath,
                           "--path-filter",
                           projectPath.fsPath);
 
