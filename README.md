@@ -52,5 +52,3 @@ To use this extension you need to install [RTags](https://github.com/Andersbakke
 You may optionally start the RTags server:
 
     rdm --daemon
-
-## Known Issues
