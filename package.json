@@ -222,7 +222,7 @@
                 },
                 "rtags.enableCodeCompletion": {
                     "type": "boolean",
-                    "default": true,
+                    "default": false,
                     "description": "If true, code completion will be enabled",
                     "scope": "window"
                 },

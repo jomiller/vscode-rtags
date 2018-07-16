@@ -60,7 +60,7 @@ export class RtagsCompletionProvider implements
         this.rtagsMgr = rtagsMgr;
 
         const config = workspace.getConfiguration("rtags");
-        const enableCodeCompletion: boolean = config.get("enableCodeCompletion", true);
+        const enableCodeCompletion: boolean = config.get("enableCodeCompletion", false);
         if (!enableCodeCompletion)
         {
             return;
