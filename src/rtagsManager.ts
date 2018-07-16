@@ -227,17 +227,17 @@ export class RtagsManager implements Disposable
         return projectPath;
     }
 
-    public getCurrentProjectPath() : Thenable<Uri | undefined>
+    public getCurrentProjectPath() : Thenable<string | undefined>
     {
         const processCallback =
-            (output: string) : Uri | undefined =>
+            (output: string) : string | undefined =>
             {
                 if (!output)
                 {
                     return undefined;
                 }
-                const path = Uri.file(output.trim().replace(/\/$/, ""));
-                const pathExists = this.projectPaths.some((p) => { return (p.fsPath === path.fsPath); });
+                const path = output.trim().replace(/\/$/, "");
+                const pathExists = this.projectPaths.some((p) => { return (p.fsPath === path); });
                 return (pathExists ? path : undefined);
             };
 
@@ -398,7 +398,7 @@ export class RtagsManager implements Disposable
         // Reindex the current project
 
         const resolveCallback =
-            (projectPath?: Uri) : void =>
+            (projectPath?: string) : void =>
             {
                 if (!projectPath)
                 {
@@ -406,7 +406,7 @@ export class RtagsManager implements Disposable
                 }
 
                 // Add the project to the indexing queue
-                const project: Project = {uri: projectPath, indexType: IndexType.Reindex};
+                const project: Project = {uri: Uri.file(projectPath), indexType: IndexType.Reindex};
                 this.indexNextProject(project);
             };
 
@@ -504,37 +504,34 @@ export class RtagsManager implements Disposable
     {
         this.indexingProject = project;
 
-        function isIndexingProject() : boolean
-        {
-            const rc = runRcSync(["--is-indexing"]);
-            if (rc.stdout && (rc.stdout.trim() === "1"))
+        const resolveCallback =
+            (output: string) : void =>
             {
-                return true;
-            }
-            return false;
-        }
+                const indexingProject = (output === "1");
+                if (!indexingProject)
+                {
+                    if (this.indexPollTimer)
+                    {
+                        clearInterval(this.indexPollTimer);
+                        this.indexPollTimer = null;
+                    }
+                    this.indexingProject = null;
+                    let indexMsg = "reindexing";
+                    if (project.indexType === IndexType.Load)
+                    {
+                        this.projectPaths.push(project.uri);
+                        indexMsg = "loading";
+                    }
+                    window.showInformationMessage("[RTags] Finished " + indexMsg + " project: " + project.uri.fsPath);
+                    this.indexNextProject();
+                }
+            };
 
         // Keep polling RTags until it is finished indexing the project
         this.indexPollTimer =
             setInterval(() : void =>
                         {
-                            if (!isIndexingProject())
-                            {
-                                if (this.indexPollTimer)
-                                {
-                                    clearInterval(this.indexPollTimer);
-                                    this.indexPollTimer = null;
-                                }
-                                this.indexingProject = null;
-                                let indexMsg = "reindexing";
-                                if (project.indexType === IndexType.Load)
-                                {
-                                    this.projectPaths.push(project.uri);
-                                    indexMsg = "loading";
-                                }
-                                window.showInformationMessage("[RTags] Finished " + indexMsg + " project: " + project.uri.fsPath);
-                                this.indexNextProject();
-                            }
+                            runRc(["--is-indexing"], (output) => { return output.trim(); }).then(resolveCallback);
                         },
                         5000);
     }

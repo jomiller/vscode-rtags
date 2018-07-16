@@ -1,7 +1,7 @@
 'use strict';
 
 import { languages, window, workspace, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult,
-         SymbolInformation, SymbolKind, TextDocument, Uri, WorkspaceSymbolProvider } from 'vscode';
+         SymbolInformation, SymbolKind, TextDocument, WorkspaceSymbolProvider } from 'vscode';
 
 import { RtagsManager, runRc } from './rtagsManager';
 
@@ -181,7 +181,7 @@ export class RtagsSymbolProvider implements
         // Find symbols in the current project
 
         const resolveCallback =
-            (projectPath?: Uri) : Thenable<SymbolInformation[]> =>
+            (projectPath?: string) : Thenable<SymbolInformation[]> =>
             {
                 if (!projectPath)
                 {
@@ -190,9 +190,9 @@ export class RtagsSymbolProvider implements
 
                 args.push(maxSearchResults.toString(),
                           "--project",
-                          projectPath.fsPath,
+                          projectPath,
                           "--path-filter",
-                          projectPath.fsPath);
+                          projectPath);
 
                 return findSymbols(query, args);
             };
