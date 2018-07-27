@@ -315,19 +315,28 @@ export class RtagsDefinitionProvider implements
         ];
 
         const processCallback =
-            (output: string) : string =>
+            (output: string) : Optional<string> =>
             {
-                let _unused: string = "";
-                let definition: string = "";
-                [_unused, definition] = output.split('\t', 2).map((tok) => { return tok.trim(); });
-                return definition;
+                if (!output)
+                {
+                    return undefined;
+                }
+
+                let [_unused, context] = output.split('\t', 2).map((tok) => { return tok.trim(); });
+                _unused = _unused;
+                return context;
             };
 
         const resolveCallback =
-            (definition: string) : Optional<Hover> =>
+            (context?: string) : Optional<Hover> =>
             {
+                if (!context)
+                {
+                    return undefined;
+                }
+
                 // Hover text is not formatted properly unless a tab or 4 spaces are prepended
-                return ((definition.length !== 0) ? new Hover('\t' + definition) : undefined);
+                return new Hover('\t' + context);
             };
 
         return runRc(args, processCallback).then(resolveCallback);
