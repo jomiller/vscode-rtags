@@ -11,7 +11,7 @@ import { setTimeout, clearTimeout, setInterval, clearInterval } from 'timers';
 
 import { existsSync } from 'fs';
 
-import { Nullable, isSourceFile, isUnsavedSourceFile } from './rtagsUtil';
+import { Nullable, Optional, isSourceFile, isUnsavedSourceFile } from './rtagsUtil';
 
 enum IndexType
 {
@@ -212,7 +212,7 @@ export class RtagsManager implements Disposable
         return this.projectPaths;
     }
 
-    public getProjectPath(uri: Uri) : Uri | undefined
+    public getProjectPath(uri: Uri) : Optional<Uri>
     {
         const candidatePaths = this.projectPaths.filter((p) => { return (uri.fsPath.startsWith(p.fsPath)); });
         let projectPath = candidatePaths.pop();
@@ -227,10 +227,10 @@ export class RtagsManager implements Disposable
         return projectPath;
     }
 
-    public getCurrentProjectPath() : Thenable<string | undefined>
+    public getCurrentProjectPath() : Thenable<Optional<string>>
     {
         const processCallback =
-            (output: string) : string | undefined =>
+            (output: string) : Optional<string> =>
             {
                 if (!output)
                 {
@@ -446,7 +446,7 @@ export class RtagsManager implements Disposable
             this.projectIndexingQueue.push(enqueuedProject);
         }
 
-        let dequeuedProject: Project | undefined = undefined;
+        let dequeuedProject: Optional<Project> = undefined;
 
         // Allow indexing only one project at a time because RTags reports only a global status of whether or not
         // it is currently indexing

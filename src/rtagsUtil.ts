@@ -4,6 +4,7 @@ import { commands, languages, window, DocumentFilter, Location, Position, Range,
          Uri } from 'vscode';
 
 export type Nullable<T> = T | null;
+export type Optional<T> = T | undefined;
 
 export interface Locatable
 {

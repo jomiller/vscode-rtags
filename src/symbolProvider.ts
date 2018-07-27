@@ -5,9 +5,9 @@ import { languages, window, workspace, CancellationToken, Disposable, DocumentSy
 
 import { RtagsManager, runRc } from './rtagsManager';
 
-import { SourceFileSelector, fromRtagsLocation } from './rtagsUtil';
+import { Optional, SourceFileSelector, fromRtagsLocation } from './rtagsUtil';
 
-function toSymbolKind(kind: string) : SymbolKind | undefined
+function toSymbolKind(kind: string) : Optional<SymbolKind>
 {
     switch (kind)
     {

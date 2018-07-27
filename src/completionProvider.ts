@@ -165,7 +165,7 @@ export class RtagsCompletionProvider implements
     {
         if (!this.rtagsMgr.isInProject(document.uri))
         {
-            return null;
+            return undefined;
         }
 
         const config = workspace.getConfiguration("rtags", document.uri);

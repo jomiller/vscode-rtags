@@ -7,7 +7,7 @@ import { commands, languages, window, CancellationToken, Definition, DefinitionP
 
 import { RtagsManager, runRc } from './rtagsManager';
 
-import { Nullable, SourceFileSelector, isUnsavedSourceFile, showReferences, fromRtagsLocation, toRtagsLocation }
+import { Optional, SourceFileSelector, isUnsavedSourceFile, showReferences, fromRtagsLocation, toRtagsLocation }
          from './rtagsUtil';
 
 enum ReferenceType
@@ -140,7 +140,7 @@ export class RtagsDefinitionProvider implements
     {
         if (!this.rtagsMgr.isInProject(document.uri))
         {
-            return null;
+            return undefined;
         }
 
         return getDefinitions(document.uri, position);
@@ -151,7 +151,7 @@ export class RtagsDefinitionProvider implements
     {
         if (!this.rtagsMgr.isInProject(document.uri))
         {
-            return null;
+            return undefined;
         }
 
         const location = toRtagsLocation(document.uri, position);
@@ -166,7 +166,7 @@ export class RtagsDefinitionProvider implements
         ];
 
         const processCallback =
-            (output: string) : Nullable<string> =>
+            (output: string) : Optional<string> =>
             {
                 let jsonObj;
                 try
@@ -175,13 +175,13 @@ export class RtagsDefinitionProvider implements
                 }
                 catch (_err)
                 {
-                    return null;
+                    return undefined;
                 }
 
                 const symbolKind = jsonObj.kind;
                 if (!symbolKind)
                 {
-                    return null;
+                    return undefined;
                 }
                 const symbolKinds =
                 [
@@ -200,20 +200,20 @@ export class RtagsDefinitionProvider implements
                 ];
                 if (!symbolKinds.includes(symbolKind))
                 {
-                    return null;
+                    return undefined;
                 }
 
                 const qualSymbolType = jsonObj.type;
                 if (!qualSymbolType)
                 {
-                    return null;
+                    return undefined;
                 }
                 const unqualSymbolType = qualSymbolType.replace(/const|volatile|&|\*|(=>.*)$/g, "");
                 return unqualSymbolType.trim();
             };
 
         const resolveCallback =
-            (symbolType: Nullable<string>) : ProviderResult<Location[]> =>
+            (symbolType?: string) : ProviderResult<Location[]> =>
             {
                 if (!symbolType)
                 {
@@ -240,7 +240,7 @@ export class RtagsDefinitionProvider implements
     {
         if (!this.rtagsMgr.isInProject(document.uri))
         {
-            return null;
+            return undefined;
         }
 
         return getDefinitions(document.uri, position);
@@ -268,7 +268,7 @@ export class RtagsDefinitionProvider implements
     {
         if (!this.rtagsMgr.isInProject(document.uri))
         {
-            return null;
+            return undefined;
         }
 
         const unsavedDocExists: boolean =
@@ -277,7 +277,7 @@ export class RtagsDefinitionProvider implements
         if (unsavedDocExists)
         {
             window.showInformationMessage("[RTags] Save all source files before renaming a symbol");
-            return null;
+            return undefined;
         }
 
         const wr = document.getWordRangeAtPosition(position);
@@ -302,7 +302,7 @@ export class RtagsDefinitionProvider implements
     {
         if (!this.rtagsMgr.isInProject(document.uri))
         {
-            return null;
+            return undefined;
         }
 
         const location = toRtagsLocation(document.uri, position);
@@ -324,10 +324,10 @@ export class RtagsDefinitionProvider implements
             };
 
         const resolveCallback =
-            (definition: string) : Nullable<Hover> =>
+            (definition: string) : Optional<Hover> =>
             {
                 // Hover text is not formatted properly unless a tab or 4 spaces are prepended
-                return ((definition.length !== 0) ? new Hover('\t' + definition) : null);
+                return ((definition.length !== 0) ? new Hover('\t' + definition) : undefined);
             };
 
         return runRc(args, processCallback).then(resolveCallback);
