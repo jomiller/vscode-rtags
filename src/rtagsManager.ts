@@ -189,9 +189,9 @@ export class RtagsManager implements Disposable
         }
 
         this.disposables.push(
-            commands.registerCommand("rtags.freshenIndex", this.reindex, this),
-            workspace.onDidChangeTextDocument(this.reindexOnChange, this),
-            workspace.onDidSaveTextDocument(this.reindexOnSave, this),
+            commands.registerCommand("rtags.freshenIndex", this.reindexActiveProject, this),
+            workspace.onDidChangeTextDocument(this.reindexChangedDocument, this),
+            workspace.onDidSaveTextDocument(this.reindexSavedDocument, this),
             workspace.onDidChangeWorkspaceFolders(this.updateProjects, this));
 
         this.addProjects(workspace.workspaceFolders);
@@ -355,28 +355,50 @@ export class RtagsManager implements Disposable
         this.addProjects(event.added);
     }
 
-    private reindex(document?: TextDocument, saved: boolean = false) : void
+    private reindexDocument(document: TextDocument, saved: boolean = false) : void
     {
-        if (document)
+        if (!isSourceFile(document) || !this.isInProject(document.uri))
         {
-            // Reindex only the document
-
-            if (!isSourceFile(document) || !this.isInProject(document.uri))
-            {
-                return;
-            }
-
-            const args =
-            [
-                saved ? "--check-reindex" : "--reindex",
-                document.uri.fsPath
-            ];
-
-            runRc(args, (_unused) => {}, this.getTextDocuments());
-
             return;
         }
 
+        const args =
+        [
+            saved ? "--check-reindex" : "--reindex",
+            document.uri.fsPath
+        ];
+
+        runRc(args, (_unused) => {}, this.getTextDocuments());
+    }
+
+    private reindexChangedDocument(event: TextDocumentChangeEvent) : void
+    {
+        if (event.contentChanges.length === 0)
+        {
+            return;
+        }
+
+        if (this.reindexDelayTimer)
+        {
+            clearTimeout(this.reindexDelayTimer);
+        }
+
+        this.reindexDelayTimer =
+            setTimeout(() : void =>
+                       {
+                           this.reindexDocument(event.document);
+                           this.reindexDelayTimer = null;
+                       },
+                       1000);
+    }
+
+    private reindexSavedDocument(document: TextDocument) : void
+    {
+        this.reindexDocument(document, true);
+    }
+
+    private reindexActiveProject() : void
+    {
         const editor = window.activeTextEditor;
         if (editor)
         {
@@ -411,32 +433,6 @@ export class RtagsManager implements Disposable
             };
 
         this.getCurrentProjectPath().then(resolveCallback);
-    }
-
-    private reindexOnChange(event: TextDocumentChangeEvent) : void
-    {
-        if (event.contentChanges.length === 0)
-        {
-            return;
-        }
-
-        if (this.reindexDelayTimer)
-        {
-            clearTimeout(this.reindexDelayTimer);
-        }
-
-        this.reindexDelayTimer =
-            setTimeout(() : void =>
-                       {
-                           this.reindex(event.document);
-                           this.reindexDelayTimer = null;
-                       },
-                       1000);
-    }
-
-    private reindexOnSave(document: TextDocument) : void
-    {
-        this.reindex(document, true);
     }
 
     private indexNextProject(enqueuedProject?: Project) : void
