@@ -636,17 +636,23 @@ export class RtagsManager implements Disposable
 
             for (const d of jsonObj.checkStyle[file])
             {
-                const pos = new Position(d.line - 1, d.column - 1);
-
-                const diag: Diagnostic =
+                try
                 {
-                    message: d.message,
-                    range: new Range(pos, pos),
-                    severity: DiagnosticSeverity.Error,
-                    source: "RTags",
-                    code: 0
-                };
-                diagnostics.push(diag);
+                    const pos = new Position(d.line - 1, d.column - 1);
+
+                    const diag: Diagnostic =
+                    {
+                        message: d.message,
+                        range: new Range(pos, pos),
+                        severity: DiagnosticSeverity.Error,
+                        source: "RTags",
+                        code: 0
+                    };
+                    diagnostics.push(diag);
+                }
+                catch (_err)
+                {
+                }
             }
 
             if (this.diagnosticCollection)
