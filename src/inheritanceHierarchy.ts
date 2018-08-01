@@ -213,7 +213,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
                 {
                     if (nodes.length === 0)
                     {
-                        return Promise.resolve([]);
+                        return Promise.resolve([] as InheritanceNode[]);
                     }
 
                     const baseResolveCallback =

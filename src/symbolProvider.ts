@@ -185,7 +185,7 @@ export class RtagsSymbolProvider implements
             {
                 if (!projectPath)
                 {
-                    return Promise.resolve([]);
+                    return Promise.resolve([] as SymbolInformation[]);
                 }
 
                 args.push(maxSearchResults.toString(),
