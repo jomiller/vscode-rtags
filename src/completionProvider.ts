@@ -6,7 +6,7 @@ import { languages, workspace, CancellationToken, CompletionItemKind, Completion
 
 import { RtagsManager, runRc } from './rtagsManager';
 
-import { SourceFileSelector, toRtagsLocation } from './rtagsUtil';
+import { Optional, SourceFileSelector, toRtagsLocation } from './rtagsUtil';
 
 function toCompletionItemKind(kind: string) : CompletionItemKind
 {
@@ -110,14 +110,28 @@ export class RtagsCompletionProvider implements
         }
 
         const processCallback =
-            (output: string) : CompletionList =>
+            (output: string) : Optional<CompletionList> =>
             {
-                let completionItems: CompletionItem[] = [];
-
+                let jsonObj;
                 try
                 {
-                    const jsonObj = JSON.parse(output);
-                    for (const c of jsonObj.completions)
+                    jsonObj = JSON.parse(output);
+                }
+                catch (_err)
+                {
+                    return undefined;
+                }
+
+                if (!jsonObj.completions)
+                {
+                    return undefined;
+                }
+
+                let completionItems: CompletionItem[] = [];
+
+                for (const c of jsonObj.completions)
+                {
+                    try
                     {
                         const sortText: string = ("00" + c.priority.toString()).slice(-2);
                         const kind = toCompletionItemKind(c.kind);
@@ -143,15 +157,15 @@ export class RtagsCompletionProvider implements
                             insertText: insert
                         };
                         completionItems.push(item);
-
-                        if (completionItems.length === maxCompletionResults)
-                        {
-                            break;
-                        }
                     }
-                }
-                catch (_err)
-                {
+                    catch (_err)
+                    {
+                    }
+
+                    if (completionItems.length === maxCompletionResults)
+                    {
+                        break;
+                    }
                 }
 
                 return new CompletionList(completionItems, completionItems.length >= maxCompletionResults);
@@ -197,15 +211,29 @@ export class RtagsCompletionProvider implements
         }
 
         const processCallback =
-            (output: string) : SignatureHelp =>
+            (output: string) : Optional<SignatureHelp> =>
             {
+                let jsonObj;
+                try
+                {
+                    jsonObj = JSON.parse(output);
+                }
+                catch (_err)
+                {
+                    return undefined;
+                }
+
+                if (!jsonObj.completions)
+                {
+                    return undefined;
+                }
+
                 let signatures: SignatureInformation[] = [];
                 let activeSigIndex = -1;
 
-                try
+                for (const c of jsonObj.completions)
                 {
-                    const jsonObj = JSON.parse(output);
-                    for (const c of jsonObj.completions)
+                    try
                     {
                         if (c.kind !== "OverloadCandidate")
                         {
@@ -237,15 +265,15 @@ export class RtagsCompletionProvider implements
                                 activeSigIndex = signatures.length - 1;
                             }
                         }
-
-                        if (signatures.length === maxCompletionResults)
-                        {
-                            break;
-                        }
                     }
-                }
-                catch (_err)
-                {
+                    catch (_err)
+                    {
+                    }
+
+                    if (signatures.length === maxCompletionResults)
+                    {
+                        break;
+                    }
                 }
 
                 const signatureHelp: SignatureHelp =

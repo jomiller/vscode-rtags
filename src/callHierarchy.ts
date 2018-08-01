@@ -48,12 +48,21 @@ function getCallers(uri: Uri, position: Position) : Thenable<Caller[]>
     const processCallback =
         (output: string) : Caller[] =>
         {
-            let callers: Caller[] = [];
-
+            let jsonObj;
             try
             {
-                const jsonObj = JSON.parse(output);
-                for (const c of jsonObj)
+                jsonObj = JSON.parse(output);
+            }
+            catch (_err)
+            {
+                return [];
+            }
+
+            let callers: Caller[] = [];
+
+            for (const c of jsonObj)
+            {
+                try
                 {
                     const caller: Caller =
                     {
@@ -63,9 +72,9 @@ function getCallers(uri: Uri, position: Position) : Thenable<Caller[]>
                     };
                     callers.push(caller);
                 }
-            }
-            catch (_err)
-            {
+                catch (_err)
+                {
+                }
             }
 
             return callers;
