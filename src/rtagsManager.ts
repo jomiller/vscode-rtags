@@ -31,11 +31,11 @@ function getRcExecutable() : string
     return config.get("rcExecutable", "rc");
 }
 
-export function runRc(args: string[], process: (stdout: string) => any, documents: TextDocument[] = []) :
-    Thenable<any>
+export function runRc<T>(args: string[], process: (stdout: string) => T, documents: TextDocument[] = []) :
+    Thenable<T>
 {
     const executorCallback =
-        (resolve: (value?: any) => any, _reject: (reason?: any) => any) : void =>
+        (resolve: (value?: T) => void, _reject: (reason?: any) => void) : void =>
         {
             const unsavedDocs = documents.filter((doc) => { return isUnsavedSourceFile(doc); });
             for (const doc of unsavedDocs)
@@ -72,7 +72,7 @@ export function runRc(args: string[], process: (stdout: string) => any, document
                             window.showErrorMessage(message);
                         }
 
-                        resolve([]);
+                        resolve({} as T);
                         return;
                     }
 

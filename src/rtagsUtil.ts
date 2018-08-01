@@ -31,7 +31,7 @@ export function isUnsavedSourceFile(document: TextDocument) : boolean
     return isSourceFile(document);
 }
 
-export function setContext(name: any, value: any) : void
+export function setContext<T>(name: string, value: T) : void
 {
     commands.executeCommand("setContext", name, value);
 }

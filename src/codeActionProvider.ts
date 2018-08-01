@@ -73,7 +73,7 @@ export class RtagsCodeActionProvider implements
         return runRc(["--fixits", document.fileName], processCallback);
     }
 
-    private runCodeAction(document: TextDocument, range: Range, newText: string) : any
+    private runCodeAction(document: TextDocument, range: Range, newText: string) : Thenable<boolean>
     {
         let edit = new WorkspaceEdit();
         edit.replace(document.uri, range, newText);
