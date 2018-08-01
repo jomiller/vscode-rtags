@@ -7,8 +7,8 @@ import { commands, languages, window, CancellationToken, Definition, DefinitionP
 
 import { RtagsManager, runRc } from './rtagsManager';
 
-import { Optional, SourceFileSelector, isUnsavedSourceFile, showReferences, fromRtagsLocation, toRtagsLocation }
-         from './rtagsUtil';
+import { Optional, SourceFileSelector, isUnsavedSourceFile, showReferences, fromRtagsLocation, toRtagsLocation,
+         parseJson } from './rtagsUtil';
 
 enum ReferenceType
 {
@@ -168,12 +168,8 @@ export class RtagsDefinitionProvider implements
         const processCallback =
             (output: string) : Optional<string> =>
             {
-                let jsonObj;
-                try
-                {
-                    jsonObj = JSON.parse(output);
-                }
-                catch (_err)
+                const jsonObj = parseJson(output);
+                if (!jsonObj)
                 {
                     return undefined;
                 }

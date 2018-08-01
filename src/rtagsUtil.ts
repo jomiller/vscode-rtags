@@ -62,3 +62,16 @@ export function jumpToLocation(uri: Uri, range: Range) : void
     const options: TextDocumentShowOptions = {selection: range};
     window.showTextDocument(uri, options);
 }
+
+export function parseJson(input: string) : any
+{
+    let jsonObj: any = undefined;
+    try
+    {
+        jsonObj = JSON.parse(input);
+    }
+    catch (_err)
+    {
+    }
+    return jsonObj;
+}

@@ -7,7 +7,8 @@ import { basename } from 'path';
 
 import { RtagsManager, runRc } from './rtagsManager';
 
-import { Nullable, Locatable, setContext, showReferences, fromRtagsLocation, toRtagsLocation } from './rtagsUtil';
+import { Nullable, Locatable, setContext, showReferences, fromRtagsLocation, toRtagsLocation, parseJson }
+         from './rtagsUtil';
 
 interface Caller extends Locatable
 {
@@ -15,8 +16,13 @@ interface Caller extends Locatable
     containerLocation: Location;
 }
 
-function isFunctionKind(symbolKind: string) : boolean
+function isFunctionKind(symbolKind?: string) : boolean
 {
+    if (!symbolKind)
+    {
+        return false;
+    }
+
     const functionKinds =
     [
         "CXXConstructor",
@@ -48,12 +54,8 @@ function getCallers(uri: Uri, position: Position) : Thenable<Caller[]>
     const processCallback =
         (output: string) : Caller[] =>
         {
-            let jsonObj;
-            try
-            {
-                jsonObj = JSON.parse(output);
-            }
-            catch (_err)
+            const jsonObj = parseJson(output);
+            if (!jsonObj)
             {
                 return [];
             }
@@ -128,29 +130,11 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                 const processCallback =
                     (output: string) : void =>
                     {
-                        function isFunction(symbolInfo: string) : boolean
-                        {
-                            let jsonObj;
-                            try
-                            {
-                                jsonObj = JSON.parse(symbolInfo);
-                            }
-                            catch (_err)
-                            {
-                                return false;
-                            }
+                        const jsonObj = parseJson(output);
 
-                            const symbolKind = jsonObj.kind;
-                            if (!symbolKind)
-                            {
-                                return false;
-                            }
-
-                            return isFunctionKind(symbolKind);
-                        }
-
-                        let promise = isFunction(output) ? getCallers(document.uri, position) :
-                                                           Promise.resolve([] as Caller[]);
+                        let promise = (jsonObj && isFunctionKind(jsonObj.kind)) ?
+                                      getCallers(document.uri, position) :
+                                      Promise.resolve([] as Caller[]);
 
                         const resolveCallback =
                             (callers: Caller[]) : void =>
@@ -222,29 +206,19 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
             const processCallback =
                 (output: string) : Caller[] =>
                 {
-                    let jsonObj;
-                    try
+                    const jsonObj = parseJson(output);
+                    if (!jsonObj)
                     {
-                        jsonObj = JSON.parse(output);
+                        return [];
                     }
-                    catch (_err)
+
+                    if (!isFunctionKind(jsonObj.kind))
                     {
                         return [];
                     }
 
                     const symbolName = jsonObj.symbolName;
                     if (!symbolName)
-                    {
-                        return [];
-                    }
-
-                    const symbolKind = jsonObj.kind;
-                    if (!symbolKind)
-                    {
-                        return [];
-                    }
-
-                    if (!isFunctionKind(symbolKind))
                     {
                         return [];
                     }

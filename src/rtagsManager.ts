@@ -11,7 +11,7 @@ import { setTimeout, clearTimeout, setInterval, clearInterval } from 'timers';
 
 import { existsSync } from 'fs';
 
-import { Nullable, Optional, isSourceFile, isUnsavedSourceFile } from './rtagsUtil';
+import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, parseJson } from './rtagsUtil';
 
 enum IndexType
 {
@@ -602,12 +602,8 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        let jsonObj;
-        try
-        {
-            jsonObj = JSON.parse(output);
-        }
-        catch (_err)
+        const jsonObj = parseJson(output);
+        if (!jsonObj)
         {
             window.showErrorMessage("[RTags] Diagnostics parse error: " + output);
             return;

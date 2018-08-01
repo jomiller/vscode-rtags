@@ -6,7 +6,7 @@ import { languages, workspace, CancellationToken, CompletionItemKind, Completion
 
 import { RtagsManager, runRc } from './rtagsManager';
 
-import { Optional, SourceFileSelector, toRtagsLocation } from './rtagsUtil';
+import { Optional, SourceFileSelector, toRtagsLocation, parseJson } from './rtagsUtil';
 
 function toCompletionItemKind(kind: string) : CompletionItemKind
 {
@@ -112,17 +112,8 @@ export class RtagsCompletionProvider implements
         const processCallback =
             (output: string) : Optional<CompletionList> =>
             {
-                let jsonObj;
-                try
-                {
-                    jsonObj = JSON.parse(output);
-                }
-                catch (_err)
-                {
-                    return undefined;
-                }
-
-                if (!jsonObj.completions)
+                const jsonObj = parseJson(output);
+                if (!jsonObj || !jsonObj.completions)
                 {
                     return undefined;
                 }
@@ -213,17 +204,8 @@ export class RtagsCompletionProvider implements
         const processCallback =
             (output: string) : Optional<SignatureHelp> =>
             {
-                let jsonObj;
-                try
-                {
-                    jsonObj = JSON.parse(output);
-                }
-                catch (_err)
-                {
-                    return undefined;
-                }
-
-                if (!jsonObj.completions)
+                const jsonObj = parseJson(output);
+                if (!jsonObj || !jsonObj.completions)
                 {
                     return undefined;
                 }
