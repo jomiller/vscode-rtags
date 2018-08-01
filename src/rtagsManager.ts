@@ -72,7 +72,7 @@ export function runRc<T>(args: string[], process: (stdout: string) => T, documen
                             window.showErrorMessage(message);
                         }
 
-                        resolve(undefined);
+                        resolve();
                         return;
                     }
 
