@@ -15,6 +15,21 @@ interface Caller extends Locatable
     containerLocation: Location;
 }
 
+function isFunctionKind(symbolKind: string) : boolean
+{
+    const functionKinds =
+    [
+        "CXXConstructor",
+        "CXXDestructor",
+        "CXXMethod",
+        "FunctionDecl",
+        "MemberRefExpr",
+        "DeclRefExpr"
+    ];
+
+    return functionKinds.includes(symbolKind);
+}
+
 function getCallers(uri: Uri, position: Position) : Thenable<Caller[]>
 {
     const location = toRtagsLocation(uri, position);
@@ -90,14 +105,55 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                     return;
                 }
 
-                const resolveCallback =
-                    (callers: Caller[]) : void =>
+                const location = toRtagsLocation(document.uri, position);
+
+                const args =
+                [
+                    "--json",
+                    "--absolute-path",
+                    "--no-context",
+                    "--symbol-info",
+                    location
+                ];
+
+                const processCallback =
+                    (output: string) : void =>
                     {
-                        const locations: Location[] = callers.map((c) => { return c.location; });
-                        showReferences(document.uri, position, locations);
+                        function isFunction(symbolInfo: string) : boolean
+                        {
+                            let jsonObj;
+                            try
+                            {
+                                jsonObj = JSON.parse(symbolInfo);
+                            }
+                            catch (_err)
+                            {
+                                return false;
+                            }
+
+                            const symbolKind = jsonObj.kind;
+                            if (!symbolKind)
+                            {
+                                return false;
+                            }
+
+                            return isFunctionKind(symbolKind);
+                        }
+
+                        let promise = isFunction(output) ? getCallers(document.uri, position) :
+                                                           Promise.resolve([] as Caller[]);
+
+                        const resolveCallback =
+                            (callers: Caller[]) : void =>
+                            {
+                                const locations: Location[] = callers.map((c) => { return c.location; });
+                                showReferences(document.uri, position, locations);
+                            };
+
+                        promise.then(resolveCallback);
                     };
 
-                getCallers(document.uri, position).then(resolveCallback);
+                runRc(args, processCallback);
             };
 
         this.disposables.push(
@@ -154,7 +210,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                 location
             ];
 
-            const resolveCallback =
+            const processCallback =
                 (output: string) : Caller[] =>
                 {
                     let jsonObj;
@@ -179,17 +235,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                         return [];
                     }
 
-                    const symbolKinds =
-                    [
-                        "CXXConstructor",
-                        "CXXDestructor",
-                        "CXXMethod",
-                        "FunctionDecl",
-                        "VarDecl",
-                        "MemberRefExpr",
-                        "DeclRefExpr"
-                    ];
-                    if (!symbolKinds.includes(symbolKind))
+                    if (!isFunctionKind(symbolKind))
                     {
                         return [];
                     }
@@ -211,7 +257,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                     return [root];
                 };
 
-            return runRc(args, (output) => { return output; }).then(resolveCallback);
+            return runRc(args, processCallback);
         }
 
         return getCallers(element.containerLocation.uri, element.containerLocation.range.start);
