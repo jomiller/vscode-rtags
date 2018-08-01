@@ -51,7 +51,7 @@ function toSymbolKind(kind: string) : Optional<SymbolKind>
     return undefined;
 }
 
-function findSymbols(query: string, args: string[] = []) : Thenable<SymbolInformation[]>
+function findSymbols(query: string, args: string[] = []) : Thenable<Optional<SymbolInformation[]>>
 {
     query += '*';
 
@@ -181,7 +181,7 @@ export class RtagsSymbolProvider implements
         // Find symbols in the current project
 
         const resolveCallback =
-            (projectPath?: string) : Thenable<SymbolInformation[]> =>
+            (projectPath?: string) : Thenable<Optional<SymbolInformation[]>> =>
             {
                 if (!projectPath)
                 {

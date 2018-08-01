@@ -32,7 +32,7 @@ function getRcExecutable() : string
 }
 
 export function runRc<T>(args: string[], process: (stdout: string) => T, documents: TextDocument[] = []) :
-    Thenable<T>
+    Thenable<Optional<T>>
 {
     const executorCallback =
         (resolve: (value?: T) => void, _reject: (reason?: any) => void) : void =>
@@ -72,7 +72,7 @@ export function runRc<T>(args: string[], process: (stdout: string) => T, documen
                             window.showErrorMessage(message);
                         }
 
-                        resolve({} as T);
+                        resolve(undefined);
                         return;
                     }
 
@@ -91,7 +91,7 @@ export function runRc<T>(args: string[], process: (stdout: string) => T, documen
             }
         };
 
-    return new Promise(executorCallback);
+    return new Promise<T>(executorCallback);
 }
 
 function runRcSync(args: string[], documents: TextDocument[] = []) : SpawnSyncReturns<string>

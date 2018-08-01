@@ -19,7 +19,7 @@ enum ReferenceType
     Virtuals
 }
 
-function getLocations(args: string[]) : Thenable<Location[]>
+function getLocations(args: string[]) : Thenable<Optional<Location[]>>
 {
     const processCallback =
         (output: string) : Location[] =>
@@ -39,7 +39,7 @@ function getLocations(args: string[]) : Thenable<Location[]>
 }
 
 function getDefinitions(uri: Uri, position: Position, type: ReferenceType = ReferenceType.Definition) :
-    Thenable<Location[]>
+    Thenable<Optional<Location[]>>
 {
     const location = toRtagsLocation(uri, position);
 
@@ -103,9 +103,12 @@ export class RtagsDefinitionProvider implements
                         }
 
                         const resolveCallback =
-                            (locations: Location[]) : void =>
+                            (locations?: Location[]) : void =>
                             {
-                                showReferences(document.uri, position, locations);
+                                if (locations)
+                                {
+                                    showReferences(document.uri, position, locations);
+                                }
                             };
 
                         getDefinitions(document.uri, position, type).then(resolveCallback);
@@ -282,13 +285,16 @@ export class RtagsDefinitionProvider implements
         const diff = wr ? (wr.end.character - wr.start.character) : undefined;
 
         const resolveCallback =
-            (locations: Location[]) : WorkspaceEdit =>
+            (locations?: Location[]) : WorkspaceEdit =>
             {
                 let edit = new WorkspaceEdit();
-                for (const l of locations)
+                if (locations)
                 {
-                    const end = l.range.end.translate(0, diff);
-                    edit.replace(l.uri, new Range(l.range.start, end), newName);
+                    for (const l of locations)
+                    {
+                        const end = l.range.end.translate(0, diff);
+                        edit.replace(l.uri, new Range(l.range.start, end), newName);
+                    }
                 }
                 return edit;
             };

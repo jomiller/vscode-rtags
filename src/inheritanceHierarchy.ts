@@ -7,8 +7,8 @@ import { basename } from 'path';
 
 import { RtagsManager, runRc } from './rtagsManager';
 
-import { Nullable, Locatable, setContext, showReferences, fromRtagsLocation, toRtagsLocation, jumpToLocation }
-         from './rtagsUtil';
+import { Nullable, Optional, Locatable, setContext, showReferences, fromRtagsLocation, toRtagsLocation,
+         jumpToLocation } from './rtagsUtil';
 
 enum NodeType
 {
@@ -31,7 +31,7 @@ interface InheritanceNode extends Locatable
     name: string;
 }
 
-function getClasses(classType: ClassType, uri: Uri, position: Position) : Thenable<InheritanceNode[]>
+function getClasses(classType: ClassType, uri: Uri, position: Position) : Thenable<Optional<InheritanceNode[]>>
 {
     const location = toRtagsLocation(uri, position);
 
@@ -142,8 +142,13 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
                 }
 
                 const resolveCallback =
-                    (nodes: InheritanceNode[]) : void =>
+                    (nodes?: InheritanceNode[]) : void =>
                     {
+                        if (!nodes)
+                        {
+                            return;
+                        }
+
                         if (nodes.length === 1)
                         {
                             jumpToLocation(nodes[0].location.uri, nodes[0].location.range);
@@ -209,16 +214,21 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
             }
 
             const resolveCallback =
-                (nodes: InheritanceNode[]) : Thenable<InheritanceNode[]> =>
+                (nodes?: InheritanceNode[]) : Thenable<InheritanceNode[]> =>
                 {
-                    if (nodes.length === 0)
+                    if (!nodes || (nodes.length === 0))
                     {
                         return Promise.resolve([] as InheritanceNode[]);
                     }
 
                     const baseResolveCallback =
-                        (baseNodes: InheritanceNode[]) : InheritanceNode[] =>
+                        (baseNodes?: InheritanceNode[]) : InheritanceNode[] =>
                         {
+                            if (!baseNodes)
+                            {
+                                return [];
+                            }
+
                             const classType = (baseNodes.length === 0) ? ClassType.Derived : ClassType.Base;
 
                             const root: InheritanceNode =
@@ -243,8 +253,13 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
             let promise = getClasses(ClassType.Derived, element.location.uri, element.location.range.start);
 
             const resolveCallback =
-                (derivedNodes: InheritanceNode[]) : InheritanceNode[] =>
+                (derivedNodes?: InheritanceNode[]) : InheritanceNode[] =>
                 {
+                    if (!derivedNodes)
+                    {
+                        return [];
+                    }
+
                     if (element.classType === ClassType.Base)
                     {
                         const baseRoot: InheritanceNode =

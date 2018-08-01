@@ -7,7 +7,7 @@ import { basename } from 'path';
 
 import { RtagsManager, runRc } from './rtagsManager';
 
-import { Nullable, Locatable, setContext, showReferences, fromRtagsLocation, toRtagsLocation, parseJson }
+import { Nullable, Optional, Locatable, setContext, showReferences, fromRtagsLocation, toRtagsLocation, parseJson }
          from './rtagsUtil';
 
 interface Caller extends Locatable
@@ -36,7 +36,7 @@ function isFunctionKind(symbolKind?: string) : boolean
     return functionKinds.includes(symbolKind);
 }
 
-function getCallers(uri: Uri, position: Position) : Thenable<Caller[]>
+function getCallers(uri: Uri, position: Position) : Thenable<Optional<Caller[]>>
 {
     const location = toRtagsLocation(uri, position);
 
@@ -137,8 +137,13 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                                       Promise.resolve([] as Caller[]);
 
                         const resolveCallback =
-                            (callers: Caller[]) : void =>
+                            (callers?: Caller[]) : void =>
                             {
+                                if (!callers)
+                                {
+                                    return;
+                                }
+
                                 const locations: Location[] = callers.map((c) => { return c.location; });
                                 showReferences(document.uri, position, locations);
                             };
