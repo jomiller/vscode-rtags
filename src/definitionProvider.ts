@@ -183,6 +183,7 @@ export class RtagsDefinitionProvider implements
                 {
                     return undefined;
                 }
+
                 const symbolKinds =
                 [
                     "ClassDecl",
@@ -203,13 +204,14 @@ export class RtagsDefinitionProvider implements
                     return undefined;
                 }
 
-                const qualSymbolType = jsonObj.type;
-                if (!qualSymbolType)
+                const symbolType = jsonObj.type;
+                if (!symbolType)
                 {
                     return undefined;
                 }
-                const unqualSymbolType = qualSymbolType.replace(/const|volatile|&|\*|(=>.*)$/g, "");
-                return unqualSymbolType.trim();
+
+                const decaySymbolType = symbolType.replace(/const|volatile|&|\*|(=>.*)$/g, "");
+                return decaySymbolType.trim();
             };
 
         const resolveCallback =
@@ -315,7 +317,7 @@ export class RtagsDefinitionProvider implements
         ];
 
         const processCallback =
-            (output: string) : Optional<string> =>
+            (output: string) : Optional<Hover> =>
             {
                 if (!output)
                 {
@@ -324,12 +326,7 @@ export class RtagsDefinitionProvider implements
 
                 let [_unused, context] = output.split('\t', 2).map((tok) => { return tok.trim(); });
                 _unused = _unused;
-                return context;
-            };
 
-        const resolveCallback =
-            (context?: string) : Optional<Hover> =>
-            {
                 if (!context)
                 {
                     return undefined;
@@ -339,7 +336,7 @@ export class RtagsDefinitionProvider implements
                 return new Hover('\t' + context);
             };
 
-        return runRc(args, processCallback).then(resolveCallback);
+        return runRc(args, processCallback);
     }
 
     private rtagsMgr: RtagsManager;

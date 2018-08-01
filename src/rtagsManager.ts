@@ -504,10 +504,10 @@ export class RtagsManager implements Disposable
     {
         this.currentIndexingProject = project;
 
-        const resolveCallback =
+        const processCallback =
             (output: string) : void =>
             {
-                const indexing = (output === "1");
+                const indexing = (output.trim() === "1");
                 if (!indexing)
                 {
                     if (this.indexPollTimer)
@@ -531,7 +531,7 @@ export class RtagsManager implements Disposable
         this.indexPollTimer =
             setInterval(() : void =>
                         {
-                            runRc(["--is-indexing"], (output) => { return output.trim(); }).then(resolveCallback);
+                            runRc(["--is-indexing"], processCallback);
                         },
                         5000);
     }
