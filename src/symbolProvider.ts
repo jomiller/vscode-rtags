@@ -1,7 +1,7 @@
 'use strict';
 
-import { languages, window, workspace, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult,
-         SymbolInformation, SymbolKind, TextDocument, WorkspaceSymbolProvider } from 'vscode';
+import { languages, workspace, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult,
+         SymbolInformation, SymbolKind, TextDocument, Uri, WorkspaceSymbolProvider } from 'vscode';
 
 import { RtagsManager, runRc } from './rtagsManager';
 
@@ -101,6 +101,36 @@ function findSymbols(query: string, args: string[] = []) : Thenable<Optional<Sym
     return runRc(args, processCallback);
 }
 
+async function findWorkspaceSymbols(query: string, projectPaths: Uri[]) : Promise<SymbolInformation[]>
+{
+    let workspaceSymbols: SymbolInformation[] = [];
+
+    const config = workspace.getConfiguration("rtags");
+    const maxSearchResults: number = config.get("maxWorkspaceSearchResults", 50);
+
+    for (const path of projectPaths)
+    {
+        const args =
+        [
+            "--filter-system-headers",
+            "--max",
+            maxSearchResults.toString(),
+            "--project",
+            path.fsPath,
+            "--path-filter",
+            path.fsPath
+        ];
+
+        const symbols = await findSymbols(query, args);
+        if (symbols)
+        {
+            workspaceSymbols.push(...symbols);
+        }
+    }
+
+    return workspaceSymbols;
+}
+
 export class RtagsSymbolProvider implements
     DocumentSymbolProvider,
     WorkspaceSymbolProvider,
@@ -150,54 +180,7 @@ export class RtagsSymbolProvider implements
             return [];
         }
 
-        let args = ["--filter-system-headers", "--max"];
-        let maxSearchResults = 50;
-
-        const editor = window.activeTextEditor;
-        if (editor)
-        {
-            // Find symbols in the project to which the active document belongs
-
-            const activeDocPath = editor.document.uri;
-
-            const projectPath = this.rtagsMgr.getProjectPath(activeDocPath);
-            if (!projectPath)
-            {
-                return [];
-            }
-
-            const config = workspace.getConfiguration("rtags", activeDocPath);
-            maxSearchResults = config.get("maxWorkspaceSearchResults", maxSearchResults);
-
-            args.push(maxSearchResults.toString(),
-                      "--current-file",
-                      activeDocPath.fsPath,
-                      "--path-filter",
-                      projectPath.fsPath);
-
-            return findSymbols(query, args);
-        }
-
-        // Find symbols in the current project
-
-        const resolveCallback =
-            (projectPath?: string) : Thenable<Optional<SymbolInformation[]>> =>
-            {
-                if (!projectPath)
-                {
-                    return Promise.resolve([] as SymbolInformation[]);
-                }
-
-                args.push(maxSearchResults.toString(),
-                          "--project",
-                          projectPath,
-                          "--path-filter",
-                          projectPath);
-
-                return findSymbols(query, args);
-            };
-
-        return this.rtagsMgr.getCurrentProjectPath().then(resolveCallback);
+        return findWorkspaceSymbols(query, this.rtagsMgr.getProjectPaths());
     }
 
     private rtagsMgr: RtagsManager;

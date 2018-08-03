@@ -290,10 +290,10 @@ export class RtagsDefinitionProvider implements
                 let edit = new WorkspaceEdit();
                 if (locations)
                 {
-                    for (const l of locations)
+                    for (const loc of locations)
                     {
-                        const end = l.range.end.translate(0, diff);
-                        edit.replace(l.uri, new Range(l.range.start, end), newName);
+                        const end = loc.range.end.translate(0, diff);
+                        edit.replace(loc.uri, new Range(loc.range.start, end), newName);
                     }
                 }
                 return edit;

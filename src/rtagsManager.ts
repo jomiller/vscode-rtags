@@ -73,10 +73,11 @@ export function runRc<T>(args: string[], process: (stdout: string) => T, documen
                         }
 
                         resolve();
-                        return;
                     }
-
-                    resolve(process(stdout));
+                    else
+                    {
+                        resolve(process(stdout));
+                    }
                 };
 
             let rc = execFile(getRcExecutable(), args, options, exitCallback);
@@ -189,7 +190,8 @@ export class RtagsManager implements Disposable
         }
 
         this.disposables.push(
-            commands.registerCommand("rtags.freshenIndex", this.reindexActiveProject, this),
+            commands.registerCommand("rtags.reindexActiveFolder", this.reindexActiveProject, this),
+            commands.registerCommand("rtags.reindexWorkspace", this.reindexProjects, this),
             workspace.onDidChangeTextDocument(this.reindexChangedDocument, this),
             workspace.onDidSaveTextDocument(this.reindexSavedDocument, this),
             workspace.onDidChangeWorkspaceFolders(this.updateProjects, this));
@@ -216,32 +218,15 @@ export class RtagsManager implements Disposable
     {
         const candidatePaths = this.projectPaths.filter((p) => { return (uri.fsPath.startsWith(p.fsPath)); });
         let projectPath = candidatePaths.pop();
-        for (const p of candidatePaths)
+        for (const path of candidatePaths)
         {
             // Assume that the URI belongs to the project with the deepest path
-            if (projectPath && (p.fsPath.length > projectPath.fsPath.length))
+            if (projectPath && (path.fsPath.length > projectPath.fsPath.length))
             {
-                projectPath = p;
+                projectPath = path;
             }
         }
         return projectPath;
-    }
-
-    public getCurrentProjectPath() : Thenable<Optional<string>>
-    {
-        const processCallback =
-            (output: string) : Optional<string> =>
-            {
-                if (!output)
-                {
-                    return undefined;
-                }
-                const path = output.trim().replace(/\/$/, "");
-                const pathExists = this.projectPaths.some((p) => { return (p.fsPath === path); });
-                return (pathExists ? path : undefined);
-            };
-
-        return runRc(["--current-project"], processCallback);
     }
 
     public isInProject(uri: Uri) : boolean
@@ -400,39 +385,29 @@ export class RtagsManager implements Disposable
     private reindexActiveProject() : void
     {
         const editor = window.activeTextEditor;
-        if (editor)
+        if (!editor)
         {
-            // Reindex the project to which the active document belongs
-
-            const projectPath = this.getProjectPath(editor.document.uri);
-            if (!projectPath)
-            {
-                return;
-            }
-
-            // Add the project to the indexing queue
-            const project: Project = {uri: projectPath, indexType: IndexType.Reindex};
-            this.indexNextProject(project);
-
             return;
         }
 
-        // Reindex the current project
+        const projectPath = this.getProjectPath(editor.document.uri);
+        if (!projectPath)
+        {
+            return;
+        }
 
-        const resolveCallback =
-            (projectPath?: string) : void =>
-            {
-                if (!projectPath)
-                {
-                    return;
-                }
+        // Reindex the project to which the active document belongs
+        const project: Project = {uri: projectPath, indexType: IndexType.Reindex};
+        this.indexNextProject(project);
+    }
 
-                // Add the project to the indexing queue
-                const project: Project = {uri: Uri.file(projectPath), indexType: IndexType.Reindex};
-                this.indexNextProject(project);
-            };
-
-        this.getCurrentProjectPath().then(resolveCallback);
+    private reindexProjects() : void
+    {
+        for (const path of this.projectPaths)
+        {
+            const project: Project = {uri: path, indexType: IndexType.Reindex};
+            this.indexNextProject(project);
+        }
     }
 
     private indexNextProject(enqueuedProject?: Project) : void
