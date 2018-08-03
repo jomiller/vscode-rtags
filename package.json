@@ -231,16 +231,16 @@
                     "description": "If true, code completion will be enabled",
                     "scope": "window"
                 },
-                "rtags.maxWorkspaceSearchResults": {
-                    "type": "number",
-                    "default": 50,
-                    "description": "Maximum number of global search (i.e., Ctrl+T + #foo) results to report",
-                    "scope": "window"
-                },
                 "rtags.maxCodeCompletionResults": {
                     "type": "number",
                     "default": 20,
                     "description": "Maximum number of code completion results to report",
+                    "scope": "resource"
+                },
+                "rtags.maxWorkspaceSearchResults": {
+                    "type": "number",
+                    "default": 50,
+                    "description": "Maximum number of global search (i.e., Ctrl+T + #foo) results to report",
                     "scope": "resource"
                 }
             }

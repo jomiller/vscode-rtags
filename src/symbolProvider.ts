@@ -105,11 +105,11 @@ async function findWorkspaceSymbols(query: string, projectPaths: Uri[]) : Promis
 {
     let workspaceSymbols: SymbolInformation[] = [];
 
-    const config = workspace.getConfiguration("rtags");
-    const maxSearchResults: number = config.get("maxWorkspaceSearchResults", 50);
-
     for (const path of projectPaths)
     {
+        const config = workspace.getConfiguration("rtags", path);
+        const maxSearchResults: number = config.get("maxWorkspaceSearchResults", 50);
+
         const args =
         [
             "--filter-system-headers",
