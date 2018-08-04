@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 - Renamed "Freshen Index" command to "Reindex Active Workspace Folder".
+- Workspace symbol provider searches all workspace folders instead of only the active folder.
 
 ### Fixed
 - Exception thrown from hover provider when "rc --follow-location" returned no results.
