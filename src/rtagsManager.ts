@@ -9,7 +9,7 @@ import { ChildProcess, ExecFileOptionsWithStringEncoding, SpawnOptions, SpawnSyn
 
 import { setTimeout, clearTimeout, setInterval, clearInterval } from 'timers';
 
-import { existsSync } from 'fs';
+import { stat } from 'fs';
 
 import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, parseJson } from './rtagsUtil';
 
@@ -29,6 +29,15 @@ function getProjectAction(project: Project, capitalize: boolean = false) : strin
 {
     const projectAction: string = (project.indexType === IndexType.Load) ? "loading" : "reindexing";
     return (capitalize ? (projectAction.charAt(0).toUpperCase() + projectAction.slice(1)) : projectAction);
+}
+
+function fileExists(path: string) : Promise<boolean>
+{
+    return new Promise<boolean>(
+        (resolve, _reject) =>
+        {
+            stat(path, (err, _stats) => { resolve(!err || (err.code !== "ENOENT")); });
+        });
 }
 
 function getRcExecutable() : string
@@ -416,7 +425,7 @@ export class RtagsManager implements Disposable
         }
     }
 
-    private indexNextProject(enqueuedProject?: Project) : void
+    private async indexNextProject(enqueuedProject?: Project) : Promise<void>
     {
         if (enqueuedProject)
         {
@@ -443,27 +452,31 @@ export class RtagsManager implements Disposable
                 switch (this.currentIndexingProject.indexType)
                 {
                     case IndexType.Load:
-                        if (existsSync(projectPath + "/compile_commands.json"))
+                    {
+                        let status: Optional<boolean> = await fileExists(projectPath + "/compile_commands.json");
+                        if (status)
                         {
-                            const rc = runRcSync(["--load-compile-commands", projectPath]);
-                            if (rc.status !== 0)
-                            {
-                                this.currentIndexingProject = null;
-                            }
+                            status = await runRc(["--load-compile-commands", projectPath],
+                                                 (_) => { return true; });
                         }
-                        else
+                        if (!status)
                         {
                             this.currentIndexingProject = null;
                         }
                         break;
+                    }
 
                     case IndexType.Reindex:
-                        const rc = runRcSync(["--project", projectPath, "--reindex"], this.getTextDocuments());
-                        if (rc.status !== 0)
+                    {
+                        const status = await runRc(["--project", projectPath, "--reindex"],
+                                                   (_) => { return true; },
+                                                   this.getTextDocuments());
+                        if (!status)
                         {
                             this.currentIndexingProject = null;
                         }
                         break;
+                    }
                 }
 
                 if (this.currentIndexingProject)
