@@ -25,6 +25,12 @@ interface Project
     indexType: IndexType;
 }
 
+function getProjectAction(project: Project, capitalize: boolean = false) : string
+{
+    const projectAction: string = (project.indexType === IndexType.Load) ? "loading" : "reindexing";
+    return (capitalize ? (projectAction.charAt(0).toUpperCase() + projectAction.slice(1)) : projectAction);
+}
+
 function getRcExecutable() : string
 {
     const config = workspace.getConfiguration("rtags");
@@ -415,70 +421,63 @@ export class RtagsManager implements Disposable
         if (enqueuedProject)
         {
             this.projectIndexingQueue.push(enqueuedProject);
-        }
 
-        let dequeuedProject: Optional<Project> = undefined;
+            if (this.currentIndexingProject || (this.projectIndexingQueue.length > 1))
+            {
+                window.showInformationMessage("[RTags] Project queued for " + getProjectAction(enqueuedProject) +
+                                              ": " + enqueuedProject.uri.fsPath);
+            }
+        }
 
         // Allow indexing only one project at a time because RTags reports only a global status of whether or not
         // it is currently indexing
-        if (!this.currentIndexingProject)
+        while (!this.currentIndexingProject && (this.projectIndexingQueue.length !== 0))
         {
-            dequeuedProject = this.projectIndexingQueue.shift();
-        }
+            const dequeuedProject = this.projectIndexingQueue.shift();
+            this.currentIndexingProject = dequeuedProject ? dequeuedProject : null;
 
-        if (enqueuedProject && (this.projectIndexingQueue.length !== 0))
-        {
-            const indexMsg = (enqueuedProject.indexType === IndexType.Load) ? "loading" : "reindexing";
-            window.showInformationMessage("[RTags] Project queued for " + indexMsg + ": " +
-                                          enqueuedProject.uri.fsPath);
-        }
-
-        if (dequeuedProject)
-        {
-            switch (dequeuedProject.indexType)
+            if (this.currentIndexingProject)
             {
-                case IndexType.Load:
-                    this.loadProject(dequeuedProject);
-                    break;
+                const projectPath = this.currentIndexingProject.uri.fsPath;
 
-                case IndexType.Reindex:
-                    this.reindexProject(dequeuedProject);
-                    break;
+                switch (this.currentIndexingProject.indexType)
+                {
+                    case IndexType.Load:
+                        if (existsSync(projectPath + "/compile_commands.json"))
+                        {
+                            const rc = runRcSync(["--load-compile-commands", projectPath]);
+                            if (rc.status !== 0)
+                            {
+                                this.currentIndexingProject = null;
+                            }
+                        }
+                        else
+                        {
+                            this.currentIndexingProject = null;
+                        }
+                        break;
+
+                    case IndexType.Reindex:
+                        const rc = runRcSync(["--project", projectPath, "--reindex"], this.getTextDocuments());
+                        if (rc.status !== 0)
+                        {
+                            this.currentIndexingProject = null;
+                        }
+                        break;
+                }
+
+                if (this.currentIndexingProject)
+                {
+                    window.showInformationMessage("[RTags] " + getProjectAction(this.currentIndexingProject, true) +
+                                                  " project: " + projectPath);
+                    this.finishIndexingProject();
+                }
             }
         }
     }
 
-    private loadProject(project: Project) : void
+    private finishIndexingProject() : void
     {
-        const projectPath = project.uri.fsPath;
-
-        if (existsSync(projectPath + "/compile_commands.json"))
-        {
-            const rc = runRcSync(["--load-compile-commands", projectPath]);
-            if (rc.status === 0)
-            {
-                window.showInformationMessage("[RTags] Loading project: " + projectPath);
-                this.finishIndexingProject(project);
-            }
-        }
-    }
-
-    private reindexProject(project: Project) : void
-    {
-        const projectPath = project.uri.fsPath;
-
-        const rc = runRcSync(["--project", projectPath, "--reindex"], this.getTextDocuments());
-        if (rc.status === 0)
-        {
-            window.showInformationMessage("[RTags] Reindexing project: " + projectPath);
-            this.finishIndexingProject(project);
-        }
-    }
-
-    private finishIndexingProject(project: Project) : void
-    {
-        this.currentIndexingProject = project;
-
         const processCallback =
             (output: string) : void =>
             {
@@ -490,14 +489,18 @@ export class RtagsManager implements Disposable
                         clearInterval(this.indexPollTimer);
                         this.indexPollTimer = null;
                     }
-                    this.currentIndexingProject = null;
-                    let indexMsg = "reindexing";
-                    if (project.indexType === IndexType.Load)
+                    if (this.currentIndexingProject)
                     {
-                        this.projectPaths.push(project.uri);
-                        indexMsg = "loading";
+                        window.showInformationMessage("[RTags] Finished " +
+                                                      getProjectAction(this.currentIndexingProject) + " project: " +
+                                                      this.currentIndexingProject.uri.fsPath);
+
+                        if (this.currentIndexingProject.indexType === IndexType.Load)
+                        {
+                            this.projectPaths.push(this.currentIndexingProject.uri);
+                        }
+                        this.currentIndexingProject = null;
                     }
-                    window.showInformationMessage("[RTags] Finished " + indexMsg + " project: " + project.uri.fsPath);
                     this.indexNextProject();
                 }
             };
