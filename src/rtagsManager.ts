@@ -231,7 +231,7 @@ export class RtagsManager implements Disposable
 
     public getProjectPath(uri: Uri) : Optional<Uri>
     {
-        const candidatePaths = this.projectPaths.filter((p) => { return (uri.fsPath.startsWith(p.fsPath)); });
+        const candidatePaths = this.projectPaths.filter((p) => { return (uri.fsPath.startsWith(p.fsPath + '/')); });
         let projectPath = candidatePaths.pop();
         for (const path of candidatePaths)
         {
@@ -258,7 +258,7 @@ export class RtagsManager implements Disposable
 
         const loadingProjectPath = this.currentIndexingProject.uri;
 
-        if (!uri.fsPath.startsWith(loadingProjectPath.fsPath))
+        if (!uri.fsPath.startsWith(loadingProjectPath.fsPath + '/'))
         {
             return false;
         }
@@ -313,14 +313,11 @@ export class RtagsManager implements Disposable
             if (projectExists)
             {
                 // The project is already loaded into RTags
-                if (this.projectPaths.indexOf(f.uri) === -1)
+                this.projectPaths.push(f.uri);
+                if (this.diagnosticsEnabled)
                 {
-                    this.projectPaths.push(f.uri);
-                    if (this.diagnosticsEnabled)
-                    {
-                        // Resend diagnostics for all files in the project
-                        diagnoseProject(f.uri);
-                    }
+                    // Resend diagnostics for all files in the project
+                    diagnoseProject(f.uri);
                 }
             }
             else
@@ -341,7 +338,14 @@ export class RtagsManager implements Disposable
 
         for (const f of folders)
         {
-            const index = this.projectPaths.indexOf(f.uri);
+            if (this.currentIndexingProject && (f.uri.fsPath === this.currentIndexingProject.uri.fsPath))
+            {
+                this.currentIndexingProject = null;
+            }
+
+            this.projectIndexingQueue = this.projectIndexingQueue.filter((p) => { return (p.uri.fsPath !== f.uri.fsPath); });
+
+            const index = this.projectPaths.findIndex((p) => { return (p.fsPath === f.uri.fsPath); });
             if (index !== -1)
             {
                 this.projectPaths.splice(index, 1);
@@ -457,7 +461,7 @@ export class RtagsManager implements Disposable
                         if (status)
                         {
                             status = await runRc(["--load-compile-commands", projectPath],
-                                                 (_) => { return true; });
+                                                 (_unused) => { return true; });
                         }
                         if (!status)
                         {
@@ -469,7 +473,7 @@ export class RtagsManager implements Disposable
                     case IndexType.Reindex:
                     {
                         const status = await runRc(["--project", projectPath, "--reindex"],
-                                                   (_) => { return true; },
+                                                   (_unused) => { return true; },
                                                    this.getTextDocuments());
                         if (!status)
                         {
