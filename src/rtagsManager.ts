@@ -40,6 +40,15 @@ function fileExists(path: string) : Promise<boolean>
         });
 }
 
+async function sleep(msec: number) : Promise<void>
+{
+    return new Promise<void>(
+        (resolve, _reject) =>
+        {
+            setTimeout(resolve, msec);
+        });
+}
+
 function getRcExecutable() : string
 {
     const config = workspace.getConfiguration("rtags");
@@ -148,7 +157,7 @@ function runRcPipe(args: string[]) : ChildProcess
     return spawn(getRcExecutable(), args, options);
 }
 
-function startRdm() : void
+async function startRdm() : Promise<void>
 {
     const config = workspace.getConfiguration("rtags");
     const autoLaunchRdm: boolean = config.get("autoLaunchRdm", true);
@@ -157,7 +166,7 @@ function startRdm() : void
         return;
     }
 
-    const rc = runRcSync(["--current-project"]);
+    let rc = runRcSync(["--current-project"]);
     if (rc.error)
     {
         window.showErrorMessage("[RTags] Could not run client");
@@ -181,6 +190,19 @@ function startRdm() : void
         {
             rdm.unref();
             window.showInformationMessage("[RTags] Started server successfully");
+
+            // Wait for rc to connect to rdm
+            const delayMsec = 1000;
+            const timeoutMsec = 30 * delayMsec;
+            for (let ms = 0; ms < timeoutMsec; ms += delayMsec)
+            {
+                rc = runRcSync(["--current-project"]);
+                if (rc.status === 0)
+                {
+                    break;
+                }
+                await sleep(delayMsec);
+            }
         }
         else
         {
@@ -193,16 +215,15 @@ export class RtagsManager implements Disposable
 {
     constructor()
     {
-        startRdm();
-
         const config = workspace.getConfiguration("rtags");
         this.diagnosticsEnabled = config.get("enableDiagnostics", true);
         if (this.diagnosticsEnabled)
         {
             this.diagnosticCollection = languages.createDiagnosticCollection("rtags");
             this.disposables.push(this.diagnosticCollection);
-            this.startDiagnostics();
         }
+
+        this.initialize();
 
         this.disposables.push(
             commands.registerCommand("rtags.reindexActiveFolder", this.reindexActiveProject, this),
@@ -210,8 +231,6 @@ export class RtagsManager implements Disposable
             workspace.onDidChangeTextDocument(this.reindexChangedDocument, this),
             workspace.onDidSaveTextDocument(this.reindexSavedDocument, this),
             workspace.onDidChangeWorkspaceFolders(this.updateProjects, this));
-
-        this.addProjects(workspace.workspaceFolders);
     }
 
     public dispose() : void
@@ -278,7 +297,14 @@ export class RtagsManager implements Disposable
         return workspace.textDocuments.filter((doc) => { return this.isInProject(doc.uri); });
     }
 
-    private addProjects(folders?: WorkspaceFolder[]) : void
+    private async initialize() : Promise<void>
+    {
+        await startRdm();
+        this.startDiagnostics();
+        this.addProjects(workspace.workspaceFolders);
+    }
+
+    private async addProjects(folders?: WorkspaceFolder[]) : Promise<void>
     {
         if (!folders || (folders.length === 0))
         {
@@ -287,10 +313,10 @@ export class RtagsManager implements Disposable
 
         let rtagsProjectPaths: Uri[] = [];
 
-        const rc = runRcSync(["--project"]);
-        if (rc.stdout)
+        const output = await runRc(["--project"], (output: string) => { return output.trim(); });
+        if (output)
         {
-            rtagsProjectPaths = rc.stdout.trim().split('\n').map(
+            rtagsProjectPaths = output.split('\n').map(
                 (p) => { return Uri.file(p.replace(" <=", "").trim().replace(/\/$/, "")); });
         }
 
@@ -329,7 +355,7 @@ export class RtagsManager implements Disposable
         }
     }
 
-    private removeProjects(folders?: WorkspaceFolder[]) : void
+    private async removeProjects(folders?: WorkspaceFolder[]) : Promise<void>
     {
         if (!folders)
         {
@@ -533,6 +559,11 @@ export class RtagsManager implements Disposable
 
     private startDiagnostics() : void
     {
+        if (!this.diagnosticsEnabled)
+        {
+            return;
+        }
+
         // Start a separate process for receiving asynchronous diagnostics
         this.diagnosticProcess = runRcPipe(["--json", "--diagnostics"]);
         if (!this.diagnosticProcess.pid)
@@ -562,7 +593,7 @@ export class RtagsManager implements Disposable
                 {
                     // Restart the diagnostics process if it was killed unexpectedly
                     window.showErrorMessage("[RTags] Diagnostics stopped; restarting");
-                    setTimeout(() => { this.startDiagnostics(); }, 10000);
+                    setTimeout(() => { this.startDiagnostics(); }, 5000);
                 }
             };
 
