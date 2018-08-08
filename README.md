@@ -37,7 +37,9 @@ The commands are available through both the editor context menu and the command 
 
 `rtags.rdmArguments`: Array containing arguments to pass to the `rdm` executable, if it is launched automatically.
 
-`rtags.enableDiagnostics`: If true, diagnostics and fix-its will be enabled.
+`rtags.compilationDatabaseDirectory`: If not empty, the compilation database directory to use instead of the workspace root.
+
+`rtags.enableDiagnostics`: If true, diagnostics and fix-it hints will be enabled.
 
 `rtags.enableCodeCompletion`: If true, code completion will be enabled.
 

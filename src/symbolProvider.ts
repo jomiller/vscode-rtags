@@ -108,7 +108,7 @@ async function findWorkspaceSymbols(query: string, projectPaths: Uri[]) : Promis
     for (const path of projectPaths)
     {
         const config = workspace.getConfiguration("rtags", path);
-        const maxSearchResults: number = config.get("maxWorkspaceSearchResults", 50);
+        const maxSearchResults = config.get<number>("maxWorkspaceSearchResults", 50);
 
         const args =
         [
