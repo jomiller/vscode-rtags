@@ -223,7 +223,12 @@ export class RtagsManager implements Disposable
             this.disposables.push(this.diagnosticCollection);
         }
 
-        this.initialize();
+        (async () =>
+        {
+            await startRdm();
+            this.startDiagnostics();
+            this.addProjects(workspace.workspaceFolders);
+        })();
 
         this.disposables.push(
             commands.registerCommand("rtags.reindexActiveFolder", this.reindexActiveProject, this),
@@ -295,13 +300,6 @@ export class RtagsManager implements Disposable
     public getTextDocuments() : TextDocument[]
     {
         return workspace.textDocuments.filter((doc) => { return this.isInProject(doc.uri); });
-    }
-
-    private async initialize() : Promise<void>
-    {
-        await startRdm();
-        this.startDiagnostics();
-        this.addProjects(workspace.workspaceFolders);
     }
 
     private async addProjects(folders?: WorkspaceFolder[]) : Promise<void>
@@ -463,7 +461,7 @@ export class RtagsManager implements Disposable
 
             if (this.currentIndexingProject || (this.projectIndexingQueue.length > 1))
             {
-                window.showInformationMessage("[RTags] Project queued for " + getProjectAction(enqueuedProject) +
+                window.showInformationMessage("[RTags] Enqueued project for " + getProjectAction(enqueuedProject) +
                                               ": " + enqueuedProject.uri.fsPath);
             }
         }
