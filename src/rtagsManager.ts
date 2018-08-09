@@ -45,7 +45,7 @@ function fileExists(file: string) : Promise<boolean>
 function getRcExecutable() : string
 {
     const config = workspace.getConfiguration("rtags");
-    return config.get("rcExecutable", "rc");
+    return config.get<string>("rcExecutable", "rc");
 }
 
 export function runRc<T>(args: string[], process: (stdout: string) => T, documents: TextDocument[] = []) :
@@ -153,7 +153,7 @@ function runRcPipe(args: string[]) : ChildProcess
 async function startRdm() : Promise<void>
 {
     const config = workspace.getConfiguration("rtags");
-    const autoLaunchRdm: boolean = config.get("autoLaunchRdm", true);
+    const autoLaunchRdm = config.get<boolean>("autoLaunchRdm", true);
     if (!autoLaunchRdm)
     {
         return;
@@ -174,8 +174,8 @@ async function startRdm() : Promise<void>
             stdio: "ignore"
         };
 
-        const rdmExecutable: string = config.get("rdmExecutable", "rdm");
-        const rdmArguments: string[] = config.get("rdmArguments", []);
+        const rdmExecutable = config.get<string>("rdmExecutable", "rdm");
+        const rdmArguments = config.get<string[]>("rdmArguments", []);
 
         let rdm = spawn(rdmExecutable, rdmArguments, options);
 
@@ -210,7 +210,7 @@ export class RtagsManager implements Disposable
     constructor()
     {
         const config = workspace.getConfiguration("rtags");
-        this.diagnosticsEnabled = config.get("enableDiagnostics", true);
+        this.diagnosticsEnabled = config.get<boolean>("enableDiagnostics", true);
         if (this.diagnosticsEnabled)
         {
             this.diagnosticCollection = languages.createDiagnosticCollection("rtags");
@@ -475,10 +475,20 @@ export class RtagsManager implements Disposable
                 {
                     case IndexType.Load:
                     {
-                        let status: Optional<boolean> = await fileExists(projectPath + "/compile_commands.json");
+                        const config = workspace.getConfiguration("rtags", this.currentIndexingProject.uri);
+                        let compileCommandsPath = config.get<string>("compilationDatabaseDirectory");
+                        if (compileCommandsPath)
+                        {
+                            compileCommandsPath = compileCommandsPath.replace(/\/*$/, "");
+                        }
+                        else
+                        {
+                            compileCommandsPath = projectPath;
+                        }
+                        let status: Optional<boolean> = await fileExists(compileCommandsPath + "/compile_commands.json");
                         if (status)
                         {
-                            status = await runRc(["--load-compile-commands", projectPath],
+                            status = await runRc(["--load-compile-commands", compileCommandsPath],
                                                  (_unused) => { return true; });
                         }
                         if (!status)
