@@ -4,22 +4,34 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.3.0] - 2018-08-08
+
+### Added
+- `rtags.compilationDatabaseDirectory` configuration setting for specifying the compilation database directory to use instead of the workspace root.
+
+### Fixed
+- [Issue #6](https://github.com/jomiller/vscode-rtags/issues/6): Diagnostic child process tries to connect to rdm before rdm is ready.
+- Remaining entries in the project indexing queue were not processed if the current entry failed to be loaded/reindexed.
+- Files were potentially identified as belonging to the wrong project when multiple project directory names started with the same string.
+- When folders were removed from the workspace, the corresponding projects were not removed from the indexing queue.
+
 ## [0.2.0] - 2018-08-03
 
 ### Added
-- "Reindex Workspace" command to reindex all workspace folders.
+- `Reindex Workspace` command to reindex all workspace folders.
 
 ### Changed
-- Renamed "Freshen Index" command to "Reindex Active Workspace Folder".
+- Renamed `Freshen Index` command to `Reindex Active Workspace Folder`.
 - Workspace symbol provider searches all workspace folders instead of only the active folder.
 
 ### Fixed
-- Exception thrown from hover provider when "rc --follow-location" returned no results.
-- "Show Callers" results truncated when any caller had no containing function.
-- "Show Callers" returning results for symbols that were not functions.
+- Exception was thrown from hover provider when `rc --follow-location` returned no results.
+- `Show Callers` results were truncated when any caller had no containing function.
+- `Show Callers` returned results for symbols that were not functions.
 
 ## 0.1.0 - 2018-07-18
 
 Initial release
 
+[0.3.0]: https://github.com/jomiller/vscode-rtags/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/jomiller/vscode-rtags/compare/v0.1.0...v0.2.0
