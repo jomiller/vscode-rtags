@@ -3,7 +3,7 @@
 import { commands, window, Disposable, Event, EventEmitter, Location, Position, ProviderResult, TextEditor,
          TextEditorEdit, TreeDataProvider, TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
 
-import { basename } from 'path';
+import * as path from 'path';
 
 import { RtagsManager, runRc } from './rtagsManager';
 
@@ -184,7 +184,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
         if (element.nodeType !== NodeType.BaseRoot)
         {
             const lineNumber = element.location.range.start.line + 1;
-            const location: string = basename(element.location.uri.fsPath) + ':' + lineNumber.toString();
+            const location: string = path.basename(element.location.uri.fsPath) + ':' + lineNumber.toString();
             label += " (" + location + ')';
         }
         let treeItem = new TreeItem(label, TreeItemCollapsibleState.Collapsed);

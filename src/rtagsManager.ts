@@ -9,7 +9,9 @@ import { ChildProcess, ExecFileOptionsWithStringEncoding, SpawnOptions, SpawnSyn
 
 import { setTimeout, clearTimeout, setInterval, clearInterval } from 'timers';
 
-import { stat } from 'fs';
+import * as fs from 'fs';
+
+import * as util from 'util';
 
 import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, parseJson } from './rtagsUtil';
 
@@ -31,21 +33,12 @@ function getProjectAction(project: Project, capitalize: boolean = false) : strin
     return (capitalize ? (projectAction.charAt(0).toUpperCase() + projectAction.slice(1)) : projectAction);
 }
 
-function fileExists(path: string) : Promise<boolean>
+function fileExists(file: string) : Promise<boolean>
 {
     return new Promise<boolean>(
         (resolve, _reject) =>
         {
-            stat(path, (err, _stats) => { resolve(!err || (err.code !== "ENOENT")); });
-        });
-}
-
-async function sleep(msec: number) : Promise<void>
-{
-    return new Promise<void>(
-        (resolve, _reject) =>
-        {
-            setTimeout(resolve, msec);
+            fs.access(file, fs.constants.F_OK, (err) => { resolve(!err); });
         });
 }
 
@@ -192,6 +185,7 @@ async function startRdm() : Promise<void>
             window.showInformationMessage("[RTags] Started server successfully");
 
             // Wait for rc to connect to rdm
+            const sleep = util.promisify(setTimeout);
             const delayMsec = 1000;
             const timeoutMsec = 30 * delayMsec;
             for (let ms = 0; ms < timeoutMsec; ms += delayMsec)

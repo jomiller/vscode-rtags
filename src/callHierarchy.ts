@@ -3,7 +3,7 @@
 import { commands, window, Disposable, Event, EventEmitter, Location, Position, ProviderResult, TextEditor,
          TextEditorEdit, TreeDataProvider, TreeItem, TreeItemCollapsibleState, Uri } from 'vscode';
 
-import { basename } from 'path';
+import * as path from 'path';
 
 import { RtagsManager, runRc } from './rtagsManager';
 
@@ -172,7 +172,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
     public getTreeItem(element: Caller) : TreeItem | Thenable<TreeItem>
     {
         const lineNumber = element.location.range.start.line + 1;
-        const location: string = basename(element.location.uri.fsPath) + ':' + lineNumber.toString();
+        const location: string = path.basename(element.location.uri.fsPath) + ':' + lineNumber.toString();
         let treeItem = new TreeItem(element.containerName + " (" + location + ')', TreeItemCollapsibleState.Collapsed);
         treeItem.contextValue = "rtagsLocation";
         return treeItem;
