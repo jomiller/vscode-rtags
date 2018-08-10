@@ -233,7 +233,7 @@ export class RtagsManager implements Disposable
                             {
                                 for (const path of this.projectPaths)
                                 {
-                                    if (event.affectsConfiguration("rtags.compilation", path))
+                                    if (event.affectsConfiguration("rtags.misc.compilationDatabaseDirectory", path))
                                     {
                                         this.removeProject(path, true);
                                     }
@@ -243,7 +243,7 @@ export class RtagsManager implements Disposable
                             }
                         };
 
-                    if (event.affectsConfiguration("rtags.compilation"))
+                    if (event.affectsConfiguration("rtags.misc.compilationDatabaseDirectory"))
                     {
                         message += ", otherwise new compilation databases will not be loaded";
                         window.showWarningMessage(message, reload).then(resolveCallback);
@@ -512,7 +512,7 @@ export class RtagsManager implements Disposable
                     case IndexType.Load:
                     {
                         const config = workspace.getConfiguration("rtags", this.currentIndexingProject.uri);
-                        const compilationDatabaseDir = config.get<string>("compilation.databaseDirectory");
+                        const compilationDatabaseDir = config.get<string>("misc.compilationDatabaseDirectory");
                         const compileCommandsDir =
                             compilationDatabaseDir ? compilationDatabaseDir.replace(/\/*$/, "") : projectPath;
                         const compileCommands = compileCommandsDir + "/compile_commands.json";

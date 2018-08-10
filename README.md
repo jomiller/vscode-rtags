@@ -37,15 +37,15 @@ The commands are available through both the editor context menu and the command 
 
 `rtags.rdm.arguments`: Array containing arguments to pass to the `rdm` executable, if it is launched automatically.
 
-`rtags.compilation.databaseDirectory`: If not empty, the compilation database directory to use instead of the workspace root.
-
 `rtags.diagnostics.enabled`: If true, diagnostics and fix-it hints will be enabled.
 
 `rtags.completion.enabled`: If true, code completion will be enabled.
 
 `rtags.completion.maxResults`: Maximum number of code completion results to report.
 
-`rtags.symbol.maxWorkspaceSearchResults`: Maximum number of global search (i.e., Ctrl+T + #foo) results to report.
+`rtags.misc.compilationDatabaseDirectory`: If not empty, the compilation database directory to use instead of the workspace root.
+
+`rtags.misc.maxWorkspaceSearchResults`: Maximum number of global search (i.e., Ctrl+T + #foo) results to report.
 
 ## Requirements
 
