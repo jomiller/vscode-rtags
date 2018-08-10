@@ -389,7 +389,7 @@ export class RtagsManager implements Disposable
         folders.forEach((f) => { this.removeProject(f.uri, false); });
     }
 
-    private removeProject(uri: Uri, toDelete: boolean) : void
+    private removeProject(uri: Uri, purge: boolean) : void
     {
         const projectPath = uri.fsPath;
 
@@ -406,7 +406,7 @@ export class RtagsManager implements Disposable
             this.projectPaths.splice(index, 1);
         }
 
-        if (toDelete)
+        if (purge)
         {
             runRc(["--delete-project", projectPath], (_unused) => {});
         }
