@@ -226,18 +226,21 @@ export class RtagsManager implements Disposable
                     const reload = "Reload";
                     let message = "Please reload to apply the configuration change";
 
+                    for (const path of this.projectPaths)
+                    {
+                        if (event.affectsConfiguration("rtags.misc.compilationDatabaseDirectory", path))
+                        {
+                            this.projectPathsToPurge.add(path);
+                        }
+                    }
+
                     const resolveCallback =
                         (selected?: string) : void =>
                         {
                             if (selected === reload)
                             {
-                                for (const path of this.projectPaths)
-                                {
-                                    if (event.affectsConfiguration("rtags.misc.compilationDatabaseDirectory", path))
-                                    {
-                                        this.removeProject(path, true);
-                                    }
-                                }
+                                this.projectPathsToPurge.forEach((p) => { this.removeProject(p, true); });
+                                this.projectPathsToPurge.clear();
 
                                 commands.executeCommand("workbench.action.reloadWindow");
                             }
@@ -408,7 +411,7 @@ export class RtagsManager implements Disposable
 
         if (purge)
         {
-            runRc(["--delete-project", projectPath], (_unused) => {});
+            runRc(["--delete-project", projectPath + '/'], (_unused) => {});
         }
     }
 
@@ -728,6 +731,7 @@ export class RtagsManager implements Disposable
     private projectIndexingQueue: Project[] = [];
     private currentIndexingProject: Nullable<Project> = null;
     private projectPaths: Uri[] = [];
+    private projectPathsToPurge: Set<Uri> = new Set<Uri>();
     private diagnosticsEnabled: boolean = true;
     private diagnosticCollection: Nullable<DiagnosticCollection> = null;
     private diagnosticProcess: Nullable<ChildProcess> = null;
