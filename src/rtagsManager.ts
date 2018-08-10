@@ -224,18 +224,7 @@ export class RtagsManager implements Disposable
                 if (event.affectsConfiguration("rtags"))
                 {
                     const reload = "Reload";
-                    let showWarning = false;
                     let message = "Please reload to apply the configuration change";
-
-                    for (const path of this.projectPaths)
-                    {
-                        if (event.affectsConfiguration("rtags.compilation", path))
-                        {
-                            showWarning = true;
-                            message += ", otherwise new compilation databases will not be loaded";
-                            break;
-                        }
-                    }
 
                     const resolveCallback =
                         (selected?: string) : void =>
@@ -254,10 +243,15 @@ export class RtagsManager implements Disposable
                             }
                         };
 
-                    let promise = showWarning ? window.showWarningMessage(message, reload) :
-                                                window.showInformationMessage(message, reload);
-
-                    promise.then(resolveCallback);
+                    if (event.affectsConfiguration("rtags.compilation"))
+                    {
+                        message += ", otherwise new compilation databases will not be loaded";
+                        window.showWarningMessage(message, reload).then(resolveCallback);
+                    }
+                    else
+                    {
+                        window.showInformationMessage(message, reload).then(resolveCallback);
+                    }
                 }
             };
 
