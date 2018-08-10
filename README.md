@@ -29,23 +29,23 @@ The commands are available through both the editor context menu and the command 
 
 ### Configuration Settings
 
-`rtags.rcExecutable`: Path to the `rc` executable (default assumes the executable is in the `PATH`).
+`rtags.rc.executable`: Path to the `rc` executable (default assumes the executable is in the `PATH`).
 
-`rtags.autoLaunchRdm`: If true, `rdm` will be launched automatically, if it is not already running.
+`rtags.rdm.autoLaunch`: If true, `rdm` will be launched automatically, if it is not already running.
 
-`rtags.rdmExecutable`: Path to the `rdm` executable (default assumes the executable is in the `PATH`).
+`rtags.rdm.executable`: Path to the `rdm` executable (default assumes the executable is in the `PATH`).
 
-`rtags.rdmArguments`: Array containing arguments to pass to the `rdm` executable, if it is launched automatically.
+`rtags.rdm.arguments`: Array containing arguments to pass to the `rdm` executable, if it is launched automatically.
 
-`rtags.compilationDatabaseDirectory`: If not empty, the compilation database directory to use instead of the workspace root.
+`rtags.compilation.databaseDirectory`: If not empty, the compilation database directory to use instead of the workspace root.
 
-`rtags.enableDiagnostics`: If true, diagnostics and fix-it hints will be enabled.
+`rtags.diagnostics.enabled`: If true, diagnostics and fix-it hints will be enabled.
 
-`rtags.enableCodeCompletion`: If true, code completion will be enabled.
+`rtags.completion.enabled`: If true, code completion will be enabled.
 
-`rtags.maxCodeCompletionResults`: Maximum number of code completion results to report.
+`rtags.completion.maxResults`: Maximum number of code completion results to report.
 
-`rtags.maxWorkspaceSearchResults`: Maximum number of global search (i.e., Ctrl+T + #foo) results to report.
+`rtags.symbol.maxWorkspaceSearchResults`: Maximum number of global search (i.e., Ctrl+T + #foo) results to report.
 
 ## Requirements
 

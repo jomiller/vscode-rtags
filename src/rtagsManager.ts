@@ -45,7 +45,7 @@ function fileExists(file: string) : Promise<boolean>
 function getRcExecutable() : string
 {
     const config = workspace.getConfiguration("rtags");
-    return config.get<string>("rcExecutable", "rc");
+    return config.get<string>("rc.executable", "rc");
 }
 
 export function runRc<T>(args: string[], process: (stdout: string) => T, documents: TextDocument[] = []) :
@@ -153,8 +153,8 @@ function runRcPipe(args: string[]) : ChildProcess
 async function startRdm() : Promise<void>
 {
     const config = workspace.getConfiguration("rtags");
-    const autoLaunchRdm = config.get<boolean>("autoLaunchRdm", true);
-    if (!autoLaunchRdm)
+    const rdmAutoLaunch = config.get<boolean>("rdm.autoLaunch", true);
+    if (!rdmAutoLaunch)
     {
         return;
     }
@@ -174,8 +174,8 @@ async function startRdm() : Promise<void>
             stdio: "ignore"
         };
 
-        const rdmExecutable = config.get<string>("rdmExecutable", "rdm");
-        const rdmArguments = config.get<string[]>("rdmArguments", []);
+        const rdmExecutable = config.get<string>("rdm.executable", "rdm");
+        const rdmArguments = config.get<string[]>("rdm.arguments", []);
 
         let rdm = spawn(rdmExecutable, rdmArguments, options);
 
@@ -210,7 +210,7 @@ export class RtagsManager implements Disposable
     constructor()
     {
         const config = workspace.getConfiguration("rtags");
-        this.diagnosticsEnabled = config.get<boolean>("enableDiagnostics", true);
+        this.diagnosticsEnabled = config.get<boolean>("diagnostics.enabled", true);
         if (this.diagnosticsEnabled)
         {
             this.diagnosticCollection = languages.createDiagnosticCollection("rtags");
@@ -476,7 +476,7 @@ export class RtagsManager implements Disposable
                     case IndexType.Load:
                     {
                         const config = workspace.getConfiguration("rtags", this.currentIndexingProject.uri);
-                        let compileCommandsPath = config.get<string>("compilationDatabaseDirectory");
+                        let compileCommandsPath = config.get<string>("compilation.databaseDirectory");
                         if (compileCommandsPath)
                         {
                             compileCommandsPath = compileCommandsPath.replace(/\/*$/, "");

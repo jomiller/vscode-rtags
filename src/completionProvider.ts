@@ -60,8 +60,8 @@ export class RtagsCompletionProvider implements
         this.rtagsMgr = rtagsMgr;
 
         const config = workspace.getConfiguration("rtags");
-        const enableCodeCompletion = config.get<boolean>("enableCodeCompletion", false);
-        if (!enableCodeCompletion)
+        const completionEnabled = config.get<boolean>("completion.enabled", false);
+        if (!completionEnabled)
         {
             return;
         }
@@ -88,7 +88,7 @@ export class RtagsCompletionProvider implements
         }
 
         const config = workspace.getConfiguration("rtags", document.uri);
-        const maxCompletionResults = config.get<number>("maxCodeCompletionResults", 20);
+        const maxCompletionResults = config.get<number>("completion.maxResults", 20);
         const location = toRtagsLocation(document.uri, position);
 
         const args =
@@ -174,7 +174,7 @@ export class RtagsCompletionProvider implements
         }
 
         const config = workspace.getConfiguration("rtags", document.uri);
-        const maxCompletionResults = config.get<number>("maxCodeCompletionResults", 20);
+        const maxCompletionResults = config.get<number>("completion.maxResults", 20);
         const location = toRtagsLocation(document.uri, position);
 
         const args =
