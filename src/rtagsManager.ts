@@ -1,8 +1,8 @@
 'use strict';
 
-import { commands, languages, window, workspace, Diagnostic, DiagnosticCollection, DiagnosticSeverity, Disposable,
-         Position, Range, TextDocument, TextDocumentChangeEvent, Uri, WorkspaceFolder, WorkspaceFoldersChangeEvent }
-         from 'vscode';
+import { commands, languages, window, workspace, ConfigurationChangeEvent, Diagnostic, DiagnosticCollection,
+         DiagnosticSeverity, Disposable, Position, Range, TextDocument, TextDocumentChangeEvent, Uri, WorkspaceFolder,
+         WorkspaceFoldersChangeEvent } from 'vscode';
 
 import { ChildProcess, ExecFileOptionsWithStringEncoding, SpawnOptions, SpawnSyncOptionsWithStringEncoding,
          SpawnSyncReturns, execFile, spawn, spawnSync } from 'child_process';
@@ -25,12 +25,6 @@ interface Project
 {
     uri: Uri;
     indexType: IndexType;
-}
-
-function getProjectAction(project: Project, capitalize: boolean = false) : string
-{
-    const projectAction: string = (project.indexType === IndexType.Load) ? "loading" : "reindexing";
-    return (capitalize ? (projectAction.charAt(0).toUpperCase() + projectAction.slice(1)) : projectAction);
 }
 
 function fileExists(file: string) : Promise<boolean>
@@ -224,12 +218,42 @@ export class RtagsManager implements Disposable
             this.addProjects(workspace.workspaceFolders);
         })();
 
+        const changeConfigCallback =
+            (event: ConfigurationChangeEvent) : void =>
+            {
+                if (event.affectsConfiguration("rtags"))
+                {
+                    const reload = "Reload";
+                    const message = "Please reload to apply the configuration change";
+
+                    const resolveCallback =
+                        (selected?: string) : void =>
+                        {
+                            if (selected === reload)
+                            {
+                                for (const path of this.projectPaths)
+                                {
+                                    if (event.affectsConfiguration("rtags.compilation", path))
+                                    {
+                                        this.removeProject(path, true);
+                                    }
+                                }
+
+                                commands.executeCommand("workbench.action.reloadWindow");
+                            }
+                        };
+
+                    window.showInformationMessage(message, reload).then(resolveCallback);
+                }
+            };
+
         this.disposables.push(
             commands.registerCommand("rtags.reindexActiveFolder", this.reindexActiveProject, this),
             commands.registerCommand("rtags.reindexWorkspace", this.reindexProjects, this),
             workspace.onDidChangeTextDocument(this.reindexChangedDocument, this),
             workspace.onDidSaveTextDocument(this.reindexSavedDocument, this),
-            workspace.onDidChangeWorkspaceFolders(this.updateProjects, this));
+            workspace.onDidChangeWorkspaceFolders(this.updateProjects, this),
+            workspace.onDidChangeConfiguration(changeConfigCallback));
     }
 
     public dispose() : void
@@ -354,20 +378,29 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        for (const f of folders)
+        folders.forEach((f) => { this.removeProject(f.uri, false); });
+    }
+
+    private removeProject(uri: Uri, toDelete: boolean) : void
+    {
+        const projectPath = uri.fsPath;
+
+        if (this.currentIndexingProject && (projectPath === this.currentIndexingProject.uri.fsPath))
         {
-            if (this.currentIndexingProject && (f.uri.fsPath === this.currentIndexingProject.uri.fsPath))
-            {
-                this.currentIndexingProject = null;
-            }
+            this.currentIndexingProject = null;
+        }
 
-            this.projectIndexingQueue = this.projectIndexingQueue.filter((p) => { return (p.uri.fsPath !== f.uri.fsPath); });
+        this.projectIndexingQueue = this.projectIndexingQueue.filter((p) => { return (p.uri.fsPath !== projectPath); });
 
-            const index = this.projectPaths.findIndex((p) => { return (p.fsPath === f.uri.fsPath); });
-            if (index !== -1)
-            {
-                this.projectPaths.splice(index, 1);
-            }
+        const index = this.projectPaths.findIndex((p) => { return (p.fsPath === projectPath); });
+        if (index !== -1)
+        {
+            this.projectPaths.splice(index, 1);
+        }
+
+        if (toDelete)
+        {
+            runRc(["--delete-project", projectPath], (_unused) => {});
         }
     }
 
@@ -452,12 +485,6 @@ export class RtagsManager implements Disposable
         if (enqueuedProject)
         {
             this.projectIndexingQueue.push(enqueuedProject);
-
-            if (this.currentIndexingProject || (this.projectIndexingQueue.length > 1))
-            {
-                window.showInformationMessage("[RTags] Enqueued project for " + getProjectAction(enqueuedProject) +
-                                              ": " + enqueuedProject.uri.fsPath);
-            }
         }
 
         // Allow indexing only one project at a time because RTags reports only a global status of whether or not
@@ -470,31 +497,34 @@ export class RtagsManager implements Disposable
             if (this.currentIndexingProject)
             {
                 const projectPath = this.currentIndexingProject.uri.fsPath;
+                let indexMsg = "";
 
                 switch (this.currentIndexingProject.indexType)
                 {
                     case IndexType.Load:
                     {
                         const config = workspace.getConfiguration("rtags", this.currentIndexingProject.uri);
-                        let compileCommandsPath = config.get<string>("compilation.databaseDirectory");
-                        if (compileCommandsPath)
-                        {
-                            compileCommandsPath = compileCommandsPath.replace(/\/*$/, "");
-                        }
-                        else
-                        {
-                            compileCommandsPath = projectPath;
-                        }
-                        let status: Optional<boolean> = await fileExists(compileCommandsPath + "/compile_commands.json");
+                        const compilationDatabaseDir = config.get<string>("compilation.databaseDirectory");
+                        const compileCommandsDir = compilationDatabaseDir ?
+                                                   compilationDatabaseDir.replace(/\/*$/, "") :
+                                                   projectPath;
+                        const compileCommands = compileCommandsDir + "/compile_commands.json";
+                        let status: Optional<boolean> = await fileExists(compileCommands);
                         if (status)
                         {
-                            status = await runRc(["--load-compile-commands", compileCommandsPath],
+                            status = await runRc(["--load-compile-commands", compileCommandsDir],
                                                  (_unused) => { return true; });
+                        }
+                        else if (compilationDatabaseDir)
+                        {
+                            window.showErrorMessage("[RTags] Could not load project: " + projectPath +
+                                                    "; Compilation database not found: " + compileCommands);
                         }
                         if (!status)
                         {
                             this.currentIndexingProject = null;
                         }
+                        indexMsg = "Loading";
                         break;
                     }
 
@@ -507,14 +537,14 @@ export class RtagsManager implements Disposable
                         {
                             this.currentIndexingProject = null;
                         }
+                        indexMsg = "Reindexing";
                         break;
                     }
                 }
 
                 if (this.currentIndexingProject)
                 {
-                    window.showInformationMessage("[RTags] " + getProjectAction(this.currentIndexingProject, true) +
-                                                  " project: " + projectPath);
+                    window.showInformationMessage("[RTags] " + indexMsg + " project: " + projectPath);
                     this.finishIndexingProject();
                 }
             }
@@ -536,14 +566,16 @@ export class RtagsManager implements Disposable
                     }
                     if (this.currentIndexingProject)
                     {
-                        window.showInformationMessage("[RTags] Finished " +
-                                                      getProjectAction(this.currentIndexingProject) + " project: " +
-                                                      this.currentIndexingProject.uri.fsPath);
-
+                        let indexMsg = "reindexing";
                         if (this.currentIndexingProject.indexType === IndexType.Load)
                         {
                             this.projectPaths.push(this.currentIndexingProject.uri);
+                            indexMsg = "loading";
                         }
+
+                        window.showInformationMessage("[RTags] Finished " + indexMsg + " project: " +
+                                                      this.currentIndexingProject.uri.fsPath);
+
                         this.currentIndexingProject = null;
                     }
                     this.indexNextProject();
