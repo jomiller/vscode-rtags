@@ -224,7 +224,18 @@ export class RtagsManager implements Disposable
                 if (event.affectsConfiguration("rtags"))
                 {
                     const reload = "Reload";
-                    const message = "Please reload to apply the configuration change";
+                    let showWarning = false;
+                    let message = "Please reload to apply the configuration change";
+
+                    for (const path of this.projectPaths)
+                    {
+                        if (event.affectsConfiguration("rtags.compilation", path))
+                        {
+                            showWarning = true;
+                            message += ", otherwise new compilation databases will not be loaded";
+                            break;
+                        }
+                    }
 
                     const resolveCallback =
                         (selected?: string) : void =>
@@ -243,7 +254,10 @@ export class RtagsManager implements Disposable
                             }
                         };
 
-                    window.showInformationMessage(message, reload).then(resolveCallback);
+                    let promise = showWarning ? window.showWarningMessage(message, reload) :
+                                                window.showInformationMessage(message, reload);
+
+                    promise.then(resolveCallback);
                 }
             };
 
@@ -505,9 +519,8 @@ export class RtagsManager implements Disposable
                     {
                         const config = workspace.getConfiguration("rtags", this.currentIndexingProject.uri);
                         const compilationDatabaseDir = config.get<string>("compilation.databaseDirectory");
-                        const compileCommandsDir = compilationDatabaseDir ?
-                                                   compilationDatabaseDir.replace(/\/*$/, "") :
-                                                   projectPath;
+                        const compileCommandsDir =
+                            compilationDatabaseDir ? compilationDatabaseDir.replace(/\/*$/, "") : projectPath;
                         const compileCommands = compileCommandsDir + "/compile_commands.json";
                         let status: Optional<boolean> = await fileExists(compileCommands);
                         if (status)
