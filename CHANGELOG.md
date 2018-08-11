@@ -4,10 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
-## [0.3.0] - 2018-08-08
+## [0.3.0] - 2018-08-11
 
 ### Added
-- `rtags.compilationDatabaseDirectory` configuration setting for specifying the compilation database directory to use instead of the workspace root.
+- `rtags.misc.compilationDatabaseDirectory` configuration setting for specifying the compilation database directory to use instead of the workspace root.
+- Load the new compilation database when the `rtags.misc.compilationDatabaseDirectory` setting changes and the window is reloaded to apply the new configuration.
+
+### Changed
+- Renamed all configuration settings using dot separators.
+
+### Removed
+- Information message shown when a project was enqueued for loading/reindexing.
 
 ### Fixed
 - [Issue #6](https://github.com/jomiller/vscode-rtags/issues/6): Diagnostic child process tries to connect to rdm before rdm is ready.
