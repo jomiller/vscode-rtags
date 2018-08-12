@@ -3,7 +3,7 @@
     "displayName": "RTags Client",
     "description": "Use the RTags C/C++ language server in Visual Studio Code",
     "author": {
-        "name": "jomiller"
+        "name": "Jonathan Miller"
     },
     "contributors": [
         {
@@ -12,7 +12,7 @@
     ],
     "license": "SEE LICENSE IN LICENSE.txt",
     "version": "0.3.0",
-    "publisher": "jomiller",
+    "publisher": "Jonathan Miller",
     "preview": true,
     "repository": {
         "type": "git",

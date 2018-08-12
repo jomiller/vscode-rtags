@@ -1,8 +1,8 @@
-# RTags Client
+# RTags Client for Visual Studio Code
 
 [RTags](https://github.com/Andersbakken/rtags) is a client/server application that indexes C/C++ code and keeps a persistent file-based database of references, declarations, definitions, symbol names, etc.
 
-This extension allows the RTags client to be used directly from within Visual Studio Code.
+This extension allows the RTags client to be used from within Visual Studio Code.
 
 This extension was originally forked from https://github.com/yorver/rtags-vscode.
 
