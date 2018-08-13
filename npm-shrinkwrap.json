@@ -1,13 +1,13 @@
 {
     "name": "rtags-client",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "lockfileVersion": 1,
     "requires": true,
     "dependencies": {
         "@types/node": {
-            "version": "9.6.26",
-            "resolved": "https://registry.npmjs.org/@types/node/-/node-9.6.26.tgz",
-            "integrity": "sha512-3LKKscYUZdZreOuvnly8oWsCA1TOWtmkV3mbcUnV34f+nqDWJic+4SGjRi1C/sPHnZcSs/x209O+Dgy8aWHt2A==",
+            "version": "9.6.27",
+            "resolved": "https://registry.npmjs.org/@types/node/-/node-9.6.27.tgz",
+            "integrity": "sha512-fGWGG9Wypv6JZLIrnq9jXFX/FhQzgNccTlojez9hBbQ9UiBdxtc0ONMMe4/vnB2nDgOMDpPR/7HhenUB+Bw5yQ==",
             "dev": true
         },
         "ajv": {
@@ -1043,11 +1043,11 @@
             "integrity": "sha1-qUwiJOvKwEeCoNkDVSHyRzW37JI="
         },
         "har-validator": {
-            "version": "5.0.3",
-            "resolved": "https://registry.npmjs.org/har-validator/-/har-validator-5.0.3.tgz",
-            "integrity": "sha1-ukAsJmGU8VlW7xXg/PJCmT9qff0=",
+            "version": "5.1.0",
+            "resolved": "https://registry.npmjs.org/har-validator/-/har-validator-5.1.0.tgz",
+            "integrity": "sha512-+qnmNjI4OfH2ipQ9VQOw23bBd/ibtfbVdK2fYbY4acTDqKTW/YDp9McimZdDbG8iV9fZizUqQMD5xvriB146TA==",
             "requires": {
-                "ajv": "^5.1.0",
+                "ajv": "^5.3.0",
                 "har-schema": "^2.0.0"
             }
         },
@@ -1507,9 +1507,9 @@
             }
         },
         "oauth-sign": {
-            "version": "0.8.2",
-            "resolved": "https://registry.npmjs.org/oauth-sign/-/oauth-sign-0.8.2.tgz",
-            "integrity": "sha1-Rqarfwrq2N6unsBWV4C31O/rnUM="
+            "version": "0.9.0",
+            "resolved": "https://registry.npmjs.org/oauth-sign/-/oauth-sign-0.9.0.tgz",
+            "integrity": "sha512-fexhUFFPTGV8ybAtSIGbV6gOkSv8UtRbDBnAyLQw4QPKkgNlsH2ByPGtMUqdWkos6YCRmAqViwgZrJc/mRDzZQ=="
         },
         "object-assign": {
             "version": "4.1.1",
@@ -1664,6 +1664,11 @@
             "resolved": "https://registry.npmjs.org/process-nextick-args/-/process-nextick-args-2.0.0.tgz",
             "integrity": "sha512-MtEC1TqN0EU5nephaJ4rAtThHtC86dNN9qCuEhtshvpVBkAW5ZO7BASN9REnF9eoXGcRub+pFuKEpOHE+HbEMw=="
         },
+        "psl": {
+            "version": "1.1.29",
+            "resolved": "https://registry.npmjs.org/psl/-/psl-1.1.29.tgz",
+            "integrity": "sha512-AeUmQ0oLN02flVHXWh9sSJF7mcdFq0ppid/JkErufc3hGIV/AMa8Fo9VgDo/cT2jFdOWoFvHp90qqBH54W+gjQ=="
+        },
         "punycode": {
             "version": "1.4.1",
             "resolved": "https://registry.npmjs.org/punycode/-/punycode-1.4.1.tgz",
@@ -1767,30 +1772,30 @@
             "integrity": "sha1-3mMSg3P8v3w8z6TeWkgMRaZ5WOs="
         },
         "request": {
-            "version": "2.87.0",
-            "resolved": "https://registry.npmjs.org/request/-/request-2.87.0.tgz",
-            "integrity": "sha512-fcogkm7Az5bsS6Sl0sibkbhcKsnyon/jV1kF3ajGmF0c8HrttdKTPRT9hieOaQHA5HEq6r8OyWOo/o781C1tNw==",
+            "version": "2.88.0",
+            "resolved": "https://registry.npmjs.org/request/-/request-2.88.0.tgz",
+            "integrity": "sha512-NAqBSrijGLZdM0WZNsInLJpkJokL72XYjUpnB0iwsRgxh7dB6COrHnTBNwN0E+lHDAJzu7kLAkDeY08z2/A0hg==",
             "requires": {
                 "aws-sign2": "~0.7.0",
-                "aws4": "^1.6.0",
+                "aws4": "^1.8.0",
                 "caseless": "~0.12.0",
-                "combined-stream": "~1.0.5",
-                "extend": "~3.0.1",
+                "combined-stream": "~1.0.6",
+                "extend": "~3.0.2",
                 "forever-agent": "~0.6.1",
-                "form-data": "~2.3.1",
-                "har-validator": "~5.0.3",
+                "form-data": "~2.3.2",
+                "har-validator": "~5.1.0",
                 "http-signature": "~1.2.0",
                 "is-typedarray": "~1.0.0",
                 "isstream": "~0.1.2",
                 "json-stringify-safe": "~5.0.1",
-                "mime-types": "~2.1.17",
-                "oauth-sign": "~0.8.2",
+                "mime-types": "~2.1.19",
+                "oauth-sign": "~0.9.0",
                 "performance-now": "^2.1.0",
-                "qs": "~6.5.1",
-                "safe-buffer": "^5.1.1",
-                "tough-cookie": "~2.3.3",
+                "qs": "~6.5.2",
+                "safe-buffer": "^5.1.2",
+                "tough-cookie": "~2.4.3",
                 "tunnel-agent": "^0.6.0",
-                "uuid": "^3.1.0"
+                "uuid": "^3.3.2"
             }
         },
         "requires-port": {
@@ -1836,9 +1841,9 @@
             "integrity": "sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g=="
         },
         "source-map-support": {
-            "version": "0.5.6",
-            "resolved": "https://registry.npmjs.org/source-map-support/-/source-map-support-0.5.6.tgz",
-            "integrity": "sha512-N4KXEz7jcKqPf2b2vZF11lQIz9W5ZMuUcIOGj243lduidkf2fjkVKJS9vNxVWn3u/uxX38AcE8U9nnH9FPcq+g==",
+            "version": "0.5.8",
+            "resolved": "https://registry.npmjs.org/source-map-support/-/source-map-support-0.5.8.tgz",
+            "integrity": "sha512-WqAEWPdb78u25RfKzOF0swBpY0dKrNdjc4GvLwm7ScX/o9bj8Eh/YL8mcMhBHYDGl87UkkSXDOFnW4G7GhWhGg==",
             "requires": {
                 "buffer-from": "^1.0.0",
                 "source-map": "^0.6.0"
@@ -2008,10 +2013,11 @@
             }
         },
         "tough-cookie": {
-            "version": "2.3.4",
-            "resolved": "https://registry.npmjs.org/tough-cookie/-/tough-cookie-2.3.4.tgz",
-            "integrity": "sha512-TZ6TTfI5NtZnuyy/Kecv+CnoROnyXn2DN97LontgQpCwsX2XyLYCC0ENhYkehSOwAp8rTQKc/NUIF7BkQ5rKLA==",
+            "version": "2.4.3",
+            "resolved": "https://registry.npmjs.org/tough-cookie/-/tough-cookie-2.4.3.tgz",
+            "integrity": "sha512-Q5srk/4vDM54WJsJio3XNn6K2sCG+CQ8G5Wz6bZhRZoAe/+TxjWB/GlFAnYEbkYVlON9FMk/fE3h2RLpPXo4lQ==",
             "requires": {
+                "psl": "^1.1.24",
                 "punycode": "^1.4.1"
             }
         },
