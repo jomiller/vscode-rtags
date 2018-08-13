@@ -166,7 +166,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
                     {
                         if (!nodes)
                         {
-                            return;
+                            nodes = [];
                         }
 
                         if (nodes.length === 1)

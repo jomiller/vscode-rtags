@@ -125,10 +125,11 @@ export class RtagsDefinitionProvider implements
                         const resolveCallback =
                             (locations?: Location[]) : void =>
                             {
-                                if (locations)
+                                if (!locations)
                                 {
-                                    showReferences(document.uri, position, locations);
+                                    locations = [];
                                 }
+                                showReferences(document.uri, position, locations);
                             };
 
                         getDefinitions(document.uri, position, type).then(resolveCallback);
