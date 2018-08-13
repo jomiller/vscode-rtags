@@ -159,12 +159,11 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                         const resolveCallback =
                             (callers?: Caller[]) : void =>
                             {
-                                if (!callers)
+                                let locations: Location[] = [];
+                                if (callers)
                                 {
-                                    return;
+                                    callers.forEach((c) => { locations.push(c.location); });
                                 }
-
-                                const locations: Location[] = callers.map((c) => { return c.location; });
                                 showReferences(document.uri, position, locations);
                             };
 
