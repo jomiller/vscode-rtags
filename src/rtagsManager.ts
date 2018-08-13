@@ -404,12 +404,10 @@ export class RtagsManager implements Disposable
 
     private async removeProjects(folders?: WorkspaceFolder[]) : Promise<void>
     {
-        if (!folders)
+        if (folders)
         {
-            return;
+            folders.forEach((f) => { this.removeProject(f.uri, false); });
         }
-
-        folders.forEach((f) => { this.removeProject(f.uri, false); });
     }
 
     private removeProject(uri: Uri, purge: boolean) : void
