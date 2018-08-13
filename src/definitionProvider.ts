@@ -146,17 +146,14 @@ export class RtagsDefinitionProvider implements
             languages.registerRenameProvider(SourceFileSelector, this),
             languages.registerHoverProvider(SourceFileSelector, this),
             commands.registerTextEditorCommand("rtags.showVariables",
-                                               makeReferencesCallback(ReferenceType.Variables)),
+                                                makeReferencesCallback(ReferenceType.Variables)),
             commands.registerTextEditorCommand("rtags.showVirtuals",
-                                               makeReferencesCallback(ReferenceType.Virtuals)));
+                                                makeReferencesCallback(ReferenceType.Virtuals)));
     }
 
     public dispose() : void
     {
-        for (let d of this.disposables)
-        {
-            d.dispose();
-        }
+        this.disposables.forEach((d) => { d.dispose(); });
     }
 
     public provideDefinition(document: TextDocument, position: Position, _token: CancellationToken) :

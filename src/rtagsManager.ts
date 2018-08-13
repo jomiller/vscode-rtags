@@ -291,10 +291,7 @@ export class RtagsManager implements Disposable
     {
         this.stopDiagnostics();
 
-        for (let d of this.disposables)
-        {
-            d.dispose();
-        }
+        this.disposables.forEach((d) => { d.dispose(); });
     }
 
     public getProjectPaths() : Uri[]

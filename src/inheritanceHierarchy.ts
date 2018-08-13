@@ -192,10 +192,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
 
     public dispose() : void
     {
-        for (let d of this.disposables)
-        {
-            d.dispose();
-        }
+        this.disposables.forEach((d) => { d.dispose(); });
     }
 
     public getTreeItem(element: InheritanceNode) : TreeItem | Thenable<TreeItem>

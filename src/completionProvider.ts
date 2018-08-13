@@ -93,10 +93,7 @@ export class RtagsCompletionProvider implements
 
     public dispose() : void
     {
-        for (let d of this.disposables)
-        {
-            d.dispose();
-        }
+        this.disposables.forEach((d) => { d.dispose(); });
     }
 
     public provideCompletionItems(document: TextDocument, position: Position, _token: CancellationToken) :

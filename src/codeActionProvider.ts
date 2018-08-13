@@ -42,10 +42,7 @@ export class RtagsCodeActionProvider implements
 
     public dispose() : void
     {
-        for (let d of this.disposables)
-        {
-            d.dispose();
-        }
+        this.disposables.forEach((d) => { d.dispose(); });
     }
 
     public provideCodeActions(document: TextDocument,

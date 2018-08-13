@@ -182,10 +182,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
 
     public dispose() : void
     {
-        for (let d of this.disposables)
-        {
-            d.dispose();
-        }
+        this.disposables.forEach((d) => { d.dispose(); });
     }
 
     public getTreeItem(element: Caller) : TreeItem | Thenable<TreeItem>
