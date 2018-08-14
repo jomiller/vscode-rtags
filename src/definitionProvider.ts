@@ -344,15 +344,19 @@ export class RtagsDefinitionProvider implements
                     return undefined;
                 }
 
-                let [_unused, context] = output.split('\t', 2).map((tok) => { return tok.trim(); });
-                _unused = _unused;
+                const contextIndex = output.indexOf('\t');
+                if (contextIndex === -1)
+                {
+                    return undefined;
+                }
 
+                const context = output.slice(contextIndex).trim();
                 if (!context)
                 {
                     return undefined;
                 }
 
-                // Hover text is not formatted properly unless a tab or 4 spaces are prepended
+                // FIXME: Hover text is not formatted properly unless a tab or 4 spaces are prepended
                 return new Hover('\t' + context);
             };
 

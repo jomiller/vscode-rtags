@@ -110,7 +110,7 @@ function getClasses(classType: ClassType, uri: Uri, position: Position) : Thenab
                     const classInfo = lines[i].match(classRegex);
                     if (classInfo)
                     {
-                        const [name, loc] = classInfo[0].split('\t', 2).map((tok) => { return tok.trim(); });
+                        const [name, loc] = classInfo[0].split(/\t+/, 2).map((tok) => { return tok.trim(); });
 
                         const node: InheritanceNode =
                         {

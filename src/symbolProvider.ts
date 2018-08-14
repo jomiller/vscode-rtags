@@ -81,7 +81,7 @@ function findSymbols(query: string, args: string[] = []) : Thenable<Optional<Sym
             let symbols: SymbolInformation[] = [];
             for (const line of output.split('\n'))
             {
-                let [location, name, kind, container] = line.split('\t', 4).map((tok) => { return tok.trim(); });
+                let [location, name, kind, container] = line.split(/\t+/, 4).map((tok) => { return tok.trim(); });
                 if (!name)
                 {
                     continue;
