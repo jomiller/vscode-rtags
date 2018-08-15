@@ -4,11 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
-## [0.3.1] - 2018-08-13
+## [0.3.1] - 2018-08-14
 
 ### Fixed
 - GNU GPL v3.0 licensing information.
 - `Show Callers`, `Show Base`, `Show Variables` and `Show Virtuals` commands did not provide user feedback in certain cases when they returned no results.
+- Incomplete hover information when the context field in the results of the `rc --follow-location` command contained tabs.
+- Incorrect/missing hover information, inheritance hierarchy and symbol search results when the results of `rc` commands contained multiple tabs between fields.
 
 ## [0.3.0] - 2018-08-11
 
