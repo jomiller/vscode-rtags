@@ -33,8 +33,8 @@ export interface Locatable
 
 export const SourceFileSelector: DocumentFilter[] =
 [
-    { language: "cpp", scheme: "file" },
-    { language: "c",   scheme: "file" }
+    { language: "c",   scheme: "file" },
+    { language: "cpp", scheme: "file" }
 ];
 
 export function isSourceFile(document: TextDocument) : boolean
