@@ -31,6 +31,8 @@ import { setTimeout, clearTimeout, setInterval, clearInterval } from 'timers';
 
 import * as fs from 'fs';
 
+import * as os from 'os';
+
 import * as util from 'util';
 
 import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, parseJson } from './rtagsUtil';
@@ -189,14 +191,22 @@ async function startRdm() : Promise<void>
         };
 
         const rdmExecutable = config.get<string>("rdm.executable", "rdm");
-        const rdmArguments = config.get<string[]>("rdm.arguments", []);
+        let rdmArguments = config.get<string[]>("rdm.arguments", []);
+
+        const jobCountArg = rdmArguments.find((arg) => { return (/^(-j=?(\d+)?|--job-count(=(\d+)?)?)$/).test(arg); });
+        if (!jobCountArg)
+        {
+            const cpuCoreCount = os.cpus().length;
+            const jobCount = Math.max(1, cpuCoreCount / 2);
+            rdmArguments.push("--job-count=" + jobCount.toString());
+        }
 
         let rdm = spawn(rdmExecutable, rdmArguments, options);
+        let rdmStarted = false;
 
         if (rdm.pid)
         {
             rdm.unref();
-            window.showInformationMessage("[RTags] Started server successfully");
 
             // Wait for rc to connect to rdm
             const sleep = util.promisify(setTimeout);
@@ -207,10 +217,16 @@ async function startRdm() : Promise<void>
                 rc = runRcSync(["--current-project"]);
                 if (rc.status === 0)
                 {
+                    rdmStarted = true;
                     break;
                 }
                 await sleep(delayMsec);
             }
+        }
+
+        if (rdmStarted)
+        {
+            window.showInformationMessage("[RTags] Started server successfully");
         }
         else
         {

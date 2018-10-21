@@ -35,7 +35,7 @@ The commands are available through both the editor context menu and the command 
 
 `rtags.rdm.executable`: Path to the `rdm` executable (default assumes the executable is in the `PATH`).
 
-`rtags.rdm.arguments`: Array containing arguments to pass to the `rdm` executable, if it is launched automatically.
+`rtags.rdm.arguments`: Array containing arguments to pass to the `rdm` executable, if it is launched automatically. If -j/--job-count is not present in the array, then --job-count=max(1, logical_cpu_count / 2) will be added by default.
 
 `rtags.diagnostics.enabled`: If true, diagnostics and fix-it hints will be enabled.
 
