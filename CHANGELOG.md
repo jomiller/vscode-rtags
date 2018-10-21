@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
+## [0.3.2] - 2018-10-21
+
+### Added
+- Support for C source files to `Call Hierarchy`, `Show Variables` and `Show Callers` commands.
+
+### Changed
+- If `--job-count` is not present in the `rdm.arguments` setting, then set it to half the number of logical CPUs available.
+
+### Fixed
+- Show an error message if the auto-launched `rdm` process exited immediately due to an error.
+
 ## [0.3.1] - 2018-08-14
 
 ### Fixed
@@ -48,6 +59,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 Initial release
 
+[0.3.2]: https://github.com/jomiller/vscode-rtags/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/jomiller/vscode-rtags/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/jomiller/vscode-rtags/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/jomiller/vscode-rtags/compare/v0.1.0...v0.2.0
