@@ -689,24 +689,24 @@ export class RtagsManager implements Disposable
         let end: number;
         while ((end = data.indexOf('\n')) !== -1)
         {
-            this.processDiagnosticsLine(data.slice(0, end).replace(/"[^"]+":null,/g, ""));
+            this.processDiagnosticsLine(data.slice(0, end));
             data = data.substr(end + 1);
         }
 
         return data.trim();
     }
 
-    private processDiagnosticsLine(line: string) : void
+    private processDiagnosticsLine(output: string) : void
     {
-        if (line.trim().length === 0)
+        if (output.trim().length === 0)
         {
             return;
         }
 
-        const jsonObj = parseJson(line);
+        const jsonObj = parseJson(output);
         if (!jsonObj)
         {
-            window.showErrorMessage("[RTags] Diagnostics parse error: " + line);
+            window.showErrorMessage("[RTags] Diagnostics parse error: " + output);
             return;
         }
 
