@@ -172,7 +172,7 @@ async function startRdm() : Promise<boolean>
 
     if (rc.error)
     {
-        window.showErrorMessage("[RTags] Could not run client; check \"rc.executable\" setting");
+        window.showErrorMessage("[RTags] Could not run client; check \"rtags.rc.executable\" setting");
         return false;
     }
 
@@ -229,7 +229,7 @@ async function startRdm() : Promise<boolean>
         }
     }
 
-    window.showErrorMessage("[RTags] Could not start server; check \"rdm.executable\" and \"rdm.arguments\" settings");
+    window.showErrorMessage("[RTags] Could not start server; check \"rtags.rdm.executable\" and \"rtags.rdm.arguments\" settings");
     return false;
 }
 
