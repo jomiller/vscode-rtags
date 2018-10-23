@@ -166,73 +166,71 @@ function runRcPipe(args: string[]) : ChildProcess
     return spawn(getRcExecutable(), args, options);
 }
 
-async function startRdm() : Promise<void>
+async function startRdm() : Promise<boolean>
 {
+    let rc = runRcSync(["--current-project"]);
+
+    if (rc.error)
+    {
+        window.showErrorMessage("[RTags] Could not run client; check \"rc.executable\" setting");
+        return false;
+    }
+
+    if (rc.status === 0)
+    {
+        // rc connected to rdm successfully
+        return true;
+    }
+
     const config = workspace.getConfiguration("rtags");
     const rdmAutoLaunch = config.get<boolean>("rdm.autoLaunch", true);
     if (!rdmAutoLaunch)
     {
-        return;
+        window.showErrorMessage("[RTags] Server is not running and auto-launch is disabled; launch server manually or enable \"rdm.autoLaunch\" setting");
+        return false;
     }
 
-    let rc = runRcSync(["--current-project"]);
-    if (rc.error)
+    const options: SpawnOptions =
     {
-        window.showErrorMessage("[RTags] Could not run client");
-        return;
+        detached: true,
+        stdio: "ignore"
+    };
+
+    const rdmExecutable = config.get<string>("rdm.executable", "rdm");
+    let rdmArguments = config.get<string[]>("rdm.arguments", []);
+
+    const jobCountArg = rdmArguments.find((arg) => { return (/^(-j=?(\d+)?|--job-count(=(\d+)?)?)$/).test(arg); });
+    if (!jobCountArg)
+    {
+        const cpuCoreCount = os.cpus().length;
+        const jobCount = Math.max(1, cpuCoreCount / 2);
+        rdmArguments.push("--job-count=" + jobCount.toString());
     }
 
-    if (rc.status !== 0)
+    let rdm = spawn(rdmExecutable, rdmArguments, options);
+
+    if (rdm.pid)
     {
-        const options: SpawnOptions =
+        rdm.unref();
+
+        // Wait for rc to connect to rdm
+        const sleep = util.promisify(setTimeout);
+        const delayMsec = 1000;
+        const timeoutMsec = 30 * delayMsec;
+        for (let ms = 0; ms < timeoutMsec; ms += delayMsec)
         {
-            detached: true,
-            stdio: "ignore"
-        };
-
-        const rdmExecutable = config.get<string>("rdm.executable", "rdm");
-        let rdmArguments = config.get<string[]>("rdm.arguments", []);
-
-        const jobCountArg = rdmArguments.find((arg) => { return (/^(-j=?(\d+)?|--job-count(=(\d+)?)?)$/).test(arg); });
-        if (!jobCountArg)
-        {
-            const cpuCoreCount = os.cpus().length;
-            const jobCount = Math.max(1, cpuCoreCount / 2);
-            rdmArguments.push("--job-count=" + jobCount.toString());
-        }
-
-        let rdm = spawn(rdmExecutable, rdmArguments, options);
-        let rdmStarted = false;
-
-        if (rdm.pid)
-        {
-            rdm.unref();
-
-            // Wait for rc to connect to rdm
-            const sleep = util.promisify(setTimeout);
-            const delayMsec = 1000;
-            const timeoutMsec = 30 * delayMsec;
-            for (let ms = 0; ms < timeoutMsec; ms += delayMsec)
+            rc = runRcSync(["--current-project"]);
+            if (rc.status === 0)
             {
-                rc = runRcSync(["--current-project"]);
-                if (rc.status === 0)
-                {
-                    rdmStarted = true;
-                    break;
-                }
-                await sleep(delayMsec);
+                window.showInformationMessage("[RTags] Started server successfully");
+                return true;
             }
-        }
-
-        if (rdmStarted)
-        {
-            window.showInformationMessage("[RTags] Started server successfully");
-        }
-        else
-        {
-            window.showErrorMessage("[RTags] Could not start server");
+            await sleep(delayMsec);
         }
     }
+
+    window.showErrorMessage("[RTags] Could not start server; check \"rdm.executable\" and \"rdm.arguments\" settings");
+    return false;
 }
 
 export class RtagsManager implements Disposable
@@ -249,9 +247,12 @@ export class RtagsManager implements Disposable
 
         (async () =>
         {
-            await startRdm();
-            this.startDiagnostics();
-            this.addProjects(workspace.workspaceFolders);
+            const rdmStarted = await startRdm();
+            if (rdmStarted)
+            {
+                this.startDiagnostics();
+                this.addProjects(workspace.workspaceFolders);
+            }
         })();
 
         const changeConfigCallback =
