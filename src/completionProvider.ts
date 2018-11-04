@@ -22,7 +22,7 @@
 
 import { languages, workspace, CancellationToken, CompletionItemKind, CompletionItem, CompletionItemProvider,
          CompletionList, Disposable, ParameterInformation, Position, ProviderResult, Range, SignatureHelp,
-         SignatureHelpProvider, SignatureInformation, SnippetString, TextDocument } from 'vscode';
+         SignatureHelpProvider, SignatureInformation, TextDocument } from 'vscode';
 
 import { RtagsManager, runRc } from './rtagsManager';
 
@@ -108,7 +108,7 @@ export class RtagsCompletionProvider implements
         const maxCompletionResults = config.get<number>("completion.maxResults", 20);
         const location = toRtagsLocation(document.uri, position);
 
-        const args =
+        let args =
         [
             "--json",
             "--synchronous-completions",
@@ -137,32 +137,26 @@ export class RtagsCompletionProvider implements
 
                 let completionItems: CompletionItem[] = [];
 
+                let maxPriority = 0;
+                for (const c of jsonObj.completions)
+                {
+                    if (c.priority > maxPriority)
+                    {
+                        maxPriority = c.priority;
+                    }
+                }
+                const numPriorityDigits = maxPriority.toString().length;
+
                 for (const c of jsonObj.completions)
                 {
                     try
                     {
-                        const sortText: string = ("00" + c.priority.toString()).slice(-2);
-                        const kind = toCompletionItemKind(c.kind);
-                        let insert = new SnippetString();
-                        switch (kind)
-                        {
-                            case CompletionItemKind.Method:
-                            case CompletionItemKind.Function:
-                                insert = new SnippetString(c.completion + "($1)");
-                                break;
-
-                            default:
-                                insert = new SnippetString(c.completion);
-                                break;
-                        }
-
                         const item: CompletionItem =
                         {
                             label: c.completion,
-                            kind: kind,
+                            kind: toCompletionItemKind(c.kind),
                             detail: c.signature,
-                            sortText: sortText,
-                            insertText: insert
+                            sortText: c.priority.toString().padStart(numPriorityDigits, "0"),
                         };
                         completionItems.push(item);
                     }
@@ -204,19 +198,49 @@ export class RtagsCompletionProvider implements
             location
         ];
 
-        const wordRange = document.getWordRangeAtPosition(position, /\b\w+\(.*/);
-        let incompleteSignature = "";
-        if (wordRange)
+        interface ParenthesizedRange
         {
-            const range = new Range(wordRange.start, position);
-            incompleteSignature = document.getText(range);
+            start: number;
+            end: number;
         }
 
-        let activeParamCount = 1;
-        if (incompleteSignature)
+        // Find the number of active parameters in the signature being completed that are not part of nested signatures
+
+        const text = document.getText(new Range(new Position(0, 0), position));
+        let commaPositions: number[] = [];
+        let closeParenPositions: number[] = [];
+        let parenRanges: ParenthesizedRange[] = [];
+        for (let pos: number = text.length - 1; pos >= 0; --pos)
         {
-            activeParamCount = incompleteSignature.trim().split(',').length;
+            if (text[pos] === ',')
+            {
+                commaPositions.push(pos);
+            }
+            else if (text[pos] === ')')
+            {
+                closeParenPositions.push(pos);
+            }
+            else if (text[pos] === '(')
+            {
+                const closeParenPos = closeParenPositions.pop();
+                if (closeParenPos)
+                {
+                    // Add a parenthesized range for a nested signature
+                    parenRanges.push({start: pos, end: closeParenPos });
+                }
+                else
+                {
+                    // This is the opening parenthesis for the signature being completed
+                    break;
+                }
+            }
         }
+
+        // Filter out the commas that are part of nested signatures
+        commaPositions = commaPositions.filter(
+            (pos) => { return !parenRanges.some((r) => { return ((pos > r.start) && (pos < r.end)); }); });
+
+        const activeParamCount = commaPositions.length + 1;
 
         const processCallback =
             (output: string) : Optional<SignatureHelp> =>
