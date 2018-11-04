@@ -278,8 +278,8 @@ export class RtagsManager implements Disposable
             {
                 if (event.affectsConfiguration("rtags"))
                 {
-                    const reload = "Reload";
-                    let message = "Please reload to apply the configuration change";
+                    const reloadAction = "Reload Now";
+                    let message = "Reload to apply the configuration change";
 
                     for (const path of this.projectPaths)
                     {
@@ -290,9 +290,9 @@ export class RtagsManager implements Disposable
                     }
 
                     const resolveCallback =
-                        (selected?: string) : void =>
+                        (selectedAction?: string) : void =>
                         {
-                            if (selected === reload)
+                            if (selectedAction === reloadAction)
                             {
                                 this.projectPathsToPurge.forEach((p) => { this.removeProject(p, true); });
                                 this.projectPathsToPurge.clear();
@@ -304,11 +304,11 @@ export class RtagsManager implements Disposable
                     if (event.affectsConfiguration("rtags.misc.compilationDatabaseDirectory"))
                     {
                         message += ", otherwise new compilation databases will not be loaded";
-                        window.showWarningMessage(message, reload).then(resolveCallback);
+                        window.showWarningMessage(message, reloadAction).then(resolveCallback);
                     }
                     else
                     {
-                        window.showInformationMessage(message, reload).then(resolveCallback);
+                        window.showInformationMessage(message, reloadAction).then(resolveCallback);
                     }
                 }
             };
