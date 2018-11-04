@@ -49,6 +49,24 @@ interface Project
     indexType: IndexType;
 }
 
+function toDiagnosticSeverity(severity: string) : DiagnosticSeverity
+{
+    switch (severity)
+    {
+        case "error":
+            return DiagnosticSeverity.Error;
+
+        case "warning":
+            return DiagnosticSeverity.Warning;
+
+        case "fixit":
+            return DiagnosticSeverity.Hint;
+
+        default:
+            return DiagnosticSeverity.Information;
+    }
+}
+
 function fileExists(file: string) : Promise<boolean>
 {
     return new Promise<boolean>(
@@ -742,7 +760,7 @@ export class RtagsManager implements Disposable
                     {
                         message: d.message,
                         range: new Range(pos, pos),
-                        severity: DiagnosticSeverity.Error,
+                        severity: toDiagnosticSeverity(d.type),
                         source: "RTags",
                         code: 0
                     };
