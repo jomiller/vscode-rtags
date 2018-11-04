@@ -212,15 +212,15 @@ export class RtagsCompletionProvider implements
         let parenRanges: ParenthesizedRange[] = [];
         for (let pos: number = text.length - 1; pos >= 0; --pos)
         {
-            if (text[pos] === ',')
+            if (text.charAt(pos) === ',')
             {
                 commaPositions.push(pos);
             }
-            else if (text[pos] === ')')
+            else if (text.charAt(pos) === ')')
             {
                 closeParenPositions.push(pos);
             }
-            else if (text[pos] === '(')
+            else if (text.charAt(pos) === '(')
             {
                 const closeParenPos = closeParenPositions.pop();
                 if (closeParenPos)
