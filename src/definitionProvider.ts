@@ -299,8 +299,8 @@ export class RtagsDefinitionProvider implements
             return undefined;
         }
 
-        const wr = document.getWordRangeAtPosition(position);
-        const diff = wr ? (wr.end.character - wr.start.character) : undefined;
+        const wordRange = document.getWordRangeAtPosition(position);
+        const charDelta = wordRange ? (wordRange.end.character - wordRange.start.character) : undefined;
 
         const resolveCallback =
             (locations?: Location[]) : WorkspaceEdit =>
@@ -310,7 +310,7 @@ export class RtagsDefinitionProvider implements
                 {
                     for (const loc of locations)
                     {
-                        const end = loc.range.end.translate(0, diff);
+                        const end = loc.range.end.translate(0, charDelta);
                         edit.replace(loc.uri, new Range(loc.range.start, end), newName);
                     }
                 }
