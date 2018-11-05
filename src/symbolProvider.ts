@@ -73,7 +73,15 @@ function toSymbolKind(kind: string) : Optional<SymbolKind>
 
 function findSymbols(query: string, args: string[] = []) : Thenable<Optional<SymbolInformation[]>>
 {
-    query += '*';
+    args.push("--absolute-path",
+              "--no-context",
+              "--display-name",
+              "--cursor-kind",
+              "--containing-function",
+              "--match-regexp",
+              "--match-icase",
+              "--find-symbols",
+              "\\b" + query + "(?!.*\\)::)");
 
     const processCallback =
         (output: string) : SymbolInformation[] =>
@@ -107,16 +115,6 @@ function findSymbols(query: string, args: string[] = []) : Thenable<Optional<Sym
             }
             return symbols;
         };
-
-    args.push("--absolute-path",
-              "--no-context",
-              "--display-name",
-              "--cursor-kind",
-              "--containing-function",
-              "--wildcard-symbol-names",
-              "--match-icase",
-              "--find-symbols",
-              query);
 
     return runRc(args, processCallback);
 }
