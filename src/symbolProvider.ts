@@ -73,6 +73,16 @@ function toSymbolKind(kind: string) : Optional<SymbolKind>
 
 function findSymbols(query: string, args: string[] = []) : Thenable<Optional<SymbolInformation[]>>
 {
+    let regexQuery = "";
+    if (query.length !== 0)
+    {
+        // Escape special characters that have meaning within regular expressions
+        regexQuery = query.replace(/([(){}\[\].*+?|$\^\\])/g, "\\$1");
+
+        // Filter out results for function local variables
+        regexQuery = "\\b" + regexQuery + "(?!.*\\)::)";
+    }
+
     args.push("--absolute-path",
               "--no-context",
               "--display-name",
@@ -81,7 +91,7 @@ function findSymbols(query: string, args: string[] = []) : Thenable<Optional<Sym
               "--match-regexp",
               "--match-icase",
               "--find-symbols",
-              "\\b" + query + "(?!.*\\)::)");
+              regexQuery);
 
     const processCallback =
         (output: string) : SymbolInformation[] =>
