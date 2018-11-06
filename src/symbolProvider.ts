@@ -80,7 +80,7 @@ function findSymbols(query: string, args: string[] = []) : Thenable<Optional<Sym
         regexQuery = query.replace(/([(){}\[\].*+?|$\^\\])/g, "\\$1");
 
         // Filter out results for function local variables
-        regexQuery += "(?!.*\\)::)";
+        regexQuery = "\\b" + regexQuery + "(?!.*\\)::)";
     }
 
     args.push("--filter-system-headers",
@@ -199,6 +199,11 @@ export class RtagsSymbolProvider implements
 
     public provideWorkspaceSymbols(query: string, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
     {
+        if (query.length < 3)
+        {
+            return [];
+        }
+
         return findWorkspaceSymbols(query, this.rtagsMgr.getProjectPaths());
     }
 
