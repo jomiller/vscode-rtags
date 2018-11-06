@@ -83,7 +83,8 @@ function findSymbols(query: string, args: string[] = []) : Thenable<Optional<Sym
         regexQuery += "(?!.*\\)::)";
     }
 
-    args.push("--absolute-path",
+    args.push("--filter-system-headers",
+              "--absolute-path",
               "--no-context",
               "--display-name",
               "--cursor-kind",
@@ -140,7 +141,6 @@ async function findWorkspaceSymbols(query: string, projectPaths: Uri[]) : Promis
 
         const args =
         [
-            "--filter-system-headers",
             "--max",
             maxSearchResults.toString(),
             "--project",
@@ -188,7 +188,6 @@ export class RtagsSymbolProvider implements
 
         const args =
         [
-            "--filter-system-headers",
             "--current-file",
             document.uri.fsPath,
             "--path-filter",
