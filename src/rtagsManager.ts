@@ -434,7 +434,7 @@ export class RtagsManager implements Disposable
         }
     }
 
-    private async removeProjects(folders?: WorkspaceFolder[]) : Promise<void>
+    private removeProjects(folders?: WorkspaceFolder[]) : void
     {
         if (folders)
         {
