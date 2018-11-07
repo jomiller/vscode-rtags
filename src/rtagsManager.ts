@@ -24,8 +24,7 @@ import { commands, languages, window, workspace, ConfigurationChangeEvent, Diagn
          DiagnosticSeverity, Disposable, Position, Range, TextDocument, TextDocumentChangeEvent, Uri, WorkspaceFolder,
          WorkspaceFoldersChangeEvent } from 'vscode';
 
-import { ChildProcess, ExecFileOptionsWithStringEncoding, SpawnOptions, SpawnSyncOptionsWithStringEncoding,
-         SpawnSyncReturns, execFile, spawn, spawnSync } from 'child_process';
+import { ChildProcess, ExecFileOptionsWithStringEncoding, SpawnOptions, execFile, spawn } from 'child_process';
 
 import { setTimeout, clearTimeout, setInterval, clearInterval } from 'timers';
 
@@ -146,55 +145,49 @@ export function runRc<T>(args: string[], process: (stdout: string) => T, documen
     return new Promise<T>(executorCallback);
 }
 
-function runRcSync(args: string[], documents: TextDocument[] = []) : SpawnSyncReturns<string>
-{
-    const unsavedDocs = documents.filter((doc) => { return isUnsavedSourceFile(doc); });
-    let inputLength = 0;
-    unsavedDocs.forEach((doc) => { inputLength += doc.getText().length; });
-    let inputBuffer = (inputLength !== 0) ? Buffer.allocUnsafe(inputLength) : undefined;
-
-    let inputOffset = 0;
-    for (const doc of unsavedDocs)
-    {
-        const textLength = doc.getText().length;
-        const unsavedFile = doc.uri.fsPath + ':' + textLength.toString();
-        args.push("--unsaved-file", unsavedFile);
-        if (inputBuffer)
-        {
-            inputOffset += inputBuffer.write(doc.getText(), inputOffset, textLength, "utf8");
-        }
-    }
-
-    const options: SpawnSyncOptionsWithStringEncoding =
-    {
-        encoding: "utf8",
-        input: inputBuffer
-    };
-
-    return spawnSync(getRcExecutable(), args, options);
-}
-
-function runRcPipe(args: string[]) : ChildProcess
+function spawnRc(args: string[], ignoreStdio: boolean = false) : ChildProcess
 {
     const options: SpawnOptions =
     {
-        stdio: "pipe"
+        stdio: (ignoreStdio ? "ignore" : "pipe")
     };
 
     return spawn(getRcExecutable(), args, options);
 }
 
+function testRcProcess() : boolean
+{
+    const rc = spawnRc(["--current-project"], true);
+    return (rc.pid !== undefined);
+}
+
+async function testRcStatus() : Promise<boolean>
+{
+    let status = false;
+    const run = util.promisify(execFile);
+
+    try
+    {
+        await run(getRcExecutable(), ["--current-project"]);
+        status = true;
+    }
+    catch (_err)
+    {
+    }
+
+    return status;
+}
+
 async function startRdm() : Promise<boolean>
 {
-    let rc = runRcSync(["--current-project"]);
-
-    if (rc.error)
+    if (!testRcProcess())
     {
         window.showErrorMessage("[RTags] Could not run client; check \"rtags.rc.executable\" setting");
         return false;
     }
 
-    if (rc.status === 0)
+    let rcStatus = await testRcStatus();
+    if (rcStatus)
     {
         // rc connected to rdm successfully
         return true;
@@ -208,12 +201,6 @@ async function startRdm() : Promise<boolean>
         return false;
     }
 
-    const options: SpawnOptions =
-    {
-        detached: true,
-        stdio: "ignore"
-    };
-
     const rdmExecutable = config.get<string>("rdm.executable", "rdm");
     let rdmArguments = config.get<string[]>("rdm.arguments", []);
 
@@ -224,6 +211,12 @@ async function startRdm() : Promise<boolean>
         const jobCount = Math.max(1, cpuCoreCount / 2);
         rdmArguments.push("--job-count=" + jobCount.toString());
     }
+
+    const options: SpawnOptions =
+    {
+        detached: true,
+        stdio: "ignore"
+    };
 
     let rdm = spawn(rdmExecutable, rdmArguments, options);
 
@@ -237,8 +230,8 @@ async function startRdm() : Promise<boolean>
         const timeoutMsec = 30 * delayMsec;
         for (let ms = 0; ms < timeoutMsec; ms += delayMsec)
         {
-            rc = runRcSync(["--current-project"]);
-            if (rc.status === 0)
+            rcStatus = await testRcStatus();
+            if (rcStatus)
             {
                 window.showInformationMessage("[RTags] Started server successfully");
                 return true;
@@ -659,7 +652,7 @@ export class RtagsManager implements Disposable
         }
 
         // Start a separate process for receiving asynchronous diagnostics
-        this.diagnosticProcess = runRcPipe(["--json", "--diagnostics"]);
+        this.diagnosticProcess = spawnRc(["--json", "--diagnostics"]);
         if (!this.diagnosticProcess.pid)
         {
             window.showErrorMessage("[RTags] Could not start diagnostics");
