@@ -21,7 +21,7 @@
 'use strict';
 
 import { languages, workspace, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult,
-         SymbolInformation, SymbolKind, TextDocument, Uri, WorkspaceSymbolProvider } from 'vscode';
+         SymbolInformation, SymbolKind, TextDocument, WorkspaceSymbolProvider } from 'vscode';
 
 import { RtagsManager, runRc } from './rtagsManager';
 
@@ -73,26 +73,17 @@ function toSymbolKind(kind: string) : Optional<SymbolKind>
 
 function findSymbols(query: string, args: string[] = []) : Thenable<Optional<SymbolInformation[]>>
 {
-    let regexQuery = "";
-    if (query.length !== 0)
-    {
-        // Escape special characters that have meaning within regular expressions
-        regexQuery = query.replace(/([(){}\[\].*+?|$\^\\])/g, "\\$1");
-
-        // Filter out results for function local variables
-        regexQuery = "\\b" + regexQuery + "(?!.*\\)::)";
-    }
-
     args.push("--filter-system-headers",
               "--absolute-path",
               "--no-context",
               "--display-name",
               "--cursor-kind",
               "--containing-function",
-              "--match-regexp",
+              "--strip-paren",
+              "--wildcard-symbol-names",
               "--match-icase",
               "--find-symbols",
-              regexQuery);
+              query + '*');
 
     const processCallback =
         (output: string) : SymbolInformation[] =>
@@ -128,35 +119,6 @@ function findSymbols(query: string, args: string[] = []) : Thenable<Optional<Sym
         };
 
     return runRc(args, processCallback);
-}
-
-async function findWorkspaceSymbols(query: string, projectPaths: Uri[]) : Promise<SymbolInformation[]>
-{
-    let workspaceSymbols: SymbolInformation[] = [];
-
-    for (const path of projectPaths)
-    {
-        const config = workspace.getConfiguration("rtags", path);
-        const maxSearchResults = config.get<number>("misc.maxWorkspaceSearchResults", 50);
-
-        const args =
-        [
-            "--max",
-            maxSearchResults.toString(),
-            "--project",
-            path.fsPath,
-            "--path-filter",
-            path.fsPath
-        ];
-
-        const symbols = await findSymbols(query, args);
-        if (symbols)
-        {
-            workspaceSymbols.push(...symbols);
-        }
-    }
-
-    return workspaceSymbols;
 }
 
 export class RtagsSymbolProvider implements
@@ -204,7 +166,52 @@ export class RtagsSymbolProvider implements
             return [];
         }
 
-        return findWorkspaceSymbols(query, this.rtagsMgr.getProjectPaths());
+        if (query.length > 3)
+        {
+            return this.findWorkspaceSymbols('*' + query);
+        }
+
+        const resolveCallback =
+            (symbols: SymbolInformation[]) : Promise<SymbolInformation[]> =>
+            {
+                if (symbols.length !== 0)
+                {
+                    return Promise.resolve(symbols);
+                }
+
+                return this.findWorkspaceSymbols('*' + query);
+            };
+
+        return this.findWorkspaceSymbols(query).then(resolveCallback);
+    }
+
+    private async findWorkspaceSymbols(query: string) : Promise<SymbolInformation[]>
+    {
+        let workspaceSymbols: SymbolInformation[] = [];
+
+        for (const path of this.rtagsMgr.getProjectPaths())
+        {
+            const config = workspace.getConfiguration("rtags", path);
+            const maxSearchResults = config.get<number>("misc.maxWorkspaceSearchResults", 50);
+
+            const args =
+            [
+                "--max",
+                maxSearchResults.toString(),
+                "--project",
+                path.fsPath,
+                "--path-filter",
+                path.fsPath
+            ];
+
+            const symbols = await findSymbols(query, args);
+            if (symbols)
+            {
+                workspaceSymbols.push(...symbols);
+            }
+        }
+
+        return workspaceSymbols;
     }
 
     private rtagsMgr: RtagsManager;
