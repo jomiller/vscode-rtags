@@ -754,8 +754,7 @@ export class RtagsManager implements Disposable
                         message: d.message,
                         range: new Range(pos, pos),
                         severity: toDiagnosticSeverity(d.type),
-                        source: "RTags",
-                        code: 0
+                        source: "RTags"
                     };
                     diagnostics.push(diag);
                 }
