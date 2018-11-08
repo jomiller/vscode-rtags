@@ -91,26 +91,37 @@ function findSymbols(query: string, args: string[] = []) : Thenable<Optional<Sym
             let symbols: SymbolInformation[] = [];
             for (const line of output.split('\n'))
             {
-                let [location, name, kind, container] = line.split(/\t+/, 4).map((tok) => { return tok.trim(); });
+                if (line.trim().length === 0)
+                {
+                    continue;
+                }
+                let [loc, name, kind, container] = line.split(/\t+/, 4).map((tok) => { return tok.trim(); });
+                const location = fromRtagsLocation(loc);
+                let symbolKind: Optional<SymbolKind> = undefined;
                 if (!name)
                 {
-                    continue;
+                    name = location.uri.fsPath;
+                    symbolKind = SymbolKind.File;
+                    container = name;
                 }
-                const symbolKind = toSymbolKind(kind);
-                if (!symbolKind)
+                else
                 {
-                    continue;
-                }
-                if (container)
-                {
-                    container = container.replace(/^function: /, "");
+                    symbolKind = toSymbolKind(kind);
+                    if (!symbolKind)
+                    {
+                        continue;
+                    }
+                    if (container)
+                    {
+                        container = container.replace(/^function: /, "");
+                    }
                 }
 
                 const symbolInfo: SymbolInformation =
                 {
                     name: name,
                     containerName: container,
-                    location: fromRtagsLocation(location),
+                    location: location,
                     kind: symbolKind
                 };
                 symbols.push(symbolInfo);
