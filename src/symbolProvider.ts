@@ -100,6 +100,10 @@ function findSymbols(query: string, args: string[] = []) : Thenable<Optional<Sym
                 let symbolKind: Optional<SymbolKind> = undefined;
                 if (!name)
                 {
+                    if (query.length === 0)
+                    {
+                        continue;
+                    }
                     name = location.uri.fsPath;
                     symbolKind = SymbolKind.File;
                     container = name;
