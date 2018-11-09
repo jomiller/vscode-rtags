@@ -49,6 +49,7 @@ function isFunctionKind(symbolKind?: string) : boolean
         "CXXDestructor",
         "CXXMethod",
         "FunctionDecl",
+        "CallExpr",
         "MemberRefExpr",
         "DeclRefExpr"
     ];
