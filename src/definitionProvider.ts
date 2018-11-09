@@ -38,6 +38,30 @@ enum ReferenceType
     Virtuals
 }
 
+function getBaseSymbolType(symbolType: string, unscoped: boolean, isConstructor: boolean) : string
+{
+    let pattern = "";
+    if (isConstructor)
+    {
+        if (!unscoped)
+        {
+            pattern += "::~?\\w+";
+        }
+        pattern += "\\(.*";
+    }
+    else
+    {
+        pattern += "const|volatile|&|\\*|(=>.*)$";
+    }
+    if (unscoped)
+    {
+        pattern += "|^((\\w+::)+)";
+    }
+    const baseSymbolRegex = new RegExp(pattern, "g");
+    const baseSymbolType = symbolType.replace(baseSymbolRegex, "");
+    return baseSymbolType.trim();
+}
+
 function getLocations(args: string[]) : Thenable<Optional<Location[]>>
 {
     const processCallback =
@@ -86,7 +110,10 @@ function getDefinitions(uri: Uri, position: Position, type: ReferenceType = Refe
     return getLocations(args);
 }
 
-function getTypeDefinitions(document: TextDocument, position: Position, baseRegex: RegExp, symbolKinds: string[]) :
+function getTypeDefinitions(document: TextDocument,
+                            position: Position,
+                            typeSymbolKinds: string[],
+                            unscoped: boolean) :
     Thenable<Optional<Location[]>>
 {
     const location = toRtagsLocation(document.uri, position);
@@ -115,13 +142,22 @@ function getTypeDefinitions(document: TextDocument, position: Position, baseRege
                 return undefined;
             }
 
+            if ((symbolKind === "CXXConstructor") || (symbolKind === "CXXDestructor"))
+            {
+                const symbolName = jsonObj.symbolName;
+                if (!symbolName)
+                {
+                    return undefined;
+                }
+                return getBaseSymbolType(symbolName, unscoped, true);
+            }
+
             const symbolKinds =
             [
                 "ClassDecl",
                 "StructDecl",
                 "UnionDecl",
                 "EnumDecl",
-                "CXXConstructor",
                 "FieldDecl",
                 "ParmDecl",
                 "VarDecl",
@@ -142,8 +178,7 @@ function getTypeDefinitions(document: TextDocument, position: Position, baseRege
                 return undefined;
             }
 
-            const baseSymbolType = symbolType.replace(baseRegex, "");
-            return baseSymbolType.trim();
+            return getBaseSymbolType(symbolType, unscoped, false);
         };
 
     const resolveCallback =
@@ -158,12 +193,16 @@ function getTypeDefinitions(document: TextDocument, position: Position, baseRege
             [
                 "--absolute-path",
                 "--no-context",
-                "--definition-only",
                 "--find-symbols",
                 symbolType
             ];
 
-            symbolKinds.forEach((k) => { localArgs.push("--kind-filter", k); });
+            if (!unscoped)
+            {
+                localArgs.push("--definition-only");
+            }
+
+            typeSymbolKinds.forEach((k) => { localArgs.push("--kind-filter", k); });
 
             return getLocations(localArgs);
         };
@@ -173,10 +212,9 @@ function getTypeDefinitions(document: TextDocument, position: Position, baseRege
 
 async function getVariables(document: TextDocument, position: Position) : Promise<Location[]>
 {
-    const baseRegex = /const|volatile|void|\(|\)|&|\*|(=>.*)$|((\w+::)+)/g;
     const symbolKinds = ["CXXConstructor"];
 
-    const constructorLocations = await getTypeDefinitions(document, position, baseRegex, symbolKinds);
+    const constructorLocations = await getTypeDefinitions(document, position, symbolKinds, true);
     if (!constructorLocations)
     {
         return [];
@@ -296,10 +334,9 @@ export class RtagsDefinitionProvider implements
             return undefined;
         }
 
-        const baseRegex = /const|volatile|void|\(|\)|&|\*|(=>.*)$/g;
         const symbolKinds = ["ClassDecl", "StructDecl", "UnionDecl", "EnumDecl"];
 
-        return getTypeDefinitions(document, position, baseRegex, symbolKinds);
+        return getTypeDefinitions(document, position, symbolKinds, false);
     }
 
     public provideImplementation(document: TextDocument, position: Position, _token: CancellationToken) :
