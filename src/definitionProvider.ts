@@ -35,7 +35,6 @@ enum ReferenceType
     Definition,
     References,
     Rename,
-    Variables,
     Virtuals
 }
 
@@ -79,20 +78,128 @@ function getDefinitions(uri: Uri, position: Position, type: ReferenceType = Refe
             args.push("--rename", "--all-references", "--references", location);
             break;
 
-        case ReferenceType.Variables:
-        {
-            const kinds = ["FieldDecl", "ParmDecl", "VarDecl", "MemberRef"];
-            kinds.forEach((k) => { args.push("--kind-filter", k); });
-            args.push("--references", location);
-            break;
-        }
-
         case ReferenceType.Virtuals:
             args.push("--find-virtuals", "--references", location);
             break;
     }
 
     return getLocations(args);
+}
+
+function getTypeDefinitions(document: TextDocument, position: Position, baseRegex: RegExp, symbolKinds: string[]) :
+    Thenable<Optional<Location[]>>
+{
+    const location = toRtagsLocation(document.uri, position);
+
+    const args =
+    [
+        "--json",
+        "--absolute-path",
+        "--no-context",
+        "--symbol-info",
+        location
+    ];
+
+    const processCallback =
+        (output: string) : Optional<string> =>
+        {
+            const jsonObj = parseJson(output);
+            if (!jsonObj)
+            {
+                return undefined;
+            }
+
+            const symbolKind = jsonObj.kind;
+            if (!symbolKind)
+            {
+                return undefined;
+            }
+
+            const symbolKinds =
+            [
+                "ClassDecl",
+                "StructDecl",
+                "UnionDecl",
+                "EnumDecl",
+                "FieldDecl",
+                "ParmDecl",
+                "VarDecl",
+                "TypeRef",
+                "MemberRef",
+                "VariableRef",
+                "MemberRefExpr",
+                "DeclRefExpr"
+            ];
+            if (!symbolKinds.includes(symbolKind))
+            {
+                return undefined;
+            }
+
+            const symbolType = jsonObj.type;
+            if (!symbolType)
+            {
+                return undefined;
+            }
+
+            const baseSymbolType = symbolType.replace(baseRegex, "");
+            return baseSymbolType.trim();
+        };
+
+    const resolveCallback =
+        (symbolType?: string) : Thenable<Optional<Location[]>> =>
+        {
+            if (!symbolType)
+            {
+                return Promise.resolve([] as Location[]);
+            }
+
+            let localArgs =
+            [
+                "--absolute-path",
+                "--no-context",
+                "--find-symbols",
+                symbolType
+            ];
+
+            symbolKinds.forEach((k) => { localArgs.push("--kind-filter", k); });
+
+            return getLocations(localArgs);
+        };
+
+    return runRc(args, processCallback).then(resolveCallback);
+}
+
+async function getVariables(document: TextDocument, position: Position) : Promise<Location[]>
+{
+    const baseRegex = /const|volatile|&|\*|^((\w+::)+)|(=>.*)$/g;
+    const symbolKinds = ["CXXConstructor"];
+
+    const constructorLocations = await getTypeDefinitions(document, position, baseRegex, symbolKinds);
+    if (!constructorLocations)
+    {
+        return [];
+    }
+
+    let variableLocations: Location[] = [];
+
+    for (const loc of constructorLocations)
+    {
+        const args =
+        [
+            "--absolute-path",
+            "--no-context",
+            "--references",
+            toRtagsLocation(loc.uri, loc.range.start)
+        ];
+
+        const locations = await getLocations(args);
+        if (locations)
+        {
+            variableLocations.push(...locations);
+        }
+    }
+
+    return variableLocations;
 }
 
 export class RtagsDefinitionProvider implements
@@ -108,34 +215,48 @@ export class RtagsDefinitionProvider implements
     {
         this.rtagsMgr = rtagsMgr;
 
-        const makeReferencesCallback =
-            (type: ReferenceType) : (textEditor: TextEditor, edit: TextEditorEdit) => void =>
+        const showVariablesCallback =
+            (textEditor: TextEditor, _edit: TextEditorEdit) : void =>
             {
-                const callback =
-                    (textEditor: TextEditor, _edit: TextEditorEdit) : void =>
+                const document = textEditor.document;
+                const position = textEditor.selection.active;
+
+                if (!this.rtagsMgr.isInProject(document.uri))
+                {
+                    return;
+                }
+
+                const resolveCallback =
+                    (locations: Location[]) : void =>
                     {
-                        const document = textEditor.document;
-                        const position = textEditor.selection.active;
-
-                        if (!this.rtagsMgr.isInProject(document.uri))
-                        {
-                            return;
-                        }
-
-                        const resolveCallback =
-                            (locations?: Location[]) : void =>
-                            {
-                                if (!locations)
-                                {
-                                    locations = [];
-                                }
-                                showReferences(document.uri, position, locations);
-                            };
-
-                        getDefinitions(document.uri, position, type).then(resolveCallback);
+                        showReferences(document.uri, position, locations);
                     };
 
-                return callback;
+                getVariables(document, position).then(resolveCallback);
+            };
+
+        const showVirtualsCallback =
+            (textEditor: TextEditor, _edit: TextEditorEdit) : void =>
+            {
+                const document = textEditor.document;
+                const position = textEditor.selection.active;
+
+                if (!this.rtagsMgr.isInProject(document.uri))
+                {
+                    return;
+                }
+
+                const resolveCallback =
+                    (locations?: Location[]) : void =>
+                    {
+                        if (!locations)
+                        {
+                            locations = [];
+                        }
+                        showReferences(document.uri, position, locations);
+                    };
+
+                getDefinitions(document.uri, position, ReferenceType.Virtuals).then(resolveCallback);
             };
 
         this.disposables.push(
@@ -145,10 +266,8 @@ export class RtagsDefinitionProvider implements
             languages.registerReferenceProvider(SourceFileSelector, this),
             languages.registerRenameProvider(SourceFileSelector, this),
             languages.registerHoverProvider(SourceFileSelector, this),
-            commands.registerTextEditorCommand("rtags.showVariables",
-                                                makeReferencesCallback(ReferenceType.Variables)),
-            commands.registerTextEditorCommand("rtags.showVirtuals",
-                                                makeReferencesCallback(ReferenceType.Virtuals)));
+            commands.registerTextEditorCommand("rtags.showVariables", showVariablesCallback),
+            commands.registerTextEditorCommand("rtags.showVirtuals", showVirtualsCallback));
     }
 
     public dispose() : void
@@ -175,83 +294,10 @@ export class RtagsDefinitionProvider implements
             return undefined;
         }
 
-        const location = toRtagsLocation(document.uri, position);
+        const baseRegex = /const|volatile|&|\*|(=>.*)$/g;
+        const symbolKinds = ["ClassDecl", "StructDecl", "UnionDecl", "EnumDecl"];
 
-        const args =
-        [
-            "--json",
-            "--absolute-path",
-            "--no-context",
-            "--symbol-info",
-            location
-        ];
-
-        const processCallback =
-            (output: string) : Optional<string> =>
-            {
-                const jsonObj = parseJson(output);
-                if (!jsonObj)
-                {
-                    return undefined;
-                }
-
-                const symbolKind = jsonObj.kind;
-                if (!symbolKind)
-                {
-                    return undefined;
-                }
-
-                const symbolKinds =
-                [
-                    "ClassDecl",
-                    "StructDecl",
-                    "UnionDecl",
-                    "EnumDecl",
-                    "FieldDecl",
-                    "ParmDecl",
-                    "VarDecl",
-                    "TypeRef",
-                    "MemberRef",
-                    "VariableRef",
-                    "MemberRefExpr",
-                    "DeclRefExpr"
-                ];
-                if (!symbolKinds.includes(symbolKind))
-                {
-                    return undefined;
-                }
-
-                const symbolType = jsonObj.type;
-                if (!symbolType)
-                {
-                    return undefined;
-                }
-
-                const decaySymbolType = symbolType.replace(/const|volatile|&|\*|(=>.*)$/g, "");
-                return decaySymbolType.trim();
-            };
-
-        const resolveCallback =
-            (symbolType?: string) : ProviderResult<Location[]> =>
-            {
-                if (!symbolType)
-                {
-                    return [];
-                }
-
-                const localArgs =
-                [
-                    "--absolute-path",
-                    "--no-context",
-                    "--definition-only",
-                    "--find-symbols",
-                    symbolType
-                ];
-
-                return getLocations(localArgs);
-            };
-
-        return runRc(args, processCallback).then(resolveCallback);
+        return getTypeDefinitions(document, position, baseRegex, symbolKinds);
     }
 
     public provideImplementation(document: TextDocument, position: Position, _token: CancellationToken) :
