@@ -38,12 +38,12 @@ enum ReferenceType
     Virtuals
 }
 
-function getBaseSymbolType(symbolType: string, unscoped: boolean, isConstructor: boolean) : string
+function getBaseSymbolType(symbolType: string, scoped: boolean, isConstructor: boolean) : string
 {
     let pattern = "";
     if (isConstructor)
     {
-        if (!unscoped)
+        if (scoped)
         {
             pattern += "::~?\\w+";
         }
@@ -53,7 +53,7 @@ function getBaseSymbolType(symbolType: string, unscoped: boolean, isConstructor:
     {
         pattern += "const|volatile|&|\\*|(=>.*)$";
     }
-    if (unscoped)
+    if (!scoped)
     {
         pattern += "|((\\w+::)+)";
     }
@@ -113,7 +113,7 @@ function getDefinitions(uri: Uri, position: Position, type: ReferenceType = Refe
 function getTypeDefinitions(document: TextDocument,
                             position: Position,
                             typeSymbolKinds: string[],
-                            unscoped: boolean) :
+                            scoped: boolean) :
     Thenable<Optional<Location[]>>
 {
     const location = toRtagsLocation(document.uri, position);
@@ -149,7 +149,7 @@ function getTypeDefinitions(document: TextDocument,
                 {
                     return undefined;
                 }
-                return getBaseSymbolType(symbolName, unscoped, true);
+                return getBaseSymbolType(symbolName, scoped, true);
             }
 
             const symbolKinds =
@@ -179,7 +179,7 @@ function getTypeDefinitions(document: TextDocument,
                 return undefined;
             }
 
-            return getBaseSymbolType(symbolType, unscoped, false);
+            return getBaseSymbolType(symbolType, scoped, false);
         };
 
     const resolveCallback =
@@ -198,7 +198,7 @@ function getTypeDefinitions(document: TextDocument,
                 symbolType
             ];
 
-            if (!unscoped)
+            if (scoped)
             {
                 localArgs.push("--definition-only");
             }
@@ -215,7 +215,7 @@ async function getVariables(document: TextDocument, position: Position) : Promis
 {
     const symbolKinds = ["CXXConstructor"];
 
-    const constructorLocations = await getTypeDefinitions(document, position, symbolKinds, true);
+    const constructorLocations = await getTypeDefinitions(document, position, symbolKinds, false);
     if (!constructorLocations)
     {
         return [];
@@ -337,7 +337,7 @@ export class RtagsDefinitionProvider implements
 
         const symbolKinds = ["ClassDecl", "StructDecl", "UnionDecl", "EnumDecl"];
 
-        return getTypeDefinitions(document, position, symbolKinds, false);
+        return getTypeDefinitions(document, position, symbolKinds, true);
     }
 
     public provideImplementation(document: TextDocument, position: Position, _token: CancellationToken) :
