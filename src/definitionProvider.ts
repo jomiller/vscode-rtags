@@ -158,6 +158,9 @@ function getTypeDefinitions(document: TextDocument,
                 "StructDecl",
                 "UnionDecl",
                 "EnumDecl",
+                "TypedefDecl",
+                "TypeAliasDecl",
+                "TypeAliasTemplateDecl",
                 "FieldDecl",
                 "ParmDecl",
                 "VarDecl",
@@ -335,7 +338,16 @@ export class RtagsDefinitionProvider implements
             return undefined;
         }
 
-        const symbolKinds = ["ClassDecl", "StructDecl", "UnionDecl", "EnumDecl"];
+        const symbolKinds =
+        [
+            "ClassDecl",
+            "StructDecl",
+            "UnionDecl",
+            "EnumDecl",
+            "TypedefDecl",
+            "TypeAliasDecl",
+            "TypeAliasTemplateDecl"
+        ];
 
         return getTypeDefinitions(document, position, symbolKinds, true);
     }

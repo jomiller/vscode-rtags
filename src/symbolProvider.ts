@@ -35,6 +35,9 @@ function toSymbolKind(kind: string) : Optional<SymbolKind>
             return SymbolKind.Namespace;
 
         case "ClassDecl":
+        case "TypedefDecl":
+        case "TypeAliasDecl":
+        case "TypeAliasTemplateDecl":
             return SymbolKind.Class;
 
         case "StructDecl":

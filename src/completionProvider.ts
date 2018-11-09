@@ -38,6 +38,9 @@ function toCompletionItemKind(kind: string) : CompletionItemKind
         case "ClassDecl":
         case "StructDecl":
         case "UnionDecl":
+        case "TypedefDecl":
+        case "TypeAliasDecl":
+        case "TypeAliasTemplateDecl":
             return CompletionItemKind.Class;
 
         case "EnumDecl":
