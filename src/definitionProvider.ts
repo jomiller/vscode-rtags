@@ -186,16 +186,13 @@ async function getVariables(document: TextDocument, position: Position) : Promis
 
     for (const loc of constructorLocations)
     {
-        let args =
+        const args =
         [
             "--absolute-path",
             "--no-context",
             "--references",
             toRtagsLocation(loc.uri, loc.range.start)
         ];
-
-        const kinds = ["FieldDecl", "ParmDecl", "VarDecl", "MemberRef"];
-        kinds.forEach((k) => { args.push("--kind-filter", k); });
 
         const locations = await getLocations(args);
         if (locations)
