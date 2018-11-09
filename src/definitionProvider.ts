@@ -121,6 +121,7 @@ function getTypeDefinitions(document: TextDocument, position: Position, baseRege
                 "StructDecl",
                 "UnionDecl",
                 "EnumDecl",
+                "CXXConstructor",
                 "FieldDecl",
                 "ParmDecl",
                 "VarDecl",
@@ -157,6 +158,7 @@ function getTypeDefinitions(document: TextDocument, position: Position, baseRege
             [
                 "--absolute-path",
                 "--no-context",
+                "--definition-only",
                 "--find-symbols",
                 symbolType
             ];
@@ -171,7 +173,7 @@ function getTypeDefinitions(document: TextDocument, position: Position, baseRege
 
 async function getVariables(document: TextDocument, position: Position) : Promise<Location[]>
 {
-    const baseRegex = /const|volatile|&|\*|^((\w+::)+)|(=>.*)$/g;
+    const baseRegex = /const|volatile|void|\(|\)|&|\*|(=>.*)$|((\w+::)+)/g;
     const symbolKinds = ["CXXConstructor"];
 
     const constructorLocations = await getTypeDefinitions(document, position, baseRegex, symbolKinds);
@@ -184,13 +186,16 @@ async function getVariables(document: TextDocument, position: Position) : Promis
 
     for (const loc of constructorLocations)
     {
-        const args =
+        let args =
         [
             "--absolute-path",
             "--no-context",
             "--references",
             toRtagsLocation(loc.uri, loc.range.start)
         ];
+
+        const kinds = ["FieldDecl", "ParmDecl", "VarDecl", "MemberRef"];
+        kinds.forEach((k) => { args.push("--kind-filter", k); });
 
         const locations = await getLocations(args);
         if (locations)
@@ -294,7 +299,7 @@ export class RtagsDefinitionProvider implements
             return undefined;
         }
 
-        const baseRegex = /const|volatile|&|\*|(=>.*)$/g;
+        const baseRegex = /const|volatile|void|\(|\)|&|\*|(=>.*)$/g;
         const symbolKinds = ["ClassDecl", "StructDecl", "UnionDecl", "EnumDecl"];
 
         return getTypeDefinitions(document, position, baseRegex, symbolKinds);
