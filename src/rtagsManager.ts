@@ -671,12 +671,15 @@ export class RtagsManager implements Disposable
         const exitCallback =
             (_code: number, signal: string) : void =>
             {
-                if (this.diagnosticCollection)
-                {
-                    this.diagnosticCollection.clear();
-                }
                 this.unprocessedDiagnostics = "";
-                if (signal !== "SIGTERM")
+                if (signal === "SIGTERM")
+                {
+                    if (this.diagnosticCollection)
+                    {
+                        this.diagnosticCollection.clear();
+                    }
+                }
+                else
                 {
                     // Restart the diagnostics process if it was killed unexpectedly
                     window.showErrorMessage("[RTags] Diagnostics stopped; restarting");
