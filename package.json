@@ -48,32 +48,32 @@
         "menus": {
             "editor/context": [
                 {
-                    "command": "rtags.callHierarchy",
+                    "command": "rtags.showCallers",
                     "when": "resourceLangId =~ /^(c|cpp)$/",
                     "group": "navigation@2"
                 },
                 {
-                    "command": "rtags.inheritanceHierarchy",
+                    "command": "rtags.showVariables",
                     "when": "resourceLangId == cpp",
                     "group": "navigation@3"
                 },
                 {
-                    "command": "rtags.showVariables",
-                    "when": "resourceLangId =~ /^(c|cpp)$/",
+                    "command": "rtags.showBase",
+                    "when": "resourceLangId == cpp",
                     "group": "navigation@4"
                 },
                 {
-                    "command": "rtags.showCallers",
-                    "when": "resourceLangId =~ /^(c|cpp)$/",
+                    "command": "rtags.showVirtuals",
+                    "when": "resourceLangId == cpp",
                     "group": "navigation@5"
                 },
                 {
-                    "command": "rtags.showBase",
-                    "when": "resourceLangId == cpp",
+                    "command": "rtags.callHierarchy",
+                    "when": "resourceLangId =~ /^(c|cpp)$/",
                     "group": "navigation@6"
                 },
                 {
-                    "command": "rtags.showVirtuals",
+                    "command": "rtags.inheritanceHierarchy",
                     "when": "resourceLangId == cpp",
                     "group": "navigation@7"
                 }
@@ -98,6 +98,22 @@
             ],
             "commandPalette": [
                 {
+                    "command": "rtags.showCallers",
+                    "when": "resourceLangId =~ /^(c|cpp)$/"
+                },
+                {
+                    "command": "rtags.showVariables",
+                    "when": "resourceLangId == cpp"
+                },
+                {
+                    "command": "rtags.showBase",
+                    "when": "resourceLangId == cpp"
+                },
+                {
+                    "command": "rtags.showVirtuals",
+                    "when": "resourceLangId == cpp"
+                },
+                {
                     "command": "rtags.callHierarchy",
                     "when": "resourceLangId =~ /^(c|cpp)$/"
                 },
@@ -116,22 +132,6 @@
                 {
                     "command": "rtags.gotoLocation",
                     "when": "false"
-                },
-                {
-                    "command": "rtags.showVariables",
-                    "when": "resourceLangId =~ /^(c|cpp)$/"
-                },
-                {
-                    "command": "rtags.showCallers",
-                    "when": "resourceLangId =~ /^(c|cpp)$/"
-                },
-                {
-                    "command": "rtags.showBase",
-                    "when": "resourceLangId == cpp"
-                },
-                {
-                    "command": "rtags.showVirtuals",
-                    "when": "resourceLangId == cpp"
                 }
             ]
         },
@@ -144,6 +144,26 @@
             {
                 "command": "rtags.reindexWorkspace",
                 "title": "Reindex Workspace",
+                "category": "RTags"
+            },
+            {
+                "command": "rtags.showCallers",
+                "title": "Show Callers",
+                "category": "RTags"
+            },
+            {
+                "command": "rtags.showVariables",
+                "title": "Show Variables",
+                "category": "RTags"
+            },
+            {
+                "command": "rtags.showBase",
+                "title": "Show Base",
+                "category": "RTags"
+            },
+            {
+                "command": "rtags.showVirtuals",
+                "title": "Show Virtuals",
                 "category": "RTags"
             },
             {
@@ -167,26 +187,6 @@
             {
                 "command": "rtags.gotoLocation",
                 "title": "Go to Location"
-            },
-            {
-                "command": "rtags.showVariables",
-                "title": "Show Variables",
-                "category": "RTags"
-            },
-            {
-                "command": "rtags.showCallers",
-                "title": "Show Callers",
-                "category": "RTags"
-            },
-            {
-                "command": "rtags.showBase",
-                "title": "Show Base",
-                "category": "RTags"
-            },
-            {
-                "command": "rtags.showVirtuals",
-                "title": "Show Virtuals",
-                "category": "RTags"
             }
         ],
         "configuration": {
