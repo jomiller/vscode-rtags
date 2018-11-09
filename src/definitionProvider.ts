@@ -55,7 +55,7 @@ function getBaseSymbolType(symbolType: string, unscoped: boolean, isConstructor:
     }
     if (unscoped)
     {
-        pattern += "|^((\\w+::)+)";
+        pattern += "|((\\w+::)+)";
     }
     const baseSymbolRegex = new RegExp(pattern, "g");
     const baseSymbolType = symbolType.replace(baseSymbolRegex, "");
