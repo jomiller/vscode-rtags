@@ -164,6 +164,7 @@ function getTypeDefinitions(document: TextDocument,
                 "TypeRef",
                 "MemberRef",
                 "VariableRef",
+                "CallExpr",
                 "MemberRefExpr",
                 "DeclRefExpr"
             ];
