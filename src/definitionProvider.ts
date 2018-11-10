@@ -228,15 +228,7 @@ async function getVariables(document: TextDocument, position: Position) : Promis
 
     for (const loc of constructorLocations)
     {
-        const args =
-        [
-            "--absolute-path",
-            "--no-context",
-            "--references",
-            toRtagsLocation(loc.uri, loc.range.start)
-        ];
-
-        const locations = await getLocations(args);
+        const locations = await getDefinitions(loc.uri, loc.range.start, ReferenceType.References);
         if (locations)
         {
             variableLocations.push(...locations);
