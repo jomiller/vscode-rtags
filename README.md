@@ -39,6 +39,8 @@ The commands are available through both the editor context menu and the command 
 
 `rtags.diagnostics.enabled`: If true, diagnostics and fix-it hints will be enabled.
 
+`rtags.diagnostics.openFilesOnly`: If true, diagnostics will be reported only for open files.
+
 `rtags.completion.enabled`: If true, code completion will be enabled.
 
 `rtags.completion.maxResults`: Maximum number of code completion results to report.

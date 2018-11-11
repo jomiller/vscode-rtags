@@ -254,6 +254,14 @@ export class RtagsManager implements Disposable
         {
             this.diagnosticCollection = languages.createDiagnosticCollection("rtags");
             this.disposables.push(this.diagnosticCollection);
+
+            this.diagnosticsOpenFilesOnly = config.get<boolean>("diagnostics.openFilesOnly", true);
+            if (this.diagnosticsOpenFilesOnly)
+            {
+                this.disposables.push(
+                    workspace.onDidOpenTextDocument(this.diagnoseDocument, this),
+                    workspace.onDidCloseTextDocument(this.undiagnoseDocument, this));
+            }
         }
 
         (async () =>
@@ -371,7 +379,7 @@ export class RtagsManager implements Disposable
         return (loadingProjectPath.fsPath.length > projectPath.fsPath.length);
     }
 
-    public getTextDocuments() : TextDocument[]
+    public getOpenTextDocuments() : TextDocument[]
     {
         return workspace.textDocuments.filter((doc) => { return this.isInProject(doc.uri); });
     }
@@ -477,7 +485,7 @@ export class RtagsManager implements Disposable
             document.uri.fsPath
         ];
 
-        runRc(args, (_unused) => {}, this.getTextDocuments());
+        runRc(args, (_unused) => {}, this.getOpenTextDocuments());
     }
 
     private reindexChangedDocument(event: TextDocumentChangeEvent) : void
@@ -585,7 +593,7 @@ export class RtagsManager implements Disposable
                     {
                         const status = await runRc(["--project", projectPath, "--reindex"],
                                                    (_unused) => { return true; },
-                                                   this.getTextDocuments());
+                                                   this.getOpenTextDocuments());
                         if (!status)
                         {
                             this.currentIndexingProject = null;
@@ -744,6 +752,15 @@ export class RtagsManager implements Disposable
                 continue;
             }
 
+            if (this.diagnosticsOpenFilesOnly)
+            {
+                const fileOpen = workspace.textDocuments.some((doc) => { return (doc.uri.fsPath === uri.fsPath); });
+                if (!fileOpen)
+                {
+                    continue;
+                }
+            }
+
             let diagnostics: Diagnostic[] = [];
 
             for (const d of jsonObj.checkStyle[file])
@@ -773,11 +790,41 @@ export class RtagsManager implements Disposable
         }
     }
 
+    private diagnoseDocument(document: TextDocument) : void
+    {
+        if (!isSourceFile(document) || (!this.isInProject(document.uri) && !this.isInLoadingProject(document.uri)))
+        {
+            return;
+        }
+
+        const args =
+        [
+            "--diagnose",
+            document.uri.fsPath
+        ];
+
+        runRc(args, (_unused) => {});
+    }
+
+    private undiagnoseDocument(document: TextDocument) : void
+    {
+        if (!isSourceFile(document) || (!this.isInProject(document.uri) && !this.isInLoadingProject(document.uri)))
+        {
+            return;
+        }
+
+        if (this.diagnosticCollection)
+        {
+            this.diagnosticCollection.set(document.uri, undefined);
+        }
+    }
+
     private projectIndexingQueue: Project[] = [];
     private currentIndexingProject: Nullable<Project> = null;
     private projectPaths: Uri[] = [];
     private projectPathsToPurge: Set<Uri> = new Set<Uri>();
     private diagnosticsEnabled: boolean = true;
+    private diagnosticsOpenFilesOnly: boolean = true;
     private diagnosticCollection: Nullable<DiagnosticCollection> = null;
     private diagnosticProcess: Nullable<ChildProcess> = null;
     private unprocessedDiagnostics: string = "";

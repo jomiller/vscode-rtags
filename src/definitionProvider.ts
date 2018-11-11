@@ -380,8 +380,8 @@ export class RtagsDefinitionProvider implements
             return undefined;
         }
 
-        const unsavedDocExists: boolean =
-            this.rtagsMgr.getTextDocuments().some((doc) => { return isUnsavedSourceFile(doc); });
+        const unsavedDocExists =
+            this.rtagsMgr.getOpenTextDocuments().some((doc) => { return isUnsavedSourceFile(doc); });
 
         if (unsavedDocExists)
         {

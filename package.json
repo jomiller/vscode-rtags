@@ -225,6 +225,12 @@
                     "description": "If true, diagnostics and fix-it hints will be enabled.",
                     "scope": "window"
                 },
+                "rtags.diagnostics.openFilesOnly": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "If true, diagnostics will be reported only for open files.",
+                    "scope": "window"
+                },
                 "rtags.completion.enabled": {
                     "type": "boolean",
                     "default": true,
