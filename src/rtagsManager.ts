@@ -318,7 +318,7 @@ export class RtagsManager implements Disposable
             commands.registerCommand("rtags.reindexActiveFolder", this.reindexActiveProject, this),
             commands.registerCommand("rtags.reindexWorkspace", this.reindexProjects, this),
             workspace.onDidChangeTextDocument(this.reindexChangedDocument, this),
-            workspace.onDidSaveTextDocument(this.reindexSavedDocument, this),
+            workspace.onDidSaveTextDocument(this.reindexDocument, this),
             workspace.onDidChangeWorkspaceFolders(this.updateProjects, this),
             workspace.onDidChangeConfiguration(changeConfigCallback));
     }
@@ -350,9 +350,10 @@ export class RtagsManager implements Disposable
         return projectPath;
     }
 
-    public isInProject(uri: Uri) : boolean
+    public isInProject(uri: Uri, projectPath?: Uri) : boolean
     {
-        return (this.getProjectPath(uri) !== undefined);
+        const path = this.getProjectPath(uri);
+        return (projectPath ? (path === projectPath) : (path !== undefined));
     }
 
     public isInLoadingProject(uri: Uri) : boolean
@@ -379,9 +380,9 @@ export class RtagsManager implements Disposable
         return (loadingProjectPath.fsPath.length > projectPath.fsPath.length);
     }
 
-    public getOpenTextDocuments() : TextDocument[]
+    public getOpenTextDocuments(projectPath?: Uri) : TextDocument[]
     {
-        return workspace.textDocuments.filter((doc) => { return this.isInProject(doc.uri); });
+        return workspace.textDocuments.filter((doc) => { return this.isInProject(doc.uri, projectPath); });
     }
 
     private async addProjects(folders?: WorkspaceFolder[]) : Promise<void>
@@ -472,20 +473,22 @@ export class RtagsManager implements Disposable
         this.addProjects(event.added);
     }
 
-    private reindexDocument(document: TextDocument, saved: boolean = false) : void
+    private reindexDocument(document: TextDocument) : void
     {
-        if (!isSourceFile(document) || !this.isInProject(document.uri))
+        const projectPath = this.getProjectPath(document.uri);
+
+        if (!isSourceFile(document) || !projectPath)
         {
             return;
         }
 
         const args =
         [
-            saved ? "--check-reindex" : "--reindex",
+            "--reindex",
             document.uri.fsPath
         ];
 
-        runRc(args, (_unused) => {}, this.getOpenTextDocuments());
+        runRc(args, (_unused) => {}, this.getOpenTextDocuments(projectPath));
     }
 
     private reindexChangedDocument(event: TextDocumentChangeEvent) : void
@@ -507,11 +510,6 @@ export class RtagsManager implements Disposable
                            this.reindexDelayTimer = null;
                        },
                        1000);
-    }
-
-    private reindexSavedDocument(document: TextDocument) : void
-    {
-        this.reindexDocument(document, true);
     }
 
     private reindexActiveProject() : void
@@ -558,7 +556,7 @@ export class RtagsManager implements Disposable
 
             if (this.currentIndexingProject)
             {
-                const projectPath = this.currentIndexingProject.uri.fsPath;
+                const projectPath = this.currentIndexingProject.uri;
                 let indexMsg = "";
 
                 switch (this.currentIndexingProject.indexType)
@@ -568,7 +566,7 @@ export class RtagsManager implements Disposable
                         const config = workspace.getConfiguration("rtags", this.currentIndexingProject.uri);
                         const compilationDatabaseDir = config.get<string>("misc.compilationDatabaseDirectory");
                         const compileCommandsDir =
-                            compilationDatabaseDir ? compilationDatabaseDir.replace(/\/*$/, "") : projectPath;
+                            compilationDatabaseDir ? compilationDatabaseDir.replace(/\/*$/, "") : projectPath.fsPath;
                         const compileCommands = compileCommandsDir + "/compile_commands.json";
                         let status: Optional<boolean> = await fileExists(compileCommands);
                         if (status)
@@ -578,7 +576,7 @@ export class RtagsManager implements Disposable
                         }
                         else if (compilationDatabaseDir)
                         {
-                            window.showErrorMessage("[RTags] Could not load project: " + projectPath +
+                            window.showErrorMessage("[RTags] Could not load project: " + projectPath.fsPath +
                                                     "; Compilation database not found: " + compileCommands);
                         }
                         if (!status)
@@ -591,9 +589,9 @@ export class RtagsManager implements Disposable
 
                     case IndexType.Reindex:
                     {
-                        const status = await runRc(["--project", projectPath, "--reindex"],
+                        const status = await runRc(["--project", projectPath.fsPath, "--reindex"],
                                                    (_unused) => { return true; },
-                                                   this.getOpenTextDocuments());
+                                                   this.getOpenTextDocuments(projectPath));
                         if (!status)
                         {
                             this.currentIndexingProject = null;
@@ -605,7 +603,7 @@ export class RtagsManager implements Disposable
 
                 if (this.currentIndexingProject)
                 {
-                    window.showInformationMessage("[RTags] " + indexMsg + " project: " + projectPath);
+                    window.showInformationMessage("[RTags] " + indexMsg + " project: " + projectPath.fsPath);
                     this.finishIndexingProject();
                 }
             }

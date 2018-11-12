@@ -171,10 +171,12 @@ function getReferences(uri: Uri, position: Position, queryType: LocationQueryTyp
     return getLocations(args);
 }
 
-function getReferencesByName(name: string, queryType: NameQueryType) : Thenable<Optional<Location[]>>
+function getReferencesByName(name: string, projectPath: Uri, queryType: NameQueryType) : Thenable<Optional<Location[]>>
 {
     let args =
     [
+        "--project",
+        projectPath.fsPath,
         "--absolute-path",
         "--no-context",
         "--rename",
@@ -210,7 +212,7 @@ function getReferencesByName(name: string, queryType: NameQueryType) : Thenable<
     return getLocations(args);
 }
 
-function getReferencesForSymbolType(uri: Uri, position: Position, queryType: NameQueryType) :
+function getReferencesForSymbolType(uri: Uri, position: Position, projectPath: Uri, queryType: NameQueryType) :
     Thenable<Optional<Location[]>>
 {
     const resolveCallback =
@@ -221,15 +223,17 @@ function getReferencesForSymbolType(uri: Uri, position: Position, queryType: Nam
                 return Promise.resolve([] as Location[]);
             }
 
-            return getReferencesByName(symbolType, queryType);
+            return getReferencesByName(symbolType, projectPath, queryType);
         };
 
     return getSymbolType(uri, position).then(resolveCallback);
 }
 
-async function getVariables(uri: Uri, position: Position) : Promise<Location[]>
+async function getVariables(uri: Uri, position: Position, projectPath: Uri) : Promise<Location[]>
 {
-    const constructorLocations = await getReferencesForSymbolType(uri, position, NameQueryType.Constructors);
+    const constructorLocations =
+        await getReferencesForSymbolType(uri, position, projectPath, NameQueryType.Constructors);
+
     if (!constructorLocations)
     {
         return [];
@@ -268,7 +272,8 @@ export class RtagsDefinitionProvider implements
                 const document = textEditor.document;
                 const position = textEditor.selection.active;
 
-                if (!this.rtagsMgr.isInProject(document.uri))
+                const projectPath = this.rtagsMgr.getProjectPath(document.uri);
+                if (!projectPath)
                 {
                     return;
                 }
@@ -279,7 +284,7 @@ export class RtagsDefinitionProvider implements
                         showReferences(document.uri, position, locations);
                     };
 
-                getVariables(document.uri, position).then(resolveCallback);
+                getVariables(document.uri, position, projectPath).then(resolveCallback);
             };
 
         const showVirtualsCallback =
@@ -336,12 +341,13 @@ export class RtagsDefinitionProvider implements
     public provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<Definition>
     {
-        if (!this.rtagsMgr.isInProject(document.uri))
+        const projectPath = this.rtagsMgr.getProjectPath(document.uri);
+        if (!projectPath)
         {
             return undefined;
         }
 
-        return getReferencesForSymbolType(document.uri, position, NameQueryType.TypeDefinition);
+        return getReferencesForSymbolType(document.uri, position, projectPath, NameQueryType.TypeDefinition);
     }
 
     public provideImplementation(document: TextDocument, position: Position, _token: CancellationToken) :
@@ -375,17 +381,18 @@ export class RtagsDefinitionProvider implements
                               _token: CancellationToken) :
         ProviderResult<WorkspaceEdit>
     {
-        if (!this.rtagsMgr.isInProject(document.uri))
+        const projectPath = this.rtagsMgr.getProjectPath(document.uri);
+        if (!projectPath)
         {
             return undefined;
         }
 
         const unsavedDocExists =
-            this.rtagsMgr.getOpenTextDocuments().some((doc) => { return isUnsavedSourceFile(doc); });
+            this.rtagsMgr.getOpenTextDocuments(projectPath).some((doc) => { return isUnsavedSourceFile(doc); });
 
         if (unsavedDocExists)
         {
-            window.showInformationMessage("[RTags] Save all source files before renaming a symbol");
+            window.showErrorMessage("[RTags] Save all source files in project " + projectPath.fsPath + " before renaming a symbol");
             return undefined;
         }
 
