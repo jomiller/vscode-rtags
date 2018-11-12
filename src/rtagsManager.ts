@@ -482,9 +482,9 @@ export class RtagsManager implements Disposable
             return;
         }
 
+        let reindexArg = "--reindex";
         let documents = this.getOpenTextDocuments(projectPath);
 
-        let reindexArg = "--reindex";
         if (saved)
         {
             const unsavedDocExists = documents.some((doc) => { return isUnsavedSourceFile(doc); });
