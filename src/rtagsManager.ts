@@ -318,7 +318,7 @@ export class RtagsManager implements Disposable
             commands.registerCommand("rtags.reindexActiveFolder", this.reindexActiveProject, this),
             commands.registerCommand("rtags.reindexWorkspace", this.reindexProjects, this),
             workspace.onDidChangeTextDocument(this.reindexChangedDocument, this),
-            workspace.onDidSaveTextDocument(this.reindexDocument, this),
+            workspace.onDidSaveTextDocument(this.reindexSavedDocument, this),
             workspace.onDidChangeWorkspaceFolders(this.updateProjects, this),
             workspace.onDidChangeConfiguration(changeConfigCallback));
     }
@@ -473,7 +473,7 @@ export class RtagsManager implements Disposable
         this.addProjects(event.added);
     }
 
-    private reindexDocument(document: TextDocument) : void
+    private reindexDocument(document: TextDocument, saved: boolean = false) : void
     {
         const projectPath = this.getProjectPath(document.uri);
 
@@ -482,13 +482,20 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        const args =
-        [
-            "--reindex",
-            document.uri.fsPath
-        ];
+        let documents = this.getOpenTextDocuments(projectPath);
 
-        runRc(args, (_unused) => {}, this.getOpenTextDocuments(projectPath));
+        let reindexArg = "--reindex";
+        if (saved)
+        {
+            const unsavedDocExists = documents.some((doc) => { return isUnsavedSourceFile(doc); });
+            if (!unsavedDocExists)
+            {
+                reindexArg = "--check-reindex";
+                documents = [];
+            }
+        }
+
+        runRc([reindexArg, document.uri.fsPath], (_unused) => {}, documents);
     }
 
     private reindexChangedDocument(event: TextDocumentChangeEvent) : void
@@ -510,6 +517,11 @@ export class RtagsManager implements Disposable
                            this.reindexDelayTimer = null;
                        },
                        1000);
+    }
+
+    private reindexSavedDocument(document: TextDocument) : void
+    {
+        this.reindexDocument(document, true);
     }
 
     private reindexActiveProject() : void
