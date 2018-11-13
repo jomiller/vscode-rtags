@@ -380,9 +380,19 @@ export class RtagsManager implements Disposable
         return (loadingProjectPath.fsPath.length > projectPath.fsPath.length);
     }
 
-    public getOpenTextDocuments(projectPath?: Uri) : TextDocument[]
+    public getOpenTextFiles(projectPath?: Uri) : TextDocument[]
     {
         return workspace.textDocuments.filter((doc) => { return this.isInProject(doc.uri, projectPath); });
+    }
+
+    public getOpenSourceFiles(projectPath?: Uri) : TextDocument[]
+    {
+        return this.getOpenTextFiles(projectPath).filter((doc) => { return isSourceFile(doc); });
+    }
+
+    public getUnsavedSourceFiles(projectPath?: Uri) : TextDocument[]
+    {
+        return this.getOpenTextFiles(projectPath).filter((doc) => { return isUnsavedSourceFile(doc); });
     }
 
     private async addProjects(folders?: WorkspaceFolder[]) : Promise<void>
@@ -401,18 +411,6 @@ export class RtagsManager implements Disposable
                 (p) => { return Uri.file(p.replace(" <=", "").trim().replace(/\/$/, "")); });
         }
 
-        function diagnoseProject(uri: Uri) : void
-        {
-            const args =
-            [
-                "--project",
-                uri.fsPath,
-                "--diagnose-all"
-            ];
-
-            runRc(args, (_unused) => {});
-        }
-
         // Consider only VS Code workspace folders, and ignore RTags projects that are not known to VS Code
         for (const f of folders)
         {
@@ -423,8 +421,18 @@ export class RtagsManager implements Disposable
                 this.projectPaths.push(f.uri);
                 if (this.diagnosticsEnabled)
                 {
-                    // Resend diagnostics for all files in the project
-                    diagnoseProject(f.uri);
+                    if (this.diagnosticsOpenFilesOnly)
+                    {
+                        // Resend diagnostics for open files in the project
+                        let args: string[] = [];
+                        this.getOpenSourceFiles(f.uri).forEach((doc) => { args.push("--diagnose", doc.uri.fsPath); });
+                        runRc(args, (_unused) => {});
+                    }
+                    else
+                    {
+                        // Resend diagnostics for all files in the project
+                        runRc(["--project", f.uri.fsPath, "--diagnose-all"], (_unused) => {});
+                    }
                 }
             }
             else
@@ -483,7 +491,7 @@ export class RtagsManager implements Disposable
         }
 
         let reindexArg = "--reindex";
-        let documents = this.getOpenTextDocuments(projectPath);
+        let documents = this.getOpenTextFiles(projectPath);
 
         if (saved)
         {
@@ -603,7 +611,7 @@ export class RtagsManager implements Disposable
                     {
                         const status = await runRc(["--project", projectPath.fsPath, "--reindex"],
                                                    (_unused) => { return true; },
-                                                   this.getOpenTextDocuments(projectPath));
+                                                   this.getOpenTextFiles(projectPath));
                         if (!status)
                         {
                             this.currentIndexingProject = null;
@@ -807,13 +815,7 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        const args =
-        [
-            "--diagnose",
-            document.uri.fsPath
-        ];
-
-        runRc(args, (_unused) => {});
+        runRc(["--diagnose", document.uri.fsPath], (_unused) => {});
     }
 
     private undiagnoseDocument(document: TextDocument) : void

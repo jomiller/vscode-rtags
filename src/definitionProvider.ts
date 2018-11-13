@@ -27,8 +27,8 @@ import { commands, languages, window, CancellationToken, Definition, DefinitionP
 
 import { RtagsManager, runRc } from './rtagsManager';
 
-import { Optional, SourceFileSelector, isUnsavedSourceFile, showReferences, fromRtagsLocation, toRtagsLocation,
-         parseJson } from './rtagsUtil';
+import { Optional, SourceFileSelector, showReferences, fromRtagsLocation, toRtagsLocation, parseJson }
+         from './rtagsUtil';
 
 enum LocationQueryType
 {
@@ -387,10 +387,7 @@ export class RtagsDefinitionProvider implements
             return undefined;
         }
 
-        const unsavedDocExists =
-            this.rtagsMgr.getOpenTextDocuments(projectPath).some((doc) => { return isUnsavedSourceFile(doc); });
-
-        if (unsavedDocExists)
+        if (this.rtagsMgr.getUnsavedSourceFiles().length !== 0)
         {
             window.showErrorMessage("[RTags] Save all source files in project " + projectPath.fsPath + " before renaming a symbol");
             return undefined;
