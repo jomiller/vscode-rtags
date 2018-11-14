@@ -78,14 +78,11 @@ function getSymbolType(uri: Uri, position: Position) : Thenable<Optional<string>
                 return undefined;
             }
 
+            const symbolName = jsonObj.symbolName;
+
             if ((symbolKind === "CXXConstructor") || (symbolKind === "CXXDestructor"))
             {
-                const symbolName = jsonObj.symbolName;
-                if (!symbolName)
-                {
-                    return undefined;
-                }
-                return getBaseSymbolType(symbolName);
+                return (symbolName ? getBaseSymbolType(symbolName) : undefined);
             }
 
             const symbolKinds =
@@ -119,7 +116,7 @@ function getSymbolType(uri: Uri, position: Position) : Thenable<Optional<string>
             const symbolType = jsonObj.type;
             if (!symbolType)
             {
-                return undefined;
+                return (symbolName ? getBaseSymbolType(symbolName) : undefined);
             }
 
             return getBaseSymbolType(symbolType);
