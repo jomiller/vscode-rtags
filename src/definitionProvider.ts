@@ -91,6 +91,8 @@ function getSymbolType(uri: Uri, position: Position) : Thenable<Optional<string>
             const symbolKinds =
             [
                 "ClassDecl",
+                "ClassTemplate",
+                "ClassTemplatePartialSpecialization",
                 "StructDecl",
                 "UnionDecl",
                 "EnumDecl",
@@ -100,7 +102,9 @@ function getSymbolType(uri: Uri, position: Position) : Thenable<Optional<string>
                 "FieldDecl",
                 "ParmDecl",
                 "VarDecl",
+                "NonTypeTemplateParameter",
                 "TypeRef",
+                "TemplateRef",
                 "MemberRef",
                 "VariableRef",
                 "CallExpr",
@@ -192,6 +196,8 @@ function getReferencesByName(name: string, projectPath: Uri, queryType: NameQuer
             const symbolKinds =
             [
                 "ClassDecl",
+                "ClassTemplate",
+                "ClassTemplatePartialSpecialization",
                 "StructDecl",
                 "UnionDecl",
                 "EnumDecl",

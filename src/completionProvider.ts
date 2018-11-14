@@ -36,6 +36,8 @@ function toCompletionItemKind(kind: string) : CompletionItemKind
             return CompletionItemKind.Module;
 
         case "ClassDecl":
+        case "ClassTemplate":
+        case "ClassTemplatePartialSpecialization":
         case "StructDecl":
         case "UnionDecl":
         case "TypedefDecl":
@@ -50,6 +52,7 @@ function toCompletionItemKind(kind: string) : CompletionItemKind
             return CompletionItemKind.EnumMember;
 
         case "TemplateTypeParameter":
+        case "TemplateTemplateParameter":
             return CompletionItemKind.TypeParameter;
 
         case "CXXConstructor":
@@ -60,6 +63,7 @@ function toCompletionItemKind(kind: string) : CompletionItemKind
             return CompletionItemKind.Method;
 
         case "FunctionDecl":
+        case "FunctionTemplate":
             return CompletionItemKind.Function;
 
         case "FieldDecl":
@@ -67,6 +71,7 @@ function toCompletionItemKind(kind: string) : CompletionItemKind
 
         case "ParmDecl":
         case "VarDecl":
+        case "NonTypeTemplateParameter":
             return CompletionItemKind.Variable;
     }
 

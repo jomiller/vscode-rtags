@@ -35,6 +35,8 @@ function toSymbolKind(kind: string) : Optional<SymbolKind>
             return SymbolKind.Namespace;
 
         case "ClassDecl":
+        case "ClassTemplate":
+        case "ClassTemplatePartialSpecialization":
         case "TypedefDecl":
         case "TypeAliasDecl":
         case "TypeAliasTemplateDecl":
@@ -51,6 +53,7 @@ function toSymbolKind(kind: string) : Optional<SymbolKind>
             return SymbolKind.EnumMember;
 
         case "TemplateTypeParameter":
+        case "TemplateTemplateParameter":
             return SymbolKind.TypeParameter;
 
         case "CXXConstructor":
@@ -61,6 +64,7 @@ function toSymbolKind(kind: string) : Optional<SymbolKind>
             return SymbolKind.Method;
 
         case "FunctionDecl":
+        case "FunctionTemplate":
             return SymbolKind.Function;
 
         case "FieldDecl":
@@ -68,6 +72,7 @@ function toSymbolKind(kind: string) : Optional<SymbolKind>
 
         case "ParmDecl":
         case "VarDecl":
+        case "NonTypeTemplateParameter":
             return SymbolKind.Variable;
     }
 
