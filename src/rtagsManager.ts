@@ -511,22 +511,32 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        if (this.reindexDelayTimer)
+        const path = event.document.uri.fsPath;
+        const timer = this.reindexDelayTimers.get(path);
+
+        if (timer)
         {
-            clearTimeout(this.reindexDelayTimer);
+            clearTimeout(timer);
         }
 
-        this.reindexDelayTimer =
-            setTimeout(() : void =>
-                       {
-                           this.reindexDocument(event.document);
-                           this.reindexDelayTimer = null;
-                       },
-                       1000);
+        this.reindexDelayTimers.set(path,
+                                    setTimeout(() : void =>
+                                               {
+                                                   this.reindexDocument(event.document);
+                                                   this.reindexDelayTimers.delete(path);
+                                               },
+                                               1000));
     }
 
     private reindexSavedDocument(document: TextDocument) : void
     {
+        const timer = this.reindexDelayTimers.get(document.uri.fsPath);
+
+        if (timer)
+        {
+            clearTimeout(timer);
+        }
+
         this.reindexDocument(document, true);
     }
 
@@ -832,13 +842,13 @@ export class RtagsManager implements Disposable
     private projectIndexingQueue: Project[] = [];
     private currentIndexingProject: Nullable<Project> = null;
     private projectPaths: Uri[] = [];
-    private projectPathsToPurge: Set<Uri> = new Set<Uri>();
+    private projectPathsToPurge = new Set<Uri>();
     private diagnosticsEnabled: boolean = true;
     private diagnosticsOpenFilesOnly: boolean = true;
     private diagnosticCollection: Nullable<DiagnosticCollection> = null;
     private diagnosticProcess: Nullable<ChildProcess> = null;
     private unprocessedDiagnostics: string = "";
-    private reindexDelayTimer: Nullable<NodeJS.Timer> = null;
+    private reindexDelayTimers = new Map<string, NodeJS.Timer>();
     private indexPollTimer: Nullable<NodeJS.Timer> = null;
     private disposables: Disposable[] = [];
 }
