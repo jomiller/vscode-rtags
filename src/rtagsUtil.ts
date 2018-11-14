@@ -37,18 +37,18 @@ export const SourceFileSelector: DocumentFilter[] =
     { language: "cpp", scheme: "file" }
 ];
 
-export function isSourceFile(document: TextDocument) : boolean
+export function isSourceFile(file: TextDocument) : boolean
 {
-    return (languages.match(SourceFileSelector, document) > 0);
+    return (languages.match(SourceFileSelector, file) > 0);
 }
 
-export function isUnsavedSourceFile(document: TextDocument) : boolean
+export function isUnsavedSourceFile(file: TextDocument) : boolean
 {
-    if (!document.isDirty)
+    if (!file.isDirty)
     {
         return false;
     }
-    return isSourceFile(document);
+    return isSourceFile(file);
 }
 
 export function setContext<T>(name: string, value: T) : void

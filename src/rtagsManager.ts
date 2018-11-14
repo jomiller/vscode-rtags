@@ -79,17 +79,17 @@ function getRcExecutable() : string
     return config.get<string>("rc.executable", "rc");
 }
 
-export function runRc<T>(args: string[], process: (stdout: string) => T, documents: TextDocument[] = []) :
+export function runRc<T>(args: string[], process: (stdout: string) => T, files: TextDocument[] = []) :
     Thenable<Optional<T>>
 {
     const executorCallback =
         (resolve: (value?: T) => void, _reject: (reason?: any) => void) : void =>
         {
-            const unsavedDocs = documents.filter((doc) => { return isUnsavedSourceFile(doc); });
-            for (const doc of unsavedDocs)
+            const unsavedSourceFiles = files.filter((file) => { return isUnsavedSourceFile(file); });
+            for (const file of unsavedSourceFiles)
             {
-                const unsavedFile = doc.uri.fsPath + ':' + doc.getText().length.toString();
-                args.push("--unsaved-file", unsavedFile);
+                const text = file.uri.fsPath + ':' + file.getText().length.toString();
+                args.push("--unsaved-file", text);
             }
 
             const options: ExecFileOptionsWithStringEncoding =
@@ -130,11 +130,11 @@ export function runRc<T>(args: string[], process: (stdout: string) => T, documen
 
             let rc = execFile(getRcExecutable(), args, options, exitCallback);
 
-            for (const doc of unsavedDocs)
+            for (const file of unsavedSourceFiles)
             {
-                rc.stdin.write(doc.getText());
+                rc.stdin.write(file.getText());
             }
-            if (unsavedDocs.length !== 0)
+            if (unsavedSourceFiles.length !== 0)
             {
                 rc.stdin.end();
             }
@@ -257,8 +257,8 @@ export class RtagsManager implements Disposable
             if (this.diagnosticsOpenFilesOnly)
             {
                 this.disposables.push(
-                    workspace.onDidOpenTextDocument(this.diagnoseDocument, this),
-                    workspace.onDidCloseTextDocument(this.undiagnoseDocument, this));
+                    workspace.onDidOpenTextDocument(this.diagnoseFile, this),
+                    workspace.onDidCloseTextDocument(this.undiagnoseFile, this));
             }
         }
 
@@ -315,8 +315,8 @@ export class RtagsManager implements Disposable
         this.disposables.push(
             commands.registerCommand("rtags.reindexActiveFolder", this.reindexActiveProject, this),
             commands.registerCommand("rtags.reindexWorkspace", this.reindexProjects, this),
-            workspace.onDidChangeTextDocument(this.reindexChangedDocument, this),
-            workspace.onDidSaveTextDocument(this.reindexSavedDocument, this),
+            workspace.onDidChangeTextDocument(this.reindexChangedFile, this),
+            workspace.onDidSaveTextDocument(this.reindexSavedFile, this),
             workspace.onDidChangeWorkspaceFolders(this.updateProjects, this),
             workspace.onDidChangeConfiguration(changeConfigCallback));
     }
@@ -380,17 +380,17 @@ export class RtagsManager implements Disposable
 
     public getOpenTextFiles(projectPath?: Uri) : TextDocument[]
     {
-        return workspace.textDocuments.filter((doc) => { return this.isInProject(doc.uri, projectPath); });
+        return workspace.textDocuments.filter((file) => { return this.isInProject(file.uri, projectPath); });
     }
 
     public getOpenSourceFiles(projectPath?: Uri) : TextDocument[]
     {
-        return this.getOpenTextFiles(projectPath).filter((doc) => { return isSourceFile(doc); });
+        return this.getOpenTextFiles(projectPath).filter((file) => { return isSourceFile(file); });
     }
 
     public getUnsavedSourceFiles(projectPath?: Uri) : TextDocument[]
     {
-        return this.getOpenTextFiles(projectPath).filter((doc) => { return isUnsavedSourceFile(doc); });
+        return this.getOpenTextFiles(projectPath).filter((file) => { return isUnsavedSourceFile(file); });
     }
 
     private async addProjects(folders?: WorkspaceFolder[]) : Promise<void>
@@ -422,9 +422,13 @@ export class RtagsManager implements Disposable
                     if (this.diagnosticsOpenFilesOnly)
                     {
                         // Resend diagnostics for open files in the project
-                        let args: string[] = [];
-                        this.getOpenSourceFiles(f.uri).forEach((doc) => { args.push("--diagnose", doc.uri.fsPath); });
-                        runRc(args, (_unused) => {});
+                        const openSourceFiles = this.getOpenSourceFiles(f.uri);
+                        if (openSourceFiles.length !== 0)
+                        {
+                            let args: string[] = [];
+                            openSourceFiles.forEach((file) => { args.push("--diagnose", file.uri.fsPath); });
+                            runRc(args, (_unused) => {});
+                        }
                     }
                     else
                     {
@@ -479,32 +483,32 @@ export class RtagsManager implements Disposable
         this.addProjects(event.added);
     }
 
-    private reindexDocument(document: TextDocument, saved: boolean = false) : void
+    private reindexFile(file: TextDocument, saved: boolean = false) : void
     {
-        const projectPath = this.getProjectPath(document.uri);
+        const projectPath = this.getProjectPath(file.uri);
 
-        if (!isSourceFile(document) || !projectPath)
+        if (!isSourceFile(file) || !projectPath)
         {
             return;
         }
 
         let reindexArg = "--reindex";
-        let documents = this.getOpenTextFiles(projectPath);
+        let openFiles = this.getOpenTextFiles(projectPath);
 
         if (saved)
         {
-            const unsavedDocExists = documents.some((doc) => { return isUnsavedSourceFile(doc); });
-            if (!unsavedDocExists)
+            const unsavedFileExists = openFiles.some((file) => { return isUnsavedSourceFile(file); });
+            if (!unsavedFileExists)
             {
                 reindexArg = "--check-reindex";
-                documents = [];
+                openFiles = [];
             }
         }
 
-        runRc([reindexArg, document.uri.fsPath], (_unused) => {}, documents);
+        runRc([reindexArg, file.uri.fsPath], (_unused) => {}, openFiles);
     }
 
-    private reindexChangedDocument(event: TextDocumentChangeEvent) : void
+    private reindexChangedFile(event: TextDocumentChangeEvent) : void
     {
         if (event.contentChanges.length === 0)
         {
@@ -522,22 +526,22 @@ export class RtagsManager implements Disposable
         this.reindexDelayTimers.set(path,
                                     setTimeout(() : void =>
                                                {
-                                                   this.reindexDocument(event.document);
+                                                   this.reindexFile(event.document);
                                                    this.reindexDelayTimers.delete(path);
                                                },
                                                1000));
     }
 
-    private reindexSavedDocument(document: TextDocument) : void
+    private reindexSavedFile(file: TextDocument) : void
     {
-        const timer = this.reindexDelayTimers.get(document.uri.fsPath);
+        const timer = this.reindexDelayTimers.get(file.uri.fsPath);
 
         if (timer)
         {
             clearTimeout(timer);
         }
 
-        this.reindexDocument(document, true);
+        this.reindexFile(file, true);
     }
 
     private reindexActiveProject() : void
@@ -780,7 +784,7 @@ export class RtagsManager implements Disposable
 
             if (this.diagnosticsOpenFilesOnly)
             {
-                const fileOpen = workspace.textDocuments.some((doc) => { return (doc.uri.fsPath === uri.fsPath); });
+                const fileOpen = workspace.textDocuments.some((file) => { return (file.uri.fsPath === uri.fsPath); });
                 if (!fileOpen)
                 {
                     continue;
@@ -816,26 +820,26 @@ export class RtagsManager implements Disposable
         }
     }
 
-    private diagnoseDocument(document: TextDocument) : void
+    private diagnoseFile(file: TextDocument) : void
     {
-        if (!isSourceFile(document) || (!this.isInProject(document.uri) && !this.isInLoadingProject(document.uri)))
+        if (!isSourceFile(file) || (!this.isInProject(file.uri) && !this.isInLoadingProject(file.uri)))
         {
             return;
         }
 
-        runRc(["--diagnose", document.uri.fsPath], (_unused) => {});
+        runRc(["--diagnose", file.uri.fsPath], (_unused) => {});
     }
 
-    private undiagnoseDocument(document: TextDocument) : void
+    private undiagnoseFile(file: TextDocument) : void
     {
-        if (!isSourceFile(document) || (!this.isInProject(document.uri) && !this.isInLoadingProject(document.uri)))
+        if (!isSourceFile(file) || (!this.isInProject(file.uri) && !this.isInLoadingProject(file.uri)))
         {
             return;
         }
 
         if (this.diagnosticCollection)
         {
-            this.diagnosticCollection.set(document.uri, undefined);
+            this.diagnosticCollection.set(file.uri, undefined);
         }
     }
 
