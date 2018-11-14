@@ -534,11 +534,13 @@ export class RtagsManager implements Disposable
 
     private reindexSavedFile(file: TextDocument) : void
     {
-        const timer = this.reindexDelayTimers.get(file.uri.fsPath);
+        const path = file.uri.fsPath;
+        const timer = this.reindexDelayTimers.get(path);
 
         if (timer)
         {
             clearTimeout(timer);
+            this.reindexDelayTimers.delete(path);
         }
 
         this.reindexFile(file, true);
