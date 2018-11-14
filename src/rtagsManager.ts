@@ -53,13 +53,11 @@ function toDiagnosticSeverity(severity: string) : DiagnosticSeverity
     switch (severity)
     {
         case "error":
+        case "fixit":
             return DiagnosticSeverity.Error;
 
         case "warning":
             return DiagnosticSeverity.Warning;
-
-        case "fixit":
-            return DiagnosticSeverity.Hint;
 
         default:
             return DiagnosticSeverity.Information;
