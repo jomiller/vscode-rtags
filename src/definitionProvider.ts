@@ -46,7 +46,7 @@ enum NameQueryType
 
 function getBaseSymbolType(symbolType: string) : string
 {
-    const baseSymbolType = symbolType.replace(/const|volatile|&|\*|\(.*|=>.*/g, "");
+    const baseSymbolType = symbolType.replace(/const|volatile|&|\*|\[\d*\]|\(.*|=>.*/g, "");
     return baseSymbolType.trim();
 }
 
