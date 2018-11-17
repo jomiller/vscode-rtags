@@ -505,7 +505,7 @@ export class RtagsManager implements Disposable
             }
 
             // Add a small delay in order to override automatic reindexing on save
-            setTimeout(() => { runRc([reindexArg, file.uri.fsPath], (_unused) => {}, openFiles); }, 100);
+            setTimeout(() => { runRc([reindexArg, file.uri.fsPath], (_unused) => {}, openFiles); }, 300);
         }
         else
         {
