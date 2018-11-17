@@ -25,7 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Warning and information diagnostic messages were treated as errors.
 - Diagnostic messages were lost from the Problems window if the diagnostic process was terminated unexpectedly.
 - Other VS Code tasks could become blocked while the connection between `rc` and `rdm` was being tested, if `rdm` was slow to respond.
-- Saving a source file could trigger false positive diagnostic messages in unsaved headers files that the source file depended upon.
+- Saving a file could trigger false positive diagnostic messages in other unsaved files that have references to the same symbols as the saved file.
 - When multiple source files were edited in quick succession without being saved, then only the last edited file was reindexed.
 
 ## [0.3.2] - 2018-10-21

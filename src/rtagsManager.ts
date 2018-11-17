@@ -503,9 +503,14 @@ export class RtagsManager implements Disposable
                 reindexArg = "--check-reindex";
                 openFiles = [];
             }
-        }
 
-        runRc([reindexArg, file.uri.fsPath], (_unused) => {}, openFiles);
+            // Add a small delay in order to override automatic reindexing on save
+            setTimeout(() => { runRc([reindexArg, file.uri.fsPath], (_unused) => {}, openFiles); }, 100);
+        }
+        else
+        {
+            runRc([reindexArg, file.uri.fsPath], (_unused) => {}, openFiles);
+        }
     }
 
     private reindexChangedFile(event: TextDocumentChangeEvent) : void
