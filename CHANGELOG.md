@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.0] - 2018-11-16
+
+### Added
+- `rtags.diagnostics.openFilesOnly` configuration setting for reporting diagnostics only for open files.
+
+### Changed
+- Enable code completion by default (`rtags.completion.enabled` configuration setting is set to `true`).
+- Report diagnostics only for open files by default (`rtags.diagnostics.openFilesOnly` configuration setting is set to `true`).
+- Improve the results for `Go to Type Definition`, `Show Variables` and `Show Callers` commands.
+- Include file symbols in workspace symbol search results.
+
+### Removed
+- `Show Variables` command from the context menu for C files.
+
+### Fixed
+- Signature help did not work when function arguments contained nested signatures.
+- Workspace symbol search only matched the pattern against the beginning of symbol names.
+- Symbol searches did not return results for class/function templates or type aliases.
+- Warning and information diagnostic messages were treated as errors.
+- Diagnostic messages were lost from the Problems window if the diagnostic process was terminated unexpectedly.
+- Other VS Code tasks could become blocked while the connection between `rc` and `rdm` was being tested, if `rdm` was slow to respond.
+- Saving a source file could trigger false positive diagnostic messages in unsaved headers files that the source file depended upon.
+- When multiple source files were edited in quick succession without being saved, then only the last edited file was reindexed.
+
 ## [0.3.2] - 2018-10-21
 
 ### Added
@@ -59,6 +83,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 Initial release
 
+[0.4.0]: https://github.com/jomiller/vscode-rtags/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/jomiller/vscode-rtags/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/jomiller/vscode-rtags/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/jomiller/vscode-rtags/compare/v0.2.0...v0.3.0
