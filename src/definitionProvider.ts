@@ -20,8 +20,8 @@
 
 'use strict';
 
-import { commands, languages, window, CancellationToken, Definition, DefinitionProvider, Disposable, Hover,
-         HoverProvider, Location, Position, ProviderResult, ReferenceContext, TextDocument, TypeDefinitionProvider,
+import { commands, languages, CancellationToken, Definition, DefinitionProvider, Disposable, Hover, HoverProvider,
+         Location, Position, ProviderResult, ReferenceContext, TextDocument, TypeDefinitionProvider,
          ImplementationProvider, Range, ReferenceProvider, RenameProvider, TextEditor, TextEditorEdit, Uri,
          WorkspaceEdit } from 'vscode';
 
@@ -387,12 +387,6 @@ export class RtagsDefinitionProvider implements
         const projectPath = this.rtagsMgr.getProjectPath(document.uri);
         if (!projectPath)
         {
-            return undefined;
-        }
-
-        if (this.rtagsMgr.getUnsavedSourceFiles().length !== 0)
-        {
-            window.showErrorMessage("[RTags] Save all source files in project " + projectPath.fsPath + " before renaming a symbol");
             return undefined;
         }
 
