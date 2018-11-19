@@ -25,7 +25,7 @@ import { commands, languages, workspace, CancellationToken, CodeActionContext, C
 
 import { RtagsManager, runRc } from './rtagsManager';
 
-import { Nullable, SourceFileSelector, fromRtagsPosition } from './rtagsUtil';
+import { SourceFileSelector, fromRtagsPosition } from './rtagsUtil';
 
 export class RtagsCodeActionProvider implements
     CodeActionProvider,
@@ -83,47 +83,10 @@ export class RtagsCodeActionProvider implements
                         continue;
                     }
                     const end = start.translate(0, parseInt(length));
-                    const newRange = new Range(start, end);
-                    let minDiagRange: Nullable<Range> = null;
-                    let minDiagLineDelta = Number.MAX_SAFE_INTEGER;
-                    let minDiagCharDelta = Number.MAX_SAFE_INTEGER;
-                    let currentText = "";
+                    const currentRange = new Range(start, end);
+                    const currentText = document.getText(currentRange);
+
                     let title = "";
-
-                    // Find the diagnostic with the range that best corresponds to this fix-it hint
-
-                    for (const diag of this.rtagsMgr.getDiagnostics(document.uri))
-                    {
-                        if (diag.range.start.isEqual(newRange.start))
-                        {
-                            const diagLineDelta = diag.range.end.line - diag.range.start.line;
-                            const diagCharDelta = diag.range.end.character - diag.range.start.character;
-                            if (minDiagRange)
-                            {
-                                minDiagLineDelta = minDiagRange.end.line - minDiagRange.start.line;
-                                minDiagCharDelta = minDiagRange.end.character - minDiagRange.start.character;
-                            }
-                            if ((diagLineDelta < minDiagLineDelta) ||
-                                ((diagLineDelta === minDiagLineDelta) && (diagCharDelta < minDiagCharDelta)))
-                            {
-                                const wordRange = document.getWordRangeAtPosition(diag.range.start);
-                                if (wordRange && wordRange.start.isEqual(diag.range.start))
-                                {
-                                    minDiagRange = wordRange;
-                                }
-                                else
-                                {
-                                    minDiagRange = diag.range;
-                                }
-                            }
-                        }
-                    }
-
-                    if (minDiagRange)
-                    {
-                        currentText = document.getText(minDiagRange);
-                    }
-
                     if ((currentText.length !== 0) && (newText.length !== 0))
                     {
                         title = "Replace " + currentText + " with " + newText;
@@ -145,7 +108,7 @@ export class RtagsCodeActionProvider implements
                     {
                         command: RtagsCodeActionProvider.commandId,
                         title: "[RTags] " + title,
-                        arguments: [document, newRange, newText]
+                        arguments: [document, currentRange, newText]
                     };
                     cmds.push(command);
                 }

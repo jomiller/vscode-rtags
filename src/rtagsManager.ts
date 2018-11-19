@@ -393,17 +393,6 @@ export class RtagsManager implements Disposable
         return this.getOpenTextFiles(projectPath).filter((file) => { return isUnsavedSourceFile(file); });
     }
 
-    public getDiagnostics(uri: Uri) : Diagnostic[]
-    {
-        if (!this.diagnosticCollection)
-        {
-            return [];
-        }
-
-        const diagnostics = this.diagnosticCollection.get(uri);
-        return (diagnostics ? diagnostics : []);
-    }
-
     private async addProjects(folders?: WorkspaceFolder[]) : Promise<void>
     {
         if (!folders || (folders.length === 0))
