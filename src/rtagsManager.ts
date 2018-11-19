@@ -21,7 +21,7 @@
 'use strict';
 
 import { commands, languages, window, workspace, ConfigurationChangeEvent, Diagnostic, DiagnosticCollection,
-         DiagnosticSeverity, Disposable, Position, Range, TextDocument, TextDocumentChangeEvent, Uri, WorkspaceFolder,
+         DiagnosticSeverity, Disposable, Range, TextDocument, TextDocumentChangeEvent, Uri, WorkspaceFolder,
          WorkspaceFoldersChangeEvent } from 'vscode';
 
 import { ChildProcess, ExecFileOptionsWithStringEncoding, SpawnOptions, execFile, spawn } from 'child_process';
@@ -34,7 +34,7 @@ import * as os from 'os';
 
 import * as util from 'util';
 
-import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, parseJson } from './rtagsUtil';
+import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, fromRtagsPosition, parseJson } from './rtagsUtil';
 
 enum IndexType
 {
@@ -393,6 +393,17 @@ export class RtagsManager implements Disposable
         return this.getOpenTextFiles(projectPath).filter((file) => { return isUnsavedSourceFile(file); });
     }
 
+    public getDiagnostics(uri: Uri) : Diagnostic[]
+    {
+        if (!this.diagnosticCollection)
+        {
+            return [];
+        }
+
+        const diagnostics = this.diagnosticCollection.get(uri);
+        return (diagnostics ? diagnostics : []);
+    }
+
     private async addProjects(folders?: WorkspaceFolder[]) : Promise<void>
     {
         if (!folders || (folders.length === 0))
@@ -504,7 +515,7 @@ export class RtagsManager implements Disposable
                 openFiles = [];
             }
 
-            // Add a small delay in order to override automatic reindexing on save
+            // Add a short delay in order to override automatic reindexing on save
             setTimeout(() => { runRc([reindexArg, file.uri.fsPath], (_unused) => {}, openFiles); }, 300);
         }
         else
@@ -804,12 +815,13 @@ export class RtagsManager implements Disposable
             {
                 try
                 {
-                    const pos = new Position(d.line - 1, d.column - 1);
+                    const start = fromRtagsPosition(d.line, d.column);
+                    const end = d.length ? start.translate(0, parseInt(d.length)) : start;
 
                     const diag: Diagnostic =
                     {
                         message: d.message,
-                        range: new Range(pos, pos),
+                        range: new Range(start, end),
                         severity: toDiagnosticSeverity(d.type),
                         source: "RTags"
                     };

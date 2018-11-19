@@ -21,11 +21,11 @@
 'use strict';
 
 import { commands, languages, workspace, CancellationToken, CodeActionContext, CodeActionProvider, Command,
-         Disposable, Position, ProviderResult, Range, TextDocument, WorkspaceEdit } from 'vscode';
+         Disposable, ProviderResult, Range, TextDocument, WorkspaceEdit } from 'vscode';
 
 import { RtagsManager, runRc } from './rtagsManager';
 
-import { SourceFileSelector } from './rtagsUtil';
+import { Nullable, SourceFileSelector, fromRtagsPosition } from './rtagsUtil';
 
 export class RtagsCodeActionProvider implements
     CodeActionProvider,
@@ -54,7 +54,7 @@ export class RtagsCodeActionProvider implements
     }
 
     public provideCodeActions(document: TextDocument,
-                              _range: Range,
+                              range: Range,
                               _context: CodeActionContext,
                               _token: CancellationToken) :
         ProviderResult<Command[]>
@@ -74,12 +74,68 @@ export class RtagsCodeActionProvider implements
                     {
                         continue;
                     }
-                    const [pos, size, replace] = l.split(' ');
+                    const [pos, length, newText] = l.split(' ');
                     const [line, col] = pos.split(':');
-                    const start = new Position(parseInt(line) - 1, parseInt(col) - 1);
-                    const end = start.translate(0, parseInt(size));
-                    const range = new Range(start, end);
-                    if (_range.start.line !== start.line)
+                    const start = fromRtagsPosition(line, col);
+                    if (range.start.line !== start.line)
+                    {
+                        continue;
+                    }
+                    const end = start.translate(0, parseInt(length));
+                    const newRange = new Range(start, end);
+                    let minDiagRange: Nullable<Range> = null;
+                    let minDiagLineDelta = Number.MAX_SAFE_INTEGER;
+                    let minDiagCharDelta = Number.MAX_SAFE_INTEGER;
+                    let currentText = "";
+                    let title = "";
+
+                    // Find the diagnostic with the range that best corresponds to this fix-it hint
+
+                    for (const diag of this.rtagsMgr.getDiagnostics(document.uri))
+                    {
+                        if (diag.range.start.isEqual(newRange.start))
+                        {
+                            const diagLineDelta = diag.range.end.line - diag.range.start.line;
+                            const diagCharDelta = diag.range.end.character - diag.range.start.character;
+                            if (minDiagRange)
+                            {
+                                minDiagLineDelta = minDiagRange.end.line - minDiagRange.start.line;
+                                minDiagCharDelta = minDiagRange.end.character - minDiagRange.start.character;
+                            }
+                            if ((diagLineDelta < minDiagLineDelta) ||
+                                ((diagLineDelta === minDiagLineDelta) && (diagCharDelta < minDiagCharDelta)))
+                            {
+                                const wordRange = document.getWordRangeAtPosition(diag.range.start);
+                                if (wordRange && wordRange.start.isEqual(diag.range.start))
+                                {
+                                    minDiagRange = wordRange;
+                                }
+                                else
+                                {
+                                    minDiagRange = diag.range;
+                                }
+                            }
+                        }
+                    }
+
+                    if (minDiagRange)
+                    {
+                        currentText = document.getText(minDiagRange);
+                    }
+
+                    if ((currentText.length !== 0) && (newText.length !== 0))
+                    {
+                        title = "Replace " + currentText + " with " + newText;
+                    }
+                    else if (currentText.length !== 0)
+                    {
+                        title = "Remove " + currentText;
+                    }
+                    else if (newText.length !== 0)
+                    {
+                        title = "Add " + newText;
+                    }
+                    else
                     {
                         continue;
                     }
@@ -87,8 +143,8 @@ export class RtagsCodeActionProvider implements
                     const command: Command =
                     {
                         command: RtagsCodeActionProvider.commandId,
-                        title: "Replace with " + replace,
-                        arguments: [document, range, replace]
+                        title: "[RTags] " + title,
+                        arguments: [document, newRange, newText]
                     };
                     cmds.push(command);
                 }

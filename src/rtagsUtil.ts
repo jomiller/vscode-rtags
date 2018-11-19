@@ -61,10 +61,15 @@ export function showReferences(uri: Uri, position: Position, locations: Location
     commands.executeCommand("editor.action.showReferences", uri, position, locations);
 }
 
+export function fromRtagsPosition(line: string, column: string) : Position
+{
+    return new Position(parseInt(line) - 1, parseInt(column) - 1);
+}
+
 export function fromRtagsLocation(location: string) : Location
 {
     const [file, line, col] = location.split(':');
-    const position = new Position(parseInt(line) - 1, parseInt(col) - 1);
+    const position = fromRtagsPosition(line, col);
     const uri = Uri.file(file);
     return new Location(uri, position);
 }
