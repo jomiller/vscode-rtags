@@ -68,6 +68,7 @@ export class RtagsCodeActionProvider implements
             (output: string) : Command[] =>
             {
                 let cmds: Command[] = [];
+
                 for (const l of output.split('\n'))
                 {
                     if (l.trim().length === 0)
@@ -148,6 +149,7 @@ export class RtagsCodeActionProvider implements
                     };
                     cmds.push(command);
                 }
+
                 return cmds;
             };
 

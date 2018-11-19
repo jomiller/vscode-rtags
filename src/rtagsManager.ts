@@ -627,7 +627,7 @@ export class RtagsManager implements Disposable
                         else if (compilationDatabaseDir)
                         {
                             window.showErrorMessage("[RTags] Could not load project: " + projectPath.fsPath +
-                                                    "; Compilation database not found: " + compileCommands);
+                                                    "; compilation database not found: " + compileCommands);
                         }
                         if (!status)
                         {

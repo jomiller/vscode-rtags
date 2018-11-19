@@ -97,6 +97,7 @@ function findSymbols(query: string, args: string[] = []) : Promise<Optional<Symb
         (output: string) : SymbolInformation[] =>
         {
             let symbols: SymbolInformation[] = [];
+
             for (const line of output.split('\n'))
             {
                 if (line.trim().length === 0)
@@ -138,6 +139,7 @@ function findSymbols(query: string, args: string[] = []) : Promise<Optional<Symb
                 };
                 symbols.push(symbolInfo);
             }
+
             return symbols;
         };
 
