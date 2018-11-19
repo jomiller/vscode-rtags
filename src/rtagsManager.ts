@@ -80,7 +80,7 @@ function getRcExecutable() : string
 }
 
 export function runRc<T>(args: string[], process: (stdout: string) => T, files: TextDocument[] = []) :
-    Thenable<Optional<T>>
+    Promise<Optional<T>>
 {
     const executorCallback =
         (resolve: (value?: T) => void, _reject: (reason?: any) => void) : void =>

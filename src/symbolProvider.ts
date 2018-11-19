@@ -79,7 +79,7 @@ function toSymbolKind(kind: string) : Optional<SymbolKind>
     return undefined;
 }
 
-function findSymbols(query: string, args: string[] = []) : Thenable<Optional<SymbolInformation[]>>
+function findSymbols(query: string, args: string[] = []) : Promise<Optional<SymbolInformation[]>>
 {
     args.push("--filter-system-headers",
               "--absolute-path",

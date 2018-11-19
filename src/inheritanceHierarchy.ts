@@ -51,7 +51,7 @@ interface InheritanceNode extends Locatable
     name: string;
 }
 
-function getClasses(classType: ClassType, uri: Uri, position: Position) : Thenable<Optional<InheritanceNode[]>>
+function getClasses(classType: ClassType, uri: Uri, position: Position) : Promise<Optional<InheritanceNode[]>>
 {
     const location = toRtagsLocation(uri, position);
 
@@ -231,7 +231,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
             }
 
             const resolveCallback =
-                (nodes?: InheritanceNode[]) : Thenable<InheritanceNode[]> =>
+                (nodes?: InheritanceNode[]) : Promise<InheritanceNode[]> =>
                 {
                     if (!nodes || (nodes.length === 0))
                     {

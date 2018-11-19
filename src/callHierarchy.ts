@@ -58,7 +58,7 @@ function isFunctionKind(symbolKind?: string) : boolean
     return functionKinds.includes(symbolKind);
 }
 
-function getCallers(uri: Uri, position: Position) : Thenable<Optional<Caller[]>>
+function getCallers(uri: Uri, position: Position) : Promise<Optional<Caller[]>>
 {
     const location = toRtagsLocation(uri, position);
 

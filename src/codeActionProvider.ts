@@ -35,9 +35,17 @@ export class RtagsCodeActionProvider implements
     {
         this.rtagsMgr = rtagsMgr;
 
+        const runCodeActionCallback =
+            (document: TextDocument, range: Range, newText: string) : Thenable<boolean> =>
+            {
+                let edit = new WorkspaceEdit();
+                edit.replace(document.uri, range, newText);
+                return workspace.applyEdit(edit);
+            };
+
         this.disposables.push(
             languages.registerCodeActionsProvider(SourceFileSelector, this),
-            commands.registerCommand(RtagsCodeActionProvider.commandId, this.runCodeAction, this));
+            commands.registerCommand(RtagsCodeActionProvider.commandId, runCodeActionCallback));
     }
 
     public dispose() : void
@@ -88,13 +96,6 @@ export class RtagsCodeActionProvider implements
             };
 
         return runRc(["--fixits", document.fileName], processCallback);
-    }
-
-    private runCodeAction(document: TextDocument, range: Range, newText: string) : Thenable<boolean>
-    {
-        let edit = new WorkspaceEdit();
-        edit.replace(document.uri, range, newText);
-        return workspace.applyEdit(edit);
     }
 
     private static readonly commandId: string = "rtags.runCodeAction";

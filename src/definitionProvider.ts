@@ -50,7 +50,7 @@ function getBaseSymbolType(symbolType: string) : string
     return baseSymbolType.trim();
 }
 
-function getSymbolType(uri: Uri, position: Position) : Thenable<Optional<string>>
+function getSymbolType(uri: Uri, position: Position) : Promise<Optional<string>>
 {
     const location = toRtagsLocation(uri, position);
 
@@ -125,7 +125,7 @@ function getSymbolType(uri: Uri, position: Position) : Thenable<Optional<string>
     return runRc(args, processCallback);
 }
 
-function getLocations(args: string[]) : Thenable<Optional<Location[]>>
+function getLocations(args: string[]) : Promise<Optional<Location[]>>
 {
     const processCallback =
         (output: string) : Location[] =>
@@ -144,7 +144,7 @@ function getLocations(args: string[]) : Thenable<Optional<Location[]>>
     return runRc(args, processCallback);
 }
 
-function getReferences(uri: Uri, position: Position, queryType: LocationQueryType) : Thenable<Optional<Location[]>>
+function getReferences(uri: Uri, position: Position, queryType: LocationQueryType) : Promise<Optional<Location[]>>
 {
     const location = toRtagsLocation(uri, position);
 
@@ -172,7 +172,7 @@ function getReferences(uri: Uri, position: Position, queryType: LocationQueryTyp
     return getLocations(args);
 }
 
-function getReferencesByName(name: string, projectPath: Uri, queryType: NameQueryType) : Thenable<Optional<Location[]>>
+function getReferencesByName(name: string, projectPath: Uri, queryType: NameQueryType) : Promise<Optional<Location[]>>
 {
     let args =
     [
@@ -216,10 +216,10 @@ function getReferencesByName(name: string, projectPath: Uri, queryType: NameQuer
 }
 
 function getReferencesForSymbolType(uri: Uri, position: Position, projectPath: Uri, queryType: NameQueryType) :
-    Thenable<Optional<Location[]>>
+    Promise<Optional<Location[]>>
 {
     const resolveCallback =
-        (symbolType?: string) : Thenable<Optional<Location[]>> =>
+        (symbolType?: string) : Promise<Optional<Location[]>> =>
         {
             if (!symbolType)
             {
