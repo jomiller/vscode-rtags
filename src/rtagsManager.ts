@@ -205,9 +205,9 @@ async function startRdm() : Promise<boolean>
     const jobCountArg = rdmArguments.find((arg) => { return (/^(-j=?(\d+)?|--job-count(=(\d+)?)?)$/).test(arg); });
     if (!jobCountArg)
     {
-        const cpuCoreCount = os.cpus().length;
-        const jobCount = Math.max(1, cpuCoreCount / 2);
-        rdmArguments.push("--job-count=" + jobCount.toString());
+        const logicalCpuCount = os.cpus().length;
+        const jobCount = Math.max(1, logicalCpuCount / 2);
+        rdmArguments.push("--job-count", jobCount.toString());
     }
 
     const options: SpawnOptions =
