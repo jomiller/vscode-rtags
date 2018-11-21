@@ -20,8 +20,8 @@
 
 'use strict';
 
-import { commands, languages, workspace, CancellationToken, CodeActionContext, CodeActionProvider, Command,
-         Disposable, ProviderResult, Range, TextDocument, WorkspaceEdit } from 'vscode';
+import { languages, CancellationToken, CodeActionContext, CodeActionKind, CodeActionProvider, Disposable,
+         ProviderResult, Range, TextDocument, WorkspaceEdit, CodeAction } from 'vscode';
 
 import { RtagsManager, runRc } from './rtagsManager';
 
@@ -35,17 +35,7 @@ export class RtagsCodeActionProvider implements
     {
         this.rtagsMgr = rtagsMgr;
 
-        const runCodeActionCallback =
-            (document: TextDocument, range: Range, newText: string) : Thenable<boolean> =>
-            {
-                let edit = new WorkspaceEdit();
-                edit.replace(document.uri, range, newText);
-                return workspace.applyEdit(edit);
-            };
-
-        this.disposables.push(
-            languages.registerCodeActionsProvider(SourceFileSelector, this),
-            commands.registerCommand(RtagsCodeActionProvider.commandId, runCodeActionCallback));
+        this.disposables.push(languages.registerCodeActionsProvider(SourceFileSelector, this));
     }
 
     public dispose() : void
@@ -55,19 +45,24 @@ export class RtagsCodeActionProvider implements
 
     public provideCodeActions(document: TextDocument,
                               range: Range,
-                              _context: CodeActionContext,
+                              context: CodeActionContext,
                               _token: CancellationToken) :
-        ProviderResult<Command[]>
+        ProviderResult<CodeAction[]>
     {
         if (!this.rtagsMgr.isInProject(document.uri))
         {
             return [];
         }
 
+        if ((context.only !== undefined) && (context.only !== CodeActionKind.QuickFix))
+        {
+            return [];
+        }
+
         const processCallback =
-            (output: string) : Command[] =>
+            (output: string) : CodeAction[] =>
             {
-                let cmds: Command[] = [];
+                let codeActions: CodeAction[] = [];
 
                 for (const l of output.split('\n'))
                 {
@@ -104,22 +99,20 @@ export class RtagsCodeActionProvider implements
                         continue;
                     }
 
-                    const command: Command =
-                    {
-                        command: RtagsCodeActionProvider.commandId,
-                        title: "[RTags] " + title,
-                        arguments: [document, currentRange, newText]
-                    };
-                    cmds.push(command);
+                    let edit = new WorkspaceEdit();
+                    edit.replace(document.uri, currentRange, newText);
+
+                    let action = new CodeAction("[RTags] " + title, CodeActionKind.QuickFix);
+                    action.edit = edit;
+
+                    codeActions.push(action);
                 }
 
-                return cmds;
+                return codeActions;
             };
 
         return runRc(["--fixits", document.fileName], processCallback);
     }
-
-    private static readonly commandId: string = "rtags.runCodeAction";
 
     private rtagsMgr: RtagsManager;
     private disposables: Disposable[] = [];
