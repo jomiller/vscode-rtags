@@ -81,17 +81,17 @@ function toSymbolKind(kind: string) : Optional<SymbolKind>
 
 function findSymbols(query: string, args: string[] = []) : Promise<Optional<SymbolInformation[]>>
 {
-    args.push("--filter-system-headers",
+    args.push("--find-symbols",
+              query + '*',
+              "--wildcard-symbol-names",
+              "--match-icase",
+              "--strip-paren",
+              "--filter-system-headers",
               "--absolute-path",
               "--no-context",
               "--display-name",
               "--cursor-kind",
-              "--containing-function",
-              "--strip-paren",
-              "--wildcard-symbol-names",
-              "--match-icase",
-              "--find-symbols",
-              query + '*');
+              "--containing-function");
 
     const processCallback =
         (output: string) : SymbolInformation[] =>
@@ -221,12 +221,12 @@ export class RtagsSymbolProvider implements
 
             const args =
             [
-                "--max",
-                maxSearchResults.toString(),
                 "--project",
                 path.fsPath,
                 "--path-filter",
-                path.fsPath
+                path.fsPath,
+                "--max",
+                maxSearchResults.toString()
             ];
 
             const symbols = await findSymbols(query, args);

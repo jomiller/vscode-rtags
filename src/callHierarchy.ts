@@ -64,13 +64,13 @@ function getCallers(uri: Uri, position: Position) : Promise<Optional<Caller[]>>
 
     const args =
     [
-        "--json",
+        "--references",
+        location,
         "--absolute-path",
         "--no-context",
         "--containing-function",
         "--containing-function-location",
-        "--references",
-        location
+        "--json"
     ];
 
     const processCallback =
@@ -142,11 +142,11 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
 
                 const args =
                 [
-                    "--json",
+                    "--symbol-info",
+                    location,
                     "--absolute-path",
                     "--no-context",
-                    "--symbol-info",
-                    location
+                    "--json"
                 ];
 
                 const processCallback =
@@ -218,12 +218,12 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
 
             const args =
             [
-                "--json",
+                "--symbol-info",
+                location,
+                "--symbol-info-include-targets",
                 "--absolute-path",
                 "--no-context",
-                "--symbol-info-include-targets",
-                "--symbol-info",
-                location
+                "--json"
             ];
 
             const processCallback =

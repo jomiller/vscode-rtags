@@ -57,10 +57,10 @@ function getClasses(classType: ClassType, uri: Uri, position: Position) : Promis
 
     const args =
     [
-        "--absolute-path",
-        "--no-context",
         "--class-hierarchy",
-        location
+        location,
+        "--absolute-path",
+        "--no-context"
     ];
 
     const processCallback =

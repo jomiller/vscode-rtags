@@ -264,8 +264,8 @@ export class RtagsManager implements Disposable
 
         (async () =>
         {
-            const rdmStarted = await startRdm();
-            if (rdmStarted)
+            const rdmRunning = await startRdm();
+            if (rdmRunning)
             {
                 this.startDiagnostics();
                 this.addProjects(workspace.workspaceFolders);
@@ -697,7 +697,7 @@ export class RtagsManager implements Disposable
         }
 
         // Start a separate process for receiving asynchronous diagnostics
-        this.diagnosticProcess = spawnRc(["--json", "--diagnostics"]);
+        this.diagnosticProcess = spawnRc(["--diagnostics", "--json"]);
         if (!this.diagnosticProcess.pid)
         {
             window.showErrorMessage("[RTags] Could not start diagnostics");
