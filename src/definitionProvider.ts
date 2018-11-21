@@ -34,6 +34,7 @@ enum LocationQueryType
 {
     Definition,
     References,
+    AllReferences,
     Rename,
     Virtuals
 }
@@ -56,11 +57,11 @@ function getSymbolType(uri: Uri, position: Position) : Promise<Optional<string>>
 
     const args =
     [
-        "--json",
+        "--symbol-info",
+        location,
         "--absolute-path",
         "--no-context",
-        "--symbol-info",
-        location
+        "--json"
     ];
 
     const processCallback =
@@ -160,12 +161,16 @@ function getReferences(uri: Uri, position: Position, queryType: LocationQueryTyp
             args.push("--references", location);
             break;
 
+        case LocationQueryType.AllReferences:
+            args.push("--references", location, "--all-references");
+            break;
+
         case LocationQueryType.Rename:
-            args.push("--rename", "--all-references", "--references", location);
+            args.push("--references", location, "--all-references", "--rename");
             break;
 
         case LocationQueryType.Virtuals:
-            args.push("--find-virtuals", "--references", location);
+            args.push("--references", location, "--find-virtuals");
             break;
     }
 
@@ -178,12 +183,12 @@ function getReferencesByName(name: string, projectPath: Uri, queryType: NameQuer
     [
         "--project",
         projectPath.fsPath,
-        "--absolute-path",
-        "--no-context",
-        "--rename",
-        "--all-references",
         "--references-name",
-        name
+        name,
+        "--all-references",
+        "--rename",
+        "--absolute-path",
+        "--no-context"
     ];
 
     switch (queryType)
@@ -366,7 +371,7 @@ export class RtagsDefinitionProvider implements
 
     public provideReferences(document: TextDocument,
                              position: Position,
-                             _context: ReferenceContext,
+                             context: ReferenceContext,
                              _token: CancellationToken) :
         ProviderResult<Location[]>
     {
@@ -375,7 +380,9 @@ export class RtagsDefinitionProvider implements
             return [];
         }
 
-        return getReferences(document.uri, position, LocationQueryType.References);
+        const queryType = context.includeDeclaration ? LocationQueryType.AllReferences : LocationQueryType.References;
+
+        return getReferences(document.uri, position, queryType);
     }
 
     public provideRenameEdits(document: TextDocument,
@@ -422,9 +429,9 @@ export class RtagsDefinitionProvider implements
 
         const args =
         [
-            "--absolute-path",
             "--follow-location",
-            location
+            location,
+            "--absolute-path"
         ];
 
         const processCallback =
