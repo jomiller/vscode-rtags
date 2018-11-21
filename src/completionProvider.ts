@@ -20,9 +20,9 @@
 
 'use strict';
 
-import { languages, workspace, CancellationToken, CompletionItemKind, CompletionItem, CompletionItemProvider,
-         CompletionList, Disposable, ParameterInformation, Position, ProviderResult, Range, SignatureHelp,
-         SignatureHelpProvider, SignatureInformation, TextDocument } from 'vscode';
+import { languages, workspace, CancellationToken, CompletionContext, CompletionItemKind, CompletionItem,
+         CompletionItemProvider, CompletionList, Disposable, ParameterInformation, Position, ProviderResult, Range,
+         SignatureHelp, SignatureHelpProvider, SignatureInformation, TextDocument } from 'vscode';
 
 import { RtagsManager, runRc } from './rtagsManager';
 
@@ -95,7 +95,7 @@ export class RtagsCompletionProvider implements
         }
 
         this.disposables.push(
-            languages.registerCompletionItemProvider(SourceFileSelector, this, '.', ':', '>'),
+            languages.registerCompletionItemProvider(SourceFileSelector, this, '.', '>', ':'),
             languages.registerSignatureHelpProvider(SourceFileSelector, this, '(', ','));
     }
 
@@ -104,12 +104,31 @@ export class RtagsCompletionProvider implements
         this.disposables.forEach((d) => { d.dispose(); });
     }
 
-    public provideCompletionItems(document: TextDocument, position: Position, _token: CancellationToken) :
+    public provideCompletionItems(document: TextDocument,
+                                  position: Position,
+                                  _token: CancellationToken,
+                                  context: CompletionContext) :
         ProviderResult<CompletionItem[] | CompletionList>
     {
         if (!this.rtagsMgr.isInProject(document.uri))
         {
-            return [];
+            return undefined;
+        }
+
+        // Verify that the trigger character is part of a complete operator
+        if ((context.triggerCharacter === '>') || (context.triggerCharacter === ':'))
+        {
+            if (position.character < 2)
+            {
+                return undefined;
+            }
+            const prevCharRange = new Range(position.translate(0, -2), position.translate(0, -1));
+            const prevChar = document.getText(prevCharRange);
+            if (((context.triggerCharacter === '>') && (prevChar !== '-')) ||
+                ((context.triggerCharacter === ':') && (prevChar !== ':')))
+            {
+                return undefined;
+            }
         }
 
         const config = workspace.getConfiguration("rtags", document.uri);
@@ -118,12 +137,12 @@ export class RtagsCompletionProvider implements
 
         let args =
         [
-            "--json",
+            "--code-complete-at",
+            location,
             "--synchronous-completions",
             "--max",
             maxCompletionResults.toString(),
-            "--code-complete-at",
-            location
+            "--json"
         ];
 
         const wordRange = document.getWordRangeAtPosition(position);
@@ -198,12 +217,12 @@ export class RtagsCompletionProvider implements
 
         const args =
         [
-            "--json",
+            "--code-complete-at",
+            location,
             "--synchronous-completions",
             "--max",
             maxCompletionResults.toString(),
-            "--code-complete-at",
-            location
+            "--json"
         ];
 
         interface ParenthesizedRange
