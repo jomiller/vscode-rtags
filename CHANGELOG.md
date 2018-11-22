@@ -19,7 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - `Show Variables` command from the context menu for C files.
 
 ### Fixed
-- Signature help did not work when function arguments contained nested signatures.
+- [Issue #1](https://github.com/jomiller/vscode-rtags/issues/1): Signature help did not work when function arguments contained nested signatures.
 - Workspace symbol search only matched the pattern against the beginning of symbol names.
 - Symbol searches did not return results for class/function templates or type aliases.
 - Warning and information diagnostic messages were treated as errors.
