@@ -195,7 +195,7 @@ async function startRdm() : Promise<boolean>
     const rdmAutoLaunch = config.get<boolean>("rdm.autoLaunch", true);
     if (!rdmAutoLaunch)
     {
-        window.showErrorMessage("[RTags] Server is not running and auto-launch is disabled; launch server manually or enable \"rdm.autoLaunch\" setting");
+        window.showErrorMessage("[RTags] Server is not running and auto-launch is disabled; launch server manually or enable \"rtags.rdm.autoLaunch\" setting");
         return false;
     }
 
