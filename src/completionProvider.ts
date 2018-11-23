@@ -219,6 +219,7 @@ export class RtagsCompletionProvider implements
         [
             "--code-complete-at",
             location,
+            "--code-complete-include-macros",
             "--synchronous-completions",
             "--max",
             maxCompletionResults.toString(),
@@ -253,7 +254,7 @@ export class RtagsCompletionProvider implements
                 if (closeParenPos)
                 {
                     // Add a parenthesized range for a nested signature
-                    parenRanges.push({start: pos, end: closeParenPos });
+                    parenRanges.push({start: pos, end: closeParenPos});
                 }
                 else
                 {
