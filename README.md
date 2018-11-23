@@ -25,7 +25,7 @@ The extension will become active when you open a folder or workspace that contai
 
 Multi-root workspaces are supported.
 
-The commands are available through both the editor context menu and the command palette (Ctrl+Shift+P).
+The commands are available through both the editor context menu and the command palette (`Ctrl+Shift+P`).
 
 ### Configuration Settings
 
@@ -47,7 +47,7 @@ The commands are available through both the editor context menu and the command 
 
 `rtags.misc.compilationDatabaseDirectory`: If not empty, the compilation database directory to use instead of the workspace root.
 
-`rtags.misc.maxWorkspaceSearchResults`: Maximum number of global search (i.e., Ctrl+T + #foo) results to report.
+`rtags.misc.maxWorkspaceSearchResults`: Maximum number of global search (i.e., `Ctrl+T + #foo`) results to report.
 
 ## Requirements
 
