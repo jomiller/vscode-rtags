@@ -847,7 +847,7 @@ export class RtagsManager implements Disposable
 
         if (this.diagnosticCollection)
         {
-            this.diagnosticCollection.set(file.uri, undefined);
+            this.diagnosticCollection.delete(file.uri);
         }
     }
 
