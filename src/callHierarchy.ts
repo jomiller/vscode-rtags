@@ -42,7 +42,7 @@ interface SymbolInfoBase
     name: string;
     kind: string;
     type?: string;
-    pureVirtual?: boolean;
+    virtual?: boolean;
 }
 
 export interface SymbolInfo extends SymbolInfoBase
@@ -154,7 +154,7 @@ export function getSymbolInfo(uri: Uri, position: Position, includeTarget: boole
                 name: jsonObj.symbolName,
                 kind: jsonObj.kind,
                 type: jsonObj.type,
-                pureVirtual: jsonObj.purevirtual
+                virtual: jsonObj.virtual
             };
 
             const targets = jsonObj.targets;
@@ -166,7 +166,7 @@ export function getSymbolInfo(uri: Uri, position: Position, includeTarget: boole
                     name: targets[0].symbolName,
                     kind: targets[0].kind,
                     type: targets[0].type,
-                    pureVirtual: targets[0].purevirtual
+                    virtual: targets[0].virtual
                 };
                 symbolInfo.target = targetSymbolInfo;
             }

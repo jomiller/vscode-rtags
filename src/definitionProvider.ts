@@ -321,7 +321,7 @@ export class RtagsDefinitionProvider implements
                     return Promise.resolve([] as Location[]);
                 }
 
-                if (symbolInfo.pureVirtual || (symbolInfo.target && symbolInfo.target.pureVirtual))
+                if (symbolInfo.virtual || (symbolInfo.target && symbolInfo.target.virtual))
                 {
                     return getReferences(document.uri, position, LocationQueryType.Virtuals);
                 }
