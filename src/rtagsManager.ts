@@ -534,7 +534,7 @@ export class RtagsManager implements Disposable
                                                    this.reindexFile(event.document);
                                                    this.reindexDelayTimers.delete(path);
                                                },
-                                               1000));
+                                               500));
     }
 
     private reindexSavedFile(event: TextDocumentWillSaveEvent) : void
