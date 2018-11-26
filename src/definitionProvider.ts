@@ -27,6 +27,8 @@ import { commands, languages, CancellationToken, Definition, DefinitionProvider,
 
 import { RtagsManager, runRc } from './rtagsManager';
 
+import { getDerivedClasses } from './inheritanceHierarchy';
+
 import { Optional, SourceFileSelector, showReferences, fromRtagsLocation, toRtagsLocation, parseJson }
          from './rtagsUtil';
 
@@ -45,17 +47,30 @@ enum NameQueryType
     Constructors
 }
 
+interface SymbolInfoBase
+{
+    name: string;
+    kind: string;
+    type?: string;
+    pureVirtual?: boolean;
+}
+
+interface SymbolInfo extends SymbolInfoBase
+{
+    target?: SymbolInfoBase;
+}
+
 function getBaseSymbolType(symbolType: string) : string
 {
     const baseSymbolType = symbolType.replace(/const|volatile|&|\*|\[\d*\]|\(.*|=>.*/g, "");
     return baseSymbolType.trim();
 }
 
-function getSymbolType(uri: Uri, position: Position) : Promise<Optional<string>>
+function getSymbolInfo(uri: Uri, position: Position, includeTarget: boolean = false) : Promise<Optional<SymbolInfo>>
 {
     const location = toRtagsLocation(uri, position);
 
-    const args =
+    let args =
     [
         "--symbol-info",
         location,
@@ -64,8 +79,13 @@ function getSymbolType(uri: Uri, position: Position) : Promise<Optional<string>>
         "--json"
     ];
 
+    if (includeTarget)
+    {
+        args.push("--symbol-info-include-targets");
+    }
+
     const processCallback =
-        (output: string) : Optional<string> =>
+        (output: string) : Optional<SymbolInfo> =>
         {
             const jsonObj = parseJson(output);
             if (!jsonObj)
@@ -73,57 +93,75 @@ function getSymbolType(uri: Uri, position: Position) : Promise<Optional<string>>
                 return undefined;
             }
 
-            const symbolKind = jsonObj.kind;
-            if (!symbolKind)
+            let symbolInfo: SymbolInfo =
             {
-                return undefined;
+                name: jsonObj.symbolName,
+                kind: jsonObj.kind,
+                type: jsonObj.type,
+                pureVirtual: jsonObj.purevirtual
+            };
+
+            const targets = jsonObj.targets;
+            if (targets && (targets.length !== 0))
+            {
+                const targetSymbolInfo: SymbolInfoBase =
+                {
+                    name: targets[0].symbolName,
+                    kind: targets[0].kind,
+                    type: targets[0].type,
+                    pureVirtual: targets[0].purevirtual
+                };
+                symbolInfo.target = targetSymbolInfo;
             }
 
-            const symbolName = jsonObj.symbolName;
-
-            if ((symbolKind === "CXXConstructor") || (symbolKind === "CXXDestructor"))
-            {
-                return (symbolName ? getBaseSymbolType(symbolName) : undefined);
-            }
-
-            const symbolKinds =
-            [
-                "ClassDecl",
-                "ClassTemplate",
-                "ClassTemplatePartialSpecialization",
-                "StructDecl",
-                "UnionDecl",
-                "EnumDecl",
-                "TypedefDecl",
-                "TypeAliasDecl",
-                "TypeAliasTemplateDecl",
-                "FieldDecl",
-                "ParmDecl",
-                "VarDecl",
-                "NonTypeTemplateParameter",
-                "TypeRef",
-                "TemplateRef",
-                "MemberRef",
-                "VariableRef",
-                "CallExpr",
-                "MemberRefExpr",
-                "DeclRefExpr"
-            ];
-            if (!symbolKinds.includes(symbolKind))
-            {
-                return undefined;
-            }
-
-            const symbolType = jsonObj.type;
-            if (!symbolType)
-            {
-                return (symbolName ? getBaseSymbolType(symbolName) : undefined);
-            }
-
-            return getBaseSymbolType(symbolType);
+            return symbolInfo;
         };
 
     return runRc(args, processCallback);
+}
+
+async function getSymbolType(uri: Uri, position: Position) : Promise<Optional<string>>
+{
+    const symbolInfo = await getSymbolInfo(uri, position);
+    if (!symbolInfo)
+    {
+        return undefined;
+    }
+
+    if ((symbolInfo.kind === "CXXConstructor") || (symbolInfo.kind === "CXXDestructor"))
+    {
+        return getBaseSymbolType(symbolInfo.name);
+    }
+
+    const symbolKinds =
+    [
+        "ClassDecl",
+        "ClassTemplate",
+        "ClassTemplatePartialSpecialization",
+        "StructDecl",
+        "UnionDecl",
+        "EnumDecl",
+        "TypedefDecl",
+        "TypeAliasDecl",
+        "TypeAliasTemplateDecl",
+        "FieldDecl",
+        "ParmDecl",
+        "VarDecl",
+        "NonTypeTemplateParameter",
+        "TypeRef",
+        "TemplateRef",
+        "MemberRef",
+        "VariableRef",
+        "CallExpr",
+        "MemberRefExpr",
+        "DeclRefExpr"
+    ];
+    if (!symbolKinds.includes(symbolInfo.kind))
+    {
+        return undefined;
+    }
+
+    return (symbolInfo.type ? getBaseSymbolType(symbolInfo.type) : getBaseSymbolType(symbolInfo.name));
 }
 
 function getLocations(args: string[]) : Promise<Optional<Location[]>>
@@ -170,7 +208,7 @@ function getReferences(uri: Uri, position: Position, queryType: LocationQueryTyp
             break;
 
         case LocationQueryType.Virtuals:
-            args.push("--references", location, "--find-virtuals");
+            args.push("--references", location, "--find-virtuals", "--definition-only");
             break;
     }
 
@@ -220,21 +258,16 @@ function getReferencesByName(name: string, projectPath: Uri, queryType: NameQuer
     return getLocations(args);
 }
 
-function getReferencesForSymbolType(uri: Uri, position: Position, projectPath: Uri, queryType: NameQueryType) :
+async function getReferencesForSymbolType(uri: Uri, position: Position, projectPath: Uri, queryType: NameQueryType) :
     Promise<Optional<Location[]>>
 {
-    const resolveCallback =
-        (symbolType?: string) : Promise<Optional<Location[]>> =>
-        {
-            if (!symbolType)
-            {
-                return Promise.resolve([] as Location[]);
-            }
+    const symbolType = await getSymbolType(uri, position);
+    if (!symbolType)
+    {
+        return undefined;
+    }
 
-            return getReferencesByName(symbolType, projectPath, queryType);
-        };
-
-    return getSymbolType(uri, position).then(resolveCallback);
+    return getReferencesByName(symbolType, projectPath, queryType);
 }
 
 async function getVariables(uri: Uri, position: Position, projectPath: Uri) : Promise<Location[]>
@@ -295,28 +328,13 @@ export class RtagsDefinitionProvider implements
                 getVariables(document.uri, position, projectPath).then(resolveCallback);
             };
 
-        const showVirtualsCallback =
+        const showDerivedVirtualsCallback =
             (textEditor: TextEditor, _edit: TextEditorEdit) : void =>
             {
                 const document = textEditor.document;
                 const position = textEditor.selection.active;
 
-                if (!this.rtagsMgr.isInProject(document.uri))
-                {
-                    return;
-                }
-
-                const resolveCallback =
-                    (locations?: Location[]) : void =>
-                    {
-                        if (!locations)
-                        {
-                            locations = [];
-                        }
-                        showReferences(document.uri, position, locations);
-                    };
-
-                getReferences(document.uri, position, LocationQueryType.Virtuals).then(resolveCallback);
+                commands.executeCommand("editor.action.goToImplementation", document.uri, position);
             };
 
         this.disposables.push(
@@ -327,7 +345,7 @@ export class RtagsDefinitionProvider implements
             languages.registerRenameProvider(SourceFileSelector, this),
             languages.registerHoverProvider(SourceFileSelector, this),
             commands.registerTextEditorCommand("rtags.showVariables", showVariablesCallback),
-            commands.registerTextEditorCommand("rtags.showVirtuals", showVirtualsCallback));
+            commands.registerTextEditorCommand("rtags.showDerivedVirtuals", showDerivedVirtualsCallback));
     }
 
     public dispose() : void
@@ -366,7 +384,23 @@ export class RtagsDefinitionProvider implements
             return undefined;
         }
 
-        return getReferences(document.uri, position, LocationQueryType.Definition);
+        const resolveCallback =
+            (symbolInfo?: SymbolInfo) : Promise<Optional<Location[]>> =>
+            {
+                if (!symbolInfo)
+                {
+                    return Promise.resolve([] as Location[]);
+                }
+
+                if (symbolInfo.pureVirtual || (symbolInfo.target && symbolInfo.target.pureVirtual))
+                {
+                    return getReferences(document.uri, position, LocationQueryType.Virtuals);
+                }
+
+                return getDerivedClasses(document.uri, position);
+            };
+
+        return getSymbolInfo(document.uri, position, true).then(resolveCallback);
     }
 
     public provideReferences(document: TextDocument,

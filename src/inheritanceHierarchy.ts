@@ -130,6 +130,17 @@ function getClasses(classType: ClassType, uri: Uri, position: Position) : Promis
     return runRc(args, processCallback);
 }
 
+export async function getDerivedClasses(uri: Uri, position: Position) : Promise<Optional<Location[]>>
+{
+    const nodes = await getClasses(ClassType.Derived, uri, position);
+    if (!nodes)
+    {
+        return undefined;
+    }
+
+    return nodes.map((n) => { return n.location; });
+}
+
 export class InheritanceHierarchyProvider implements TreeDataProvider<InheritanceNode>, Disposable
 {
     constructor(rtagsMgr: RtagsManager)

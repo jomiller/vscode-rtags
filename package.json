@@ -63,7 +63,7 @@
                     "group": "navigation@4"
                 },
                 {
-                    "command": "rtags.showVirtuals",
+                    "command": "rtags.showDerivedVirtuals",
                     "when": "resourceLangId == cpp",
                     "group": "navigation@5"
                 },
@@ -110,7 +110,7 @@
                     "when": "resourceLangId == cpp"
                 },
                 {
-                    "command": "rtags.showVirtuals",
+                    "command": "rtags.showDerivedVirtuals",
                     "when": "resourceLangId == cpp"
                 },
                 {
@@ -162,8 +162,8 @@
                 "category": "RTags"
             },
             {
-                "command": "rtags.showVirtuals",
-                "title": "Show Virtuals",
+                "command": "rtags.showDerivedVirtuals",
+                "title": "Show Derived/Virtuals",
                 "category": "RTags"
             },
             {
