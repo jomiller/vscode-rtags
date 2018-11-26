@@ -21,8 +21,8 @@
 'use strict';
 
 import { commands, languages, window, workspace, ConfigurationChangeEvent, Diagnostic, DiagnosticCollection,
-         DiagnosticSeverity, Disposable, Range, TextDocument, TextDocumentChangeEvent, Uri, WorkspaceFolder,
-         WorkspaceFoldersChangeEvent } from 'vscode';
+         DiagnosticSeverity, Disposable, Range, TextDocument, TextDocumentChangeEvent, TextDocumentWillSaveEvent, Uri,
+         WorkspaceFolder, WorkspaceFoldersChangeEvent } from 'vscode';
 
 import { ChildProcess, ExecFileOptionsWithStringEncoding, SpawnOptions, execFile, spawn } from 'child_process';
 
@@ -316,7 +316,7 @@ export class RtagsManager implements Disposable
             commands.registerCommand("rtags.reindexActiveFolder", this.reindexActiveProject, this),
             commands.registerCommand("rtags.reindexWorkspace", this.reindexProjects, this),
             workspace.onDidChangeTextDocument(this.reindexChangedFile, this),
-            workspace.onDidSaveTextDocument(this.reindexSavedFile, this),
+            workspace.onWillSaveTextDocument(this.reindexSavedFile, this),
             workspace.onDidChangeWorkspaceFolders(this.updateProjects, this),
             workspace.onDidChangeConfiguration(changeConfigCallback));
     }
@@ -537,9 +537,9 @@ export class RtagsManager implements Disposable
                                                1000));
     }
 
-    private reindexSavedFile(file: TextDocument) : void
+    private reindexSavedFile(event: TextDocumentWillSaveEvent) : void
     {
-        const path = file.uri.fsPath;
+        const path = event.document.uri.fsPath;
         const timer = this.reindexDelayTimers.get(path);
 
         if (timer)
@@ -548,7 +548,7 @@ export class RtagsManager implements Disposable
             this.reindexDelayTimers.delete(path);
         }
 
-        this.reindexFile(file, true);
+        this.reindexFile(event.document, true);
     }
 
     private reindexActiveProject() : void
