@@ -162,7 +162,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
             };
 
         const showBaseCallback =
-            (textEditor: TextEditor, _edit: TextEditorEdit) : void =>
+            async (textEditor: TextEditor, _edit: TextEditorEdit) : Promise<void> =>
             {
                 const document = textEditor.document;
                 const position = textEditor.selection.active;
@@ -172,26 +172,21 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
                     return;
                 }
 
-                const resolveCallback =
-                    (nodes?: InheritanceNode[]) : void =>
-                    {
-                        if (!nodes)
-                        {
-                            nodes = [];
-                        }
+                let nodes = await getClasses(ClassType.Base, document.uri, position);
+                if (!nodes)
+                {
+                    nodes = [];
+                }
 
-                        if (nodes.length === 1)
-                        {
-                            jumpToLocation(nodes[0].location.uri, nodes[0].location.range);
-                        }
-                        else
-                        {
-                            const locations: Location[] = nodes.map((n) => { return n.location; });
-                            showReferences(document.uri, position, locations);
-                        }
-                    };
-
-                getClasses(ClassType.Base, document.uri, position).then(resolveCallback);
+                if (nodes.length === 1)
+                {
+                    jumpToLocation(nodes[0].location.uri, nodes[0].location.range);
+                }
+                else
+                {
+                    const locations: Location[] = nodes.map((n) => { return n.location; });
+                    showReferences(document.uri, position, locations);
+                }
             };
 
         this.disposables.push(

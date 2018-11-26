@@ -36,6 +36,20 @@ interface Caller extends Locatable
     containerLocation: Location;
 }
 
+interface SymbolInfoBase
+{
+    location: string;
+    name: string;
+    kind: string;
+    type?: string;
+    pureVirtual?: boolean;
+}
+
+export interface SymbolInfo extends SymbolInfoBase
+{
+    target?: SymbolInfoBase;
+}
+
 function isFunctionKind(symbolKind?: string) : boolean
 {
     if (!symbolKind)
@@ -107,6 +121,62 @@ function getCallers(uri: Uri, position: Position) : Promise<Optional<Caller[]>>
     return runRc(args, processCallback);
 }
 
+export function getSymbolInfo(uri: Uri, position: Position, includeTarget: boolean = false) : Promise<Optional<SymbolInfo>>
+{
+    const location = toRtagsLocation(uri, position);
+
+    let args =
+    [
+        "--symbol-info",
+        location,
+        "--absolute-path",
+        "--no-context",
+        "--json"
+    ];
+
+    if (includeTarget)
+    {
+        args.push("--symbol-info-include-targets");
+    }
+
+    const processCallback =
+        (output: string) : Optional<SymbolInfo> =>
+        {
+            const jsonObj = parseJson(output);
+            if (!jsonObj)
+            {
+                return undefined;
+            }
+
+            let symbolInfo: SymbolInfo =
+            {
+                location: jsonObj.location,
+                name: jsonObj.symbolName,
+                kind: jsonObj.kind,
+                type: jsonObj.type,
+                pureVirtual: jsonObj.purevirtual
+            };
+
+            const targets = jsonObj.targets;
+            if (targets && (targets.length !== 0))
+            {
+                const targetSymbolInfo: SymbolInfoBase =
+                {
+                    location: targets[0].location,
+                    name: targets[0].symbolName,
+                    kind: targets[0].kind,
+                    type: targets[0].type,
+                    pureVirtual: targets[0].purevirtual
+                };
+                symbolInfo.target = targetSymbolInfo;
+            }
+
+            return symbolInfo;
+        };
+
+    return runRc(args, processCallback);
+}
+
 export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposable
 {
     constructor(rtagsMgr: RtagsManager)
@@ -128,7 +198,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
             };
 
         const showCallersCallback =
-            (textEditor: TextEditor, _edit: TextEditorEdit) : void =>
+            async (textEditor: TextEditor, _edit: TextEditorEdit) : Promise<void> =>
             {
                 const document = textEditor.document;
                 const position = textEditor.selection.active;
@@ -138,41 +208,20 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                     return;
                 }
 
-                const location = toRtagsLocation(document.uri, position);
+                const symbolInfo = await getSymbolInfo(document.uri, position);
 
-                const args =
-                [
-                    "--symbol-info",
-                    location,
-                    "--absolute-path",
-                    "--no-context",
-                    "--json"
-                ];
+                let callers: Optional<Caller[]> = undefined;
+                if (symbolInfo && isFunctionKind(symbolInfo.kind))
+                {
+                    callers = await getCallers(document.uri, position);
+                }
 
-                const processCallback =
-                    (output: string) : void =>
-                    {
-                        const jsonObj = parseJson(output);
-
-                        let promise = (jsonObj && isFunctionKind(jsonObj.kind)) ?
-                                      getCallers(document.uri, position) :
-                                      Promise.resolve([] as Caller[]);
-
-                        const resolveCallback =
-                            (callers?: Caller[]) : void =>
-                            {
-                                let locations: Location[] = [];
-                                if (callers)
-                                {
-                                    callers.forEach((c) => { locations.push(c.location); });
-                                }
-                                showReferences(document.uri, position, locations);
-                            };
-
-                        promise.then(resolveCallback);
-                    };
-
-                runRc(args, processCallback);
+                let locations: Location[] = [];
+                if (callers)
+                {
+                    callers.forEach((c) => { locations.push(c.location); });
+                }
+                showReferences(document.uri, position, locations);
             };
 
         this.disposables.push(
@@ -214,56 +263,36 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                 return [];
             }
 
-            const location = toRtagsLocation(document.uri, position);
-
-            const args =
-            [
-                "--symbol-info",
-                location,
-                "--symbol-info-include-targets",
-                "--absolute-path",
-                "--no-context",
-                "--json"
-            ];
-
-            const processCallback =
-                (output: string) : Caller[] =>
+            const resolveCallback =
+                (symbolInfo?: SymbolInfo) : Caller[] =>
                 {
-                    const jsonObj = parseJson(output);
-                    if (!jsonObj)
+                    if (!symbolInfo)
                     {
                         return [];
                     }
 
-                    if (!isFunctionKind(jsonObj.kind))
-                    {
-                        return [];
-                    }
-
-                    const symbolName = jsonObj.symbolName;
-                    if (!symbolName)
+                    if (!isFunctionKind(symbolInfo.kind))
                     {
                         return [];
                     }
 
                     let containerLocation = new Location(document.uri, position);
-                    const targets = jsonObj.targets;
-                    if (targets && (targets.length !== 0))
+                    if (symbolInfo.target)
                     {
-                        containerLocation = fromRtagsLocation(targets[0].location);
+                        containerLocation = fromRtagsLocation(symbolInfo.target.location);
                     }
 
                     const root: Caller =
                     {
                         location: containerLocation,
                         containerLocation: containerLocation,
-                        containerName: symbolName
+                        containerName: symbolInfo.name
                     };
 
                     return [root];
                 };
 
-            return runRc(args, processCallback);
+            return getSymbolInfo(document.uri, position, true).then(resolveCallback);
         }
 
         return getCallers(element.containerLocation.uri, element.containerLocation.range.start);

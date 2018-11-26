@@ -27,10 +27,11 @@ import { commands, languages, CancellationToken, Definition, DefinitionProvider,
 
 import { RtagsManager, runRc } from './rtagsManager';
 
+import { SymbolInfo, getSymbolInfo } from './callHierarchy';
+
 import { getDerivedClasses } from './inheritanceHierarchy';
 
-import { Optional, SourceFileSelector, showReferences, fromRtagsLocation, toRtagsLocation, parseJson }
-         from './rtagsUtil';
+import { Optional, SourceFileSelector, showReferences, fromRtagsLocation, toRtagsLocation } from './rtagsUtil';
 
 enum LocationQueryType
 {
@@ -47,77 +48,10 @@ enum NameQueryType
     Constructors
 }
 
-interface SymbolInfoBase
-{
-    name: string;
-    kind: string;
-    type?: string;
-    pureVirtual?: boolean;
-}
-
-interface SymbolInfo extends SymbolInfoBase
-{
-    target?: SymbolInfoBase;
-}
-
 function getBaseSymbolType(symbolType: string) : string
 {
     const baseSymbolType = symbolType.replace(/const|volatile|&|\*|\[\d*\]|\(.*|=>.*/g, "");
     return baseSymbolType.trim();
-}
-
-function getSymbolInfo(uri: Uri, position: Position, includeTarget: boolean = false) : Promise<Optional<SymbolInfo>>
-{
-    const location = toRtagsLocation(uri, position);
-
-    let args =
-    [
-        "--symbol-info",
-        location,
-        "--absolute-path",
-        "--no-context",
-        "--json"
-    ];
-
-    if (includeTarget)
-    {
-        args.push("--symbol-info-include-targets");
-    }
-
-    const processCallback =
-        (output: string) : Optional<SymbolInfo> =>
-        {
-            const jsonObj = parseJson(output);
-            if (!jsonObj)
-            {
-                return undefined;
-            }
-
-            let symbolInfo: SymbolInfo =
-            {
-                name: jsonObj.symbolName,
-                kind: jsonObj.kind,
-                type: jsonObj.type,
-                pureVirtual: jsonObj.purevirtual
-            };
-
-            const targets = jsonObj.targets;
-            if (targets && (targets.length !== 0))
-            {
-                const targetSymbolInfo: SymbolInfoBase =
-                {
-                    name: targets[0].symbolName,
-                    kind: targets[0].kind,
-                    type: targets[0].type,
-                    pureVirtual: targets[0].purevirtual
-                };
-                symbolInfo.target = targetSymbolInfo;
-            }
-
-            return symbolInfo;
-        };
-
-    return runRc(args, processCallback);
 }
 
 async function getSymbolType(uri: Uri, position: Position) : Promise<Optional<string>>
@@ -308,7 +242,7 @@ export class RtagsDefinitionProvider implements
         this.rtagsMgr = rtagsMgr;
 
         const showVariablesCallback =
-            (textEditor: TextEditor, _edit: TextEditorEdit) : void =>
+            async (textEditor: TextEditor, _edit: TextEditorEdit) : Promise<void> =>
             {
                 const document = textEditor.document;
                 const position = textEditor.selection.active;
@@ -319,13 +253,8 @@ export class RtagsDefinitionProvider implements
                     return;
                 }
 
-                const resolveCallback =
-                    (locations: Location[]) : void =>
-                    {
-                        showReferences(document.uri, position, locations);
-                    };
-
-                getVariables(document.uri, position, projectPath).then(resolveCallback);
+                const locations = await getVariables(document.uri, position, projectPath);
+                showReferences(document.uri, position, locations);
             };
 
         const showDerivedVirtualsCallback =
