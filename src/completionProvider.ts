@@ -110,7 +110,8 @@ export class RtagsCompletionProvider implements
                                   context: CompletionContext) :
         ProviderResult<CompletionItem[] | CompletionList>
     {
-        if (!this.rtagsMgr.isInProject(document.uri))
+        const projectPath = this.rtagsMgr.getProjectPath(document.uri);
+        if (!projectPath)
         {
             return undefined;
         }
@@ -200,13 +201,14 @@ export class RtagsCompletionProvider implements
                 return new CompletionList(completionItems, completionItems.length >= maxCompletionResults);
             };
 
-        return runRc(args, processCallback, this.rtagsMgr.getOpenTextFiles());
+        return runRc(args, processCallback, this.rtagsMgr.getOpenTextFiles(projectPath));
     }
 
     public provideSignatureHelp(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<SignatureHelp>
     {
-        if (!this.rtagsMgr.isInProject(document.uri))
+        const projectPath = this.rtagsMgr.getProjectPath(document.uri);
+        if (!projectPath)
         {
             return undefined;
         }
@@ -337,7 +339,7 @@ export class RtagsCompletionProvider implements
                 return signatureHelp;
             };
 
-        return runRc(args, processCallback, this.rtagsMgr.getOpenTextFiles());
+        return runRc(args, processCallback, this.rtagsMgr.getOpenTextFiles(projectPath));
     }
 
     private rtagsMgr: RtagsManager;
