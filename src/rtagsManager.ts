@@ -242,6 +242,39 @@ async function startRdm() : Promise<boolean>
     return false;
 }
 
+function getSuspendedFilePaths(projectPath: Uri) : Promise<Optional<string[]>>
+{
+    const args =
+    [
+        "--project",
+        projectPath.fsPath,
+        "--suspend"
+    ];
+
+    const processCallback =
+        (output: string) : string[] =>
+        {
+            let suspendedPaths: string[] = [];
+
+            for (const line of output.split('\n'))
+            {
+                if (line.trim().length === 0)
+                {
+                    continue;
+                }
+                const pathIndex = line.indexOf(" is suspended");
+                if (pathIndex !== -1)
+                {
+                    suspendedPaths.push(line.slice(0, pathIndex));
+                }
+            }
+
+            return suspendedPaths;
+        };
+
+    return runRc(args, processCallback);
+}
+
 export class RtagsManager implements Disposable
 {
     constructor()
@@ -316,7 +349,9 @@ export class RtagsManager implements Disposable
             commands.registerCommand("rtags.reindexActiveFolder", this.reindexActiveProject, this),
             commands.registerCommand("rtags.reindexWorkspace", this.reindexProjects, this),
             workspace.onDidChangeTextDocument(this.reindexChangedFile, this),
-            workspace.onWillSaveTextDocument(this.reindexSavedFile, this),
+            workspace.onDidSaveTextDocument(this.reindexSavedFile, this),
+            workspace.onWillSaveTextDocument(this.suspendFileWatch, this),
+            workspace.onDidCloseTextDocument(this.resumeFileWatch, this),
             workspace.onDidChangeWorkspaceFolders(this.updateProjects, this),
             workspace.onDidChangeConfiguration(changeConfigCallback));
     }
@@ -483,39 +518,25 @@ export class RtagsManager implements Disposable
         this.addProjects(event.added);
     }
 
-    private reindexFile(file: TextDocument, saved: boolean = false) : void
+    private reindexFile(file: TextDocument) : void
     {
         const projectPath = this.getProjectPath(file.uri);
-
-        if (!isSourceFile(file) || !projectPath)
+        if (!projectPath)
         {
             return;
         }
 
-        let reindexArg = "--reindex";
-        let openFiles = this.getOpenTextFiles(projectPath);
-
-        if (saved)
-        {
-            const unsavedFileExists = openFiles.some((file) => { return isUnsavedSourceFile(file); });
-            if (!unsavedFileExists)
-            {
-                reindexArg = "--check-reindex";
-                openFiles = [];
-            }
-
-            // Add a short delay in order to override automatic reindexing on save
-            setTimeout(() => { runRc([reindexArg, file.uri.fsPath], (_unused) => {}, openFiles); }, 300);
-        }
-        else
-        {
-            runRc([reindexArg, file.uri.fsPath], (_unused) => {}, openFiles);
-        }
+        runRc(["--reindex", file.uri.fsPath], (_unused) => {}, this.getOpenTextFiles(projectPath));
     }
 
     private reindexChangedFile(event: TextDocumentChangeEvent) : void
     {
         if (event.contentChanges.length === 0)
+        {
+            return;
+        }
+
+        if (!isSourceFile(event.document) || !this.isInProject(event.document.uri))
         {
             return;
         }
@@ -537,8 +558,34 @@ export class RtagsManager implements Disposable
                                                500));
     }
 
-    private reindexSavedFile(event: TextDocumentWillSaveEvent) : void
+    private async reindexSavedFile(document: TextDocument) : Promise<void>
     {
+        if (!isSourceFile(document) || !this.isInProject(document.uri))
+        {
+            return;
+        }
+
+        const path = document.uri.fsPath;
+
+        const promise = this.fileWatchSuspendPromises.get(path);
+        if (promise)
+        {
+            await promise;
+            this.fileWatchSuspendPromises.delete(path);
+        }
+
+        this.reindexFile(document);
+    }
+
+    private suspendFileWatch(event: TextDocumentWillSaveEvent) : void
+    {
+        const projectPath = this.getProjectPath(event.document.uri);
+
+        if (!isSourceFile(event.document) || !projectPath)
+        {
+            return;
+        }
+
         const path = event.document.uri.fsPath;
         const timer = this.reindexDelayTimers.get(path);
 
@@ -548,7 +595,40 @@ export class RtagsManager implements Disposable
             this.reindexDelayTimers.delete(path);
         }
 
-        this.reindexFile(event.document, true);
+        const resolveCallback =
+            (suspendedPaths?: string[]) : void =>
+            {
+                if (!suspendedPaths || !suspendedPaths.includes(path))
+                {
+                    const promise = runRc(["--suspend", path], (_unused) => {});
+                    this.fileWatchSuspendPromises.set(path, promise);
+                }
+            };
+
+        getSuspendedFilePaths(projectPath).then(resolveCallback);
+    }
+
+    private resumeFileWatch(file: TextDocument) : void
+    {
+        const projectPath = this.getProjectPath(file.uri);
+
+        if (!isSourceFile(file) || !projectPath)
+        {
+            return;
+        }
+
+        const path = file.uri.fsPath;
+
+        const resolveCallback =
+            (suspendedPaths?: string[]) : void =>
+            {
+                if (suspendedPaths && suspendedPaths.includes(path))
+                {
+                    runRc(["--suspend", path], (_unused) => {});
+                }
+            };
+
+        getSuspendedFilePaths(projectPath).then(resolveCallback);
     }
 
     private reindexActiveProject() : void
@@ -861,6 +941,7 @@ export class RtagsManager implements Disposable
     private diagnosticProcess: Nullable<ChildProcess> = null;
     private unprocessedDiagnostics: string = "";
     private reindexDelayTimers = new Map<string, NodeJS.Timer>();
+    private fileWatchSuspendPromises = new Map<string, Promise<void>>();
     private indexPollTimer: Nullable<NodeJS.Timer> = null;
     private disposables: Disposable[] = [];
 }
