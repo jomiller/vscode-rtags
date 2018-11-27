@@ -306,7 +306,7 @@ export class RtagsManager implements Disposable
         })();
 
         const changeConfigCallback =
-            (event: ConfigurationChangeEvent) : void =>
+            async (event: ConfigurationChangeEvent) : Promise<void> =>
             {
                 if (event.affectsConfiguration("rtags"))
                 {
@@ -321,26 +321,26 @@ export class RtagsManager implements Disposable
                         }
                     }
 
-                    const resolveCallback =
-                        (selectedAction?: string) : void =>
-                        {
-                            if (selectedAction === reloadAction)
-                            {
-                                this.projectPathsToPurge.forEach((p) => { this.removeProject(p, true); });
-                                this.projectPathsToPurge.clear();
-
-                                commands.executeCommand("workbench.action.reloadWindow");
-                            }
-                        };
+                    let selectedAction: Optional<string> = undefined;
 
                     if (event.affectsConfiguration("rtags.misc.compilationDatabaseDirectory"))
                     {
                         message += ", otherwise new compilation databases will not be loaded";
-                        window.showWarningMessage(message, reloadAction).then(resolveCallback);
+                        selectedAction = await window.showWarningMessage(message, reloadAction);
                     }
                     else
                     {
-                        window.showInformationMessage(message, reloadAction).then(resolveCallback);
+                        selectedAction = await window.showInformationMessage(message, reloadAction);
+                    }
+
+                    if (selectedAction === reloadAction)
+                    {
+                        let promises: Promise<void>[] = [];
+                        this.projectPathsToPurge.forEach((p) => { promises.push(this.removeProject(p, true)); });
+                        await Promise.all(promises);
+                        this.projectPathsToPurge.clear();
+
+                        commands.executeCommand("workbench.action.reloadWindow");
                     }
                 }
             };
@@ -489,7 +489,7 @@ export class RtagsManager implements Disposable
         }
     }
 
-    private removeProject(uri: Uri, purge: boolean) : void
+    private async removeProject(uri: Uri, purge: boolean) : Promise<void>
     {
         const projectPath = uri.fsPath;
 
@@ -508,7 +508,7 @@ export class RtagsManager implements Disposable
 
         if (purge)
         {
-            runRc(["--delete-project", projectPath + '/'], (_unused) => {});
+            await runRc(["--delete-project", projectPath + '/'], (_unused) => {});
         }
     }
 
