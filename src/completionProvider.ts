@@ -240,7 +240,7 @@ export class RtagsCompletionProvider implements
         let commaPositions: number[] = [];
         let closeParenPositions: number[] = [];
         let parenRanges: ParenthesizedRange[] = [];
-        for (let pos: number = text.length - 1; pos >= 0; --pos)
+        for (let pos = text.length - 1; pos >= 0; --pos)
         {
             if (text.charAt(pos) === ',')
             {
