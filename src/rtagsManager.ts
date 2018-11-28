@@ -494,7 +494,7 @@ export class RtagsManager implements Disposable
         }
     }
 
-    private async removeProject(uri: Uri, purge: boolean) : Promise<void>
+    private removeProject(uri: Uri, purge: boolean) : Promise<void>
     {
         const projectPath = uri.fsPath;
 
@@ -511,10 +511,7 @@ export class RtagsManager implements Disposable
             this.projectPaths.splice(index, 1);
         }
 
-        if (purge)
-        {
-            await runRc(["--delete-project", projectPath + '/'], (_unused) => {});
-        }
+        return (purge ? runRc(["--delete-project", projectPath + '/'], (_unused) => {}) : Promise.resolve());
     }
 
     private updateProjects(event: WorkspaceFoldersChangeEvent) : void
@@ -596,17 +593,17 @@ export class RtagsManager implements Disposable
         const suspendTimeout = 100;
 
         const resolveCallback =
-            async (paths?: string[]) : Promise<Optional<void>> =>
+            (paths?: string[]) : Promise<Optional<void>> =>
             {
                 if (!paths)
                 {
-                    return;
+                    return Promise.resolve();
                 }
 
                 if (paths.includes(path))
                 {
                     this.suspendedFilePaths.add(path);
-                    return;
+                    return Promise.resolve();
                 }
 
                 const args =
@@ -618,64 +615,56 @@ export class RtagsManager implements Disposable
                 ];
 
                 const processCallback =
-                    (output: string) : boolean =>
+                    (output: string) : void =>
                     {
                         const message = path + " is now suspended";
-                        return (output.trim() === message);
+                        if (output.trim() === message)
+                        {
+                            this.suspendedFilePaths.add(path);
+                        }
                     };
 
-                const suspended = await runRc(args, processCallback);
-                if (suspended)
-                {
-                    this.suspendedFilePaths.add(path);
-                }
+                return runRc(args, processCallback);
             };
 
         event.waitUntil(getSuspendedFilePaths(projectPath, suspendTimeout).then(resolveCallback));
     }
 
-    private async resumeFileWatch(file: TextDocument) : Promise<void>
+    private resumeFileWatch(file: TextDocument) : Promise<void>
     {
         const projectPath = this.getProjectPath(file.uri);
-
-        if (!isSourceFile(file) || !projectPath)
-        {
-            return;
-        }
-
         const path = file.uri.fsPath;
 
-        if (!this.suspendedFilePaths.has(path))
+        if (!projectPath || !this.suspendedFilePaths.has(path))
         {
-            return;
+            return Promise.resolve();
         }
 
         const resolveCallback =
-            async (paths?: string[]) : Promise<void> =>
+            (paths?: string[]) : Promise<void> =>
             {
                 if (!paths)
                 {
-                    return;
+                    return Promise.resolve();
                 }
 
                 if (!paths.includes(path))
                 {
                     this.suspendedFilePaths.delete(path);
-                    return;
+                    return Promise.resolve();
                 }
 
                 const processCallback =
-                    (output: string) : boolean =>
+                    (output: string) : void =>
                     {
                         const message = path + " is no longer suspended";
-                        return (output.trim() === message);
+                        if (output.trim() === message)
+                        {
+                            this.suspendedFilePaths.delete(path);
+                        }
                     };
 
-                const resumed = await runRc(["--suspend", path], processCallback);
-                if (resumed)
-                {
-                    this.suspendedFilePaths.delete(path);
-                }
+                return runRc(["--suspend", path], processCallback);
             };
 
         return getSuspendedFilePaths(projectPath).then(resolveCallback);
