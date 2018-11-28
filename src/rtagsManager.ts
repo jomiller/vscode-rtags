@@ -565,14 +565,14 @@ export class RtagsManager implements Disposable
                                                500));
     }
 
-    private reindexSavedFile(document: TextDocument) : void
+    private reindexSavedFile(file: TextDocument) : void
     {
-        if (!isSourceFile(document) || !this.isInProject(document.uri))
+        if (!isSourceFile(file) || !this.isInProject(file.uri))
         {
             return;
         }
 
-        this.reindexFile(document);
+        this.reindexFile(file);
     }
 
     private suspendFileWatch(event: TextDocumentWillSaveEvent) : void
