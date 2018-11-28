@@ -237,35 +237,31 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
             }
 
             const resolveCallback =
-                (nodes?: InheritanceNode[]) : Promise<InheritanceNode[]> =>
+                async (nodes?: InheritanceNode[]) : Promise<InheritanceNode[]> =>
                 {
                     if (!nodes || (nodes.length === 0))
                     {
-                        return Promise.resolve([] as InheritanceNode[]);
+                        return [];
                     }
 
-                    const baseResolveCallback =
-                        (baseNodes?: InheritanceNode[]) : InheritanceNode[] =>
-                        {
-                            if (!baseNodes)
-                            {
-                                return [];
-                            }
+                    const baseNodes = await getClasses(ClassType.Base, document.uri, position);
 
-                            const classType = (baseNodes.length === 0) ? ClassType.Derived : ClassType.Base;
+                    if (!baseNodes)
+                    {
+                        return [];
+                    }
 
-                            const root: InheritanceNode =
-                            {
-                                nodeType: NodeType.Root,
-                                classType: classType,
-                                name: nodes[0].name,
-                                location: nodes[0].location
-                            };
+                    const classType = (baseNodes.length === 0) ? ClassType.Derived : ClassType.Base;
 
-                            return [root];
-                        };
+                    const root: InheritanceNode =
+                    {
+                        nodeType: NodeType.Root,
+                        classType: classType,
+                        name: nodes[0].name,
+                        location: nodes[0].location
+                    };
 
-                    return getClasses(ClassType.Base, document.uri, position).then(baseResolveCallback);
+                    return [root];
                 };
 
             return getClasses(ClassType.This, document.uri, position).then(resolveCallback);
