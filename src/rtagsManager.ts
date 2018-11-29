@@ -647,7 +647,7 @@ export class RtagsManager implements Disposable
         for (const f of this.suspendedFiles.values())
         {
             // Resume all clean suspended files in addition to the file for which the event was triggered
-            if (!f.isDirty || (f.uri.fsPath === file.uri.fsPath))
+            if (this.isInProject(f.uri, projectPath) && (!f.isDirty || (f.uri.fsPath === file.uri.fsPath)))
             {
                 filesToResume.add(f);
             }
