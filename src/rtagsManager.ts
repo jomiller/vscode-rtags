@@ -590,7 +590,7 @@ export class RtagsManager implements Disposable
             this.reindexDelayTimers.delete(path);
         }
 
-        const suspendTimeout = 100;
+        const suspendTimeoutMs = 100;
 
         const resolveCallback =
             (paths?: string[]) : Promise<Optional<void>> =>
@@ -602,7 +602,8 @@ export class RtagsManager implements Disposable
 
                 if (paths.includes(path))
                 {
-                    this.suspendedFilePaths.add(path);
+                    // The file is already suspended
+                    this.suspendedFiles.set(path, event.document);
                     return Promise.resolve();
                 }
 
@@ -611,7 +612,7 @@ export class RtagsManager implements Disposable
                     "--suspend",
                     path,
                     "--timeout",
-                    suspendTimeout.toString()
+                    suspendTimeoutMs.toString()
                 ];
 
                 const processCallback =
@@ -620,51 +621,88 @@ export class RtagsManager implements Disposable
                         const message = path + " is now suspended";
                         if (output.trim() === message)
                         {
-                            this.suspendedFilePaths.add(path);
+                            // The file was suspended successfully
+                            this.suspendedFiles.set(path, event.document);
                         }
                     };
 
                 return runRc(args, processCallback);
             };
 
-        event.waitUntil(getSuspendedFilePaths(projectPath, suspendTimeout).then(resolveCallback));
+        // Wait synchronously until the file is suspended
+        event.waitUntil(getSuspendedFilePaths(projectPath, suspendTimeoutMs).then(resolveCallback));
     }
 
     private resumeFileWatch(file: TextDocument) : Promise<void>
     {
         const projectPath = this.getProjectPath(file.uri);
-        const path = file.uri.fsPath;
 
-        if (!projectPath || !this.suspendedFilePaths.has(path))
+        if (!isSourceFile(file) || !projectPath)
         {
             return Promise.resolve();
         }
+
+        let filesToResume = new Set<TextDocument>();
+
+        for (const f of this.suspendedFiles.values())
+        {
+            // Resume all clean suspended files in addition to the file for which the event was triggered
+            if (!f.isDirty || (f.uri.fsPath === file.uri.fsPath))
+            {
+                filesToResume.add(f);
+            }
+        }
+
+        if (filesToResume.size === 0)
+        {
+            return Promise.resolve();
+        }
+
+        // Transfer ownership of the suspended files so that only this event will handle them
+        filesToResume.forEach((f) => { this.suspendedFiles.delete(f.uri.fsPath); });
 
         const resolveCallback =
             (paths?: string[]) : Promise<void> =>
             {
                 if (!paths)
                 {
+                    // Restore ownership of the suspended files as they could not be resumed
+                    filesToResume.forEach((f) => { this.suspendedFiles.set(f.uri.fsPath, f); });
                     return Promise.resolve();
                 }
 
-                if (!paths.includes(path))
+                for (const f of [...filesToResume])
                 {
-                    this.suspendedFilePaths.delete(path);
+                    if (!paths.includes(f.uri.fsPath))
+                    {
+                        // The file is not suspended so it does not need to be resumed
+                        filesToResume.delete(f);
+                    }
+                }
+                if (filesToResume.size === 0)
+                {
                     return Promise.resolve();
                 }
+
+                let args: string[] = [];
+                filesToResume.forEach((f) => { args.push("--suspend", f.uri.fsPath); });
 
                 const processCallback =
                     (output: string) : void =>
                     {
-                        const message = path + " is no longer suspended";
-                        if (output.trim() === message)
+                        const lines = output.trim().split('\n');
+                        for (const f of filesToResume)
                         {
-                            this.suspendedFilePaths.delete(path);
+                            const message = f.uri.fsPath + " is no longer suspended";
+                            if (!lines.includes(message))
+                            {
+                                // Restore ownership of the suspended file as it was not resumed
+                                this.suspendedFiles.set(f.uri.fsPath, f);
+                            }
                         }
                     };
 
-                return runRc(["--suspend", path], processCallback);
+                return runRc(args, processCallback);
             };
 
         return getSuspendedFilePaths(projectPath).then(resolveCallback);
@@ -980,7 +1018,7 @@ export class RtagsManager implements Disposable
     private diagnosticProcess: Nullable<ChildProcess> = null;
     private unprocessedDiagnostics: string = "";
     private reindexDelayTimers = new Map<string, NodeJS.Timer>();
-    private suspendedFilePaths = new Set<string>();
+    private suspendedFiles = new Map<string, TextDocument>();
     private indexPollTimer: Nullable<NodeJS.Timer> = null;
     private disposables: Disposable[] = [];
 }
