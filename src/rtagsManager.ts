@@ -655,11 +655,6 @@ export class RtagsManager implements Disposable
 
         const path = file.uri.fsPath;
 
-        if (!this.suspendedFilePaths.has(path))
-        {
-            return Promise.resolve();
-        }
-
         const resolveCallback =
             (paths?: string[]) : Promise<void> =>
             {
