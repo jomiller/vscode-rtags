@@ -48,6 +48,12 @@ interface Project
     indexType: IndexType;
 }
 
+interface ResumeTimerInfo
+{
+    file: TextDocument;
+    timer: NodeJS.Timer;
+}
+
 function toDiagnosticSeverity(severity: string) : DiagnosticSeverity
 {
     switch (severity)
@@ -342,8 +348,8 @@ export class RtagsManager implements Disposable
                     {
                         let promises: Promise<void>[] = [];
                         this.projectPathsToPurge.forEach((p) => { promises.push(this.removeProject(p, true)); });
-                        await Promise.all(promises);
                         this.projectPathsToPurge.clear();
+                        await Promise.all(promises);
 
                         commands.executeCommand("workbench.action.reloadWindow");
                     }
@@ -537,7 +543,9 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        if (!isSourceFile(event.document) || !this.isInProject(event.document.uri))
+        const projectPath = this.getProjectPath(event.document.uri);
+
+        if (!isSourceFile(event.document) || !projectPath)
         {
             return;
         }
@@ -550,13 +558,28 @@ export class RtagsManager implements Disposable
             clearTimeout(timer);
         }
 
-        this.reindexDelayTimers.set(path,
-                                    setTimeout(() : void =>
-                                               {
-                                                   this.reindexFile(event.document);
-                                                   this.reindexDelayTimers.delete(path);
-                                               },
-                                               500));
+        const timeoutCallback =
+            async () : Promise<void> =>
+            {
+                this.reindexDelayTimers.delete(path);
+
+                // Resume files early so that they may be reindexed if necessary
+                let promises: Promise<void>[] = [];
+                for (const info of [...this.resumeDelayTimers.values()])
+                {
+                    if (this.isInProject(info.file.uri, projectPath))
+                    {
+                        clearTimeout(info.timer);
+                        this.resumeDelayTimers.delete(info.file.uri.fsPath);
+                        promises.push(this.resumeFileWatch(info.file));
+                    }
+                }
+                await Promise.all(promises);
+
+                this.reindexFile(event.document);
+            };
+
+        this.reindexDelayTimers.set(path, setTimeout(timeoutCallback, 500));
     }
 
     private async reindexSavedFile(file: TextDocument) : Promise<void>
@@ -640,7 +663,19 @@ export class RtagsManager implements Disposable
         {
             // The onDidSaveTextDocument event will not fire for clean files
             // Delay until the file has been saved, and then manually resume the file watch
-            setTimeout((file) => { this.resumeFileWatch(file); }, 2000, event.document);
+            const timeoutCallback =
+                () : void =>
+                {
+                    this.resumeDelayTimers.delete(path);
+                    this.resumeFileWatch(event.document);
+                };
+
+            const timerInfo: ResumeTimerInfo =
+            {
+                file: event.document,
+                timer: setTimeout(timeoutCallback, 2000)
+            };
+            this.resumeDelayTimers.set(path, timerInfo);
         }
     }
 
@@ -817,12 +852,7 @@ export class RtagsManager implements Disposable
             };
 
         // Keep polling RTags until it is finished indexing the project
-        this.indexPollTimer =
-            setInterval(() : void =>
-                        {
-                            runRc(["--is-indexing"], processCallback);
-                        },
-                        5000);
+        this.indexPollTimer = setInterval(() => { runRc(["--is-indexing"], processCallback); }, 5000);
     }
 
     private startDiagnostics() : void
@@ -998,6 +1028,7 @@ export class RtagsManager implements Disposable
     private unprocessedDiagnostics: string = "";
     private reindexDelayTimers = new Map<string, NodeJS.Timer>();
     private suspendedFilePaths = new Set<string>();
+    private resumeDelayTimers = new Map<string, ResumeTimerInfo>();
     private indexPollTimer: Nullable<NodeJS.Timer> = null;
     private disposables: Disposable[] = [];
 }
