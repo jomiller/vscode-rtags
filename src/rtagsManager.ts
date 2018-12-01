@@ -36,16 +36,16 @@ import * as util from 'util';
 
 import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, fromRtagsPosition, parseJson } from './rtagsUtil';
 
-enum IndexType
+enum TaskType
 {
     Load,
     Reindex
 }
 
-interface Project
+interface ProjectTask
 {
     uri: Uri;
-    indexType: IndexType;
+    type: TaskType;
 }
 
 interface ResumeTimerInfo
@@ -401,12 +401,12 @@ export class RtagsManager implements Disposable
 
     public isInLoadingProject(uri: Uri) : boolean
     {
-        if (!this.currentIndexingProject || (this.currentIndexingProject.indexType !== IndexType.Load))
+        if (!this.currentProjectTask || (this.currentProjectTask.type !== TaskType.Load))
         {
             return false;
         }
 
-        const loadingProjectPath = this.currentIndexingProject.uri;
+        const loadingProjectPath = this.currentProjectTask.uri;
 
         if (!uri.fsPath.startsWith(loadingProjectPath.fsPath + '/'))
         {
@@ -484,9 +484,9 @@ export class RtagsManager implements Disposable
             }
             else
             {
-                // Add the project to the indexing queue
-                const project: Project = {uri: f.uri, indexType: IndexType.Load};
-                this.indexNextProject(project);
+                // Add the project to the task queue
+                const task: ProjectTask = {uri: f.uri, type: TaskType.Load};
+                this.processNextProjectTask(task);
             }
         }
     }
@@ -503,12 +503,12 @@ export class RtagsManager implements Disposable
     {
         const projectPath = uri.fsPath;
 
-        if (this.currentIndexingProject && (projectPath === this.currentIndexingProject.uri.fsPath))
+        if (this.currentProjectTask && (projectPath === this.currentProjectTask.uri.fsPath))
         {
-            this.currentIndexingProject = null;
+            this.currentProjectTask = null;
         }
 
-        this.projectIndexingQueue = this.projectIndexingQueue.filter((p) => { return (p.uri.fsPath !== projectPath); });
+        this.projectTaskQueue = this.projectTaskQueue.filter((p) => { return (p.uri.fsPath !== projectPath); });
 
         const index = this.projectPaths.findIndex((p) => { return (p.fsPath === projectPath); });
         if (index !== -1)
@@ -737,43 +737,43 @@ export class RtagsManager implements Disposable
         }
 
         // Reindex the project to which the active document belongs
-        const project: Project = {uri: projectPath, indexType: IndexType.Reindex};
-        this.indexNextProject(project);
+        const task: ProjectTask = {uri: projectPath, type: TaskType.Reindex};
+        this.processNextProjectTask(task);
     }
 
     private reindexProjects() : void
     {
         for (const path of this.projectPaths)
         {
-            const project: Project = {uri: path, indexType: IndexType.Reindex};
-            this.indexNextProject(project);
+            const task: ProjectTask = {uri: path, type: TaskType.Reindex};
+            this.processNextProjectTask(task);
         }
     }
 
-    private async indexNextProject(enqueuedProject?: Project) : Promise<void>
+    private async processNextProjectTask(enqueuedTask?: ProjectTask) : Promise<void>
     {
-        if (enqueuedProject)
+        if (enqueuedTask)
         {
-            this.projectIndexingQueue.push(enqueuedProject);
+            this.projectTaskQueue.push(enqueuedTask);
         }
 
         // Allow indexing only one project at a time because RTags reports only a global status of whether or not
         // it is currently indexing
-        while (!this.currentIndexingProject && (this.projectIndexingQueue.length !== 0))
+        while (!this.currentProjectTask && (this.projectTaskQueue.length !== 0))
         {
-            const dequeuedProject = this.projectIndexingQueue.shift();
-            this.currentIndexingProject = dequeuedProject ? dequeuedProject : null;
+            const dequeuedTask = this.projectTaskQueue.shift();
+            this.currentProjectTask = dequeuedTask ? dequeuedTask : null;
 
-            if (this.currentIndexingProject)
+            if (this.currentProjectTask)
             {
-                const projectPath = this.currentIndexingProject.uri;
+                const projectPath = this.currentProjectTask.uri;
                 let indexMsg = "";
 
-                switch (this.currentIndexingProject.indexType)
+                switch (this.currentProjectTask.type)
                 {
-                    case IndexType.Load:
+                    case TaskType.Load:
                     {
-                        const config = workspace.getConfiguration("rtags", this.currentIndexingProject.uri);
+                        const config = workspace.getConfiguration("rtags", this.currentProjectTask.uri);
                         const compilationDatabaseDir = config.get<string>("misc.compilationDatabaseDirectory");
                         const compileCommandsDir =
                             compilationDatabaseDir ? compilationDatabaseDir.replace(/\/*$/, "") : projectPath.fsPath;
@@ -791,36 +791,36 @@ export class RtagsManager implements Disposable
                         }
                         if (!status)
                         {
-                            this.currentIndexingProject = null;
+                            this.currentProjectTask = null;
                         }
                         indexMsg = "Loading";
                         break;
                     }
 
-                    case IndexType.Reindex:
+                    case TaskType.Reindex:
                     {
                         const status = await runRc(["--project", projectPath.fsPath, "--reindex"],
                                                    (_unused) => { return true; },
                                                    this.getOpenTextFiles(projectPath));
                         if (!status)
                         {
-                            this.currentIndexingProject = null;
+                            this.currentProjectTask = null;
                         }
                         indexMsg = "Reindexing";
                         break;
                     }
                 }
 
-                if (this.currentIndexingProject)
+                if (this.currentProjectTask)
                 {
                     window.showInformationMessage("[RTags] " + indexMsg + " project: " + projectPath.fsPath);
-                    this.finishIndexingProject();
+                    this.finishProjectTask();
                 }
             }
         }
     }
 
-    private finishIndexingProject() : void
+    private finishProjectTask() : void
     {
         const processCallback =
             (output: string) : void =>
@@ -833,21 +833,21 @@ export class RtagsManager implements Disposable
                         clearInterval(this.indexPollTimer);
                         this.indexPollTimer = null;
                     }
-                    if (this.currentIndexingProject)
+                    if (this.currentProjectTask)
                     {
                         let indexMsg = "reindexing";
-                        if (this.currentIndexingProject.indexType === IndexType.Load)
+                        if (this.currentProjectTask.type === TaskType.Load)
                         {
-                            this.projectPaths.push(this.currentIndexingProject.uri);
+                            this.projectPaths.push(this.currentProjectTask.uri);
                             indexMsg = "loading";
                         }
 
                         window.showInformationMessage("[RTags] Finished " + indexMsg + " project: " +
-                                                      this.currentIndexingProject.uri.fsPath);
+                                                      this.currentProjectTask.uri.fsPath);
 
-                        this.currentIndexingProject = null;
+                        this.currentProjectTask = null;
                     }
-                    this.indexNextProject();
+                    this.processNextProjectTask();
                 }
             };
 
@@ -1017,8 +1017,8 @@ export class RtagsManager implements Disposable
         }
     }
 
-    private projectIndexingQueue: Project[] = [];
-    private currentIndexingProject: Nullable<Project> = null;
+    private projectTaskQueue: ProjectTask[] = [];
+    private currentProjectTask: Nullable<ProjectTask> = null;
     private projectPaths: Uri[] = [];
     private projectPathsToPurge = new Set<Uri>();
     private diagnosticsEnabled: boolean = true;
