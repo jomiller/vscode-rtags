@@ -545,7 +545,7 @@ export class RtagsManager implements Disposable
 
         if (saved)
         {
-            // Rely on file watch to reindex on save if there are no unsaved files
+            // Rely on the file watch to reindex on save if there are no unsaved files
             const unsavedFileExists = openFiles.some((file) => { return isUnsavedSourceFile(file); });
             if (!unsavedFileExists)
             {
@@ -584,18 +584,7 @@ export class RtagsManager implements Disposable
             {
                 this.reindexDelayTimers.delete(path);
 
-                // Resume files early so that they may be reindexed if necessary
-                let promises: Promise<void>[] = [];
-                for (const info of [...this.resumeDelayTimers.values()])
-                {
-                    if (this.isInProject(info.file.uri, projectPath))
-                    {
-                        clearTimeout(info.timer);
-                        this.resumeDelayTimers.delete(info.file.uri.fsPath);
-                        promises.push(this.resumeFileWatch(info.file));
-                    }
-                }
-                await Promise.all(promises);
+                await Promise.all(this.resumeDelayedFileWatches(projectPath));
 
                 this.reindexFile(event.document);
             };
@@ -605,12 +594,16 @@ export class RtagsManager implements Disposable
 
     private async reindexSavedFile(file: TextDocument) : Promise<void>
     {
-        if (!isSourceFile(file) || !this.isInProject(file.uri))
+        const projectPath = this.getProjectPath(file.uri);
+
+        if (!isSourceFile(file) || !projectPath)
         {
             return;
         }
 
-        await this.resumeFileWatch(file);
+        let promises = this.resumeDelayedFileWatches(projectPath);
+        promises.push(this.resumeFileWatch(file));
+        await Promise.all(promises);
 
         this.reindexFile(file, true);
     }
@@ -633,7 +626,7 @@ export class RtagsManager implements Disposable
             this.reindexDelayTimers.delete(path);
         }
 
-        // Rely on file watch to reindex on save if there are no other unsaved files
+        // Rely on the file watch to reindex on save if there are no other unsaved files
         const unsavedFiles = this.getUnsavedSourceFiles(projectPath);
         if ((unsavedFiles.length === 0) || ((unsavedFiles.length === 1) && (unsavedFiles[0].uri.fsPath === path)))
         {
@@ -748,6 +741,22 @@ export class RtagsManager implements Disposable
             };
 
         return getSuspendedFilePaths(projectPath).then(resolveCallback);
+    }
+
+    private resumeDelayedFileWatches(projectPath: Uri) : Promise<void>[]
+    {
+        // Resume files early so that they may be reindexed if necessary
+        let promises: Promise<void>[] = [];
+        for (const info of [...this.resumeDelayTimers.values()])
+        {
+            if (this.isInProject(info.file.uri, projectPath))
+            {
+                clearTimeout(info.timer);
+                this.resumeDelayTimers.delete(info.file.uri.fsPath);
+                promises.push(this.resumeFileWatch(info.file));
+            }
+        }
+        return promises;
     }
 
     private reindexActiveProject() : void
