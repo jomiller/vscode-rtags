@@ -230,22 +230,29 @@ async function startRdm() : Promise<boolean>
 
         // Wait for rc to connect to rdm
         const sleep = util.promisify(setTimeout);
-        const delayMsec = 1000;
-        const timeoutMsec = 30 * delayMsec;
-        for (let ms = 0; ms < timeoutMsec; ms += delayMsec)
+        const delayMs = 1000;
+        const timeoutMs = 15 * delayMs;
+        const endTimeMs = Date.now() + timeoutMs;
+        while (!(rcStatus = await testRcStatus()))
         {
-            rcStatus = await testRcStatus();
-            if (rcStatus)
+            if (Date.now() >= endTimeMs)
             {
-                window.showInformationMessage("[RTags] Started server successfully");
-                return true;
+                break;
             }
-            await sleep(delayMsec);
+            await sleep(delayMs);
         }
     }
 
-    window.showErrorMessage("[RTags] Could not start server; check \"rtags.rdm.executable\" and \"rtags.rdm.arguments\" settings");
-    return false;
+    if (rcStatus)
+    {
+        window.showInformationMessage("[RTags] Started server successfully");
+    }
+    else
+    {
+        window.showErrorMessage("[RTags] Could not start server; check \"rtags.rdm.executable\" and \"rtags.rdm.arguments\" settings");
+    }
+
+    return rcStatus;
 }
 
 function getSuspendedFilePaths(projectPath: Uri, timeout: number = 0) : Promise<Optional<string[]>>
@@ -873,7 +880,21 @@ export class RtagsManager implements Disposable
             };
 
         // Keep polling RTags until it is finished indexing the project
-        this.indexPollTimer = setInterval(() => { runRc(["--is-indexing"], processCallback); }, 5000);
+        const intervalCallback =
+            () : void =>
+            {
+                const timeoutMs = 1000;
+                const args =
+                [
+                    "--is-indexing",
+                    "--timeout",
+                    timeoutMs.toString()
+                ];
+
+                runRc(args, processCallback);
+            };
+
+        this.indexPollTimer = setInterval(intervalCallback, 5000);
     }
 
     private startDiagnostics() : void
