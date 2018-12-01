@@ -231,7 +231,7 @@ async function startRdm() : Promise<boolean>
         // Wait for rc to connect to rdm
         const sleep = util.promisify(setTimeout);
         const delayMs = 1000;
-        const timeoutMs = 15 * delayMs;
+        const timeoutMs = 30 * delayMs;
         const endTimeMs = Date.now() + timeoutMs;
         while (!(rcStatus = await testRcStatus()))
         {
