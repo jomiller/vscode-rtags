@@ -318,7 +318,7 @@ export class RtagsDefinitionProvider implements
             {
                 if (!symbolInfo)
                 {
-                    return Promise.resolve([] as Location[]);
+                    return Promise.resolve(undefined);
                 }
 
                 if (symbolInfo.virtual || (symbolInfo.target && symbolInfo.target.virtual))
