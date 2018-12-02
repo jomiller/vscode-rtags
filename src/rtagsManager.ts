@@ -532,7 +532,7 @@ export class RtagsManager implements Disposable
         this.addProjects(event.added);
     }
 
-    private reindexFile(file: TextDocument) : void
+    private reindexFile(file: TextDocument, force: boolean) : void
     {
         const projectPath = this.getProjectPath(file.uri);
         if (!projectPath)
@@ -540,7 +540,9 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        runRc(["--reindex", file.uri.fsPath], (_unused) => {}, this.getOpenTextFiles(projectPath));
+        const reindexArg = force ? "--reindex" : "--check-reindex";
+
+        runRc([reindexArg, file.uri.fsPath], (_unused) => {}, this.getOpenTextFiles(projectPath));
     }
 
     private reindexChangedFile(event: TextDocumentChangeEvent) : void
@@ -572,7 +574,7 @@ export class RtagsManager implements Disposable
 
                 await Promise.all(this.resumeDelayedFileWatches(projectPath));
 
-                this.reindexFile(event.document);
+                this.reindexFile(event.document, true);
             };
 
         this.reindexDelayTimers.set(path, setTimeout(timeoutCallback, 500));
@@ -587,11 +589,15 @@ export class RtagsManager implements Disposable
             return;
         }
 
+        // Force reindexing if the file was suspended
+        // Checking whether reindexing is needed does not work for header files that were suspended
+        const suspended = this.suspendedFilePaths.has(file.uri.fsPath); 
+
         let promises = this.resumeDelayedFileWatches(projectPath);
         promises.push(this.resumeFileWatch(file));
         await Promise.all(promises);
 
-        this.reindexFile(file);
+        this.reindexFile(file, suspended);
     }
 
     private suspendFileWatch(event: TextDocumentWillSaveEvent) : void
@@ -610,6 +616,13 @@ export class RtagsManager implements Disposable
         {
             clearTimeout(timer);
             this.reindexDelayTimers.delete(path);
+        }
+
+        // Rely on the file watch to reindex on save if there are no other unsaved files
+        const unsavedFiles = this.getUnsavedSourceFiles(projectPath);
+        if ((unsavedFiles.length === 0) || ((unsavedFiles.length === 1) && (unsavedFiles[0].uri.fsPath === path)))
+        {
+            return;
         }
 
         if (this.suspendedFilePaths.has(path))
@@ -726,7 +739,7 @@ export class RtagsManager implements Disposable
     {
         // Resume files early so that they may be reindexed if necessary
         let promises: Promise<void>[] = [];
-        for (const info of [...this.resumeDelayTimers.values()])
+        for (const info of this.resumeDelayTimers.values())
         {
             if (this.isInProject(info.file.uri, projectPath))
             {
