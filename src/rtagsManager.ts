@@ -532,7 +532,7 @@ export class RtagsManager implements Disposable
         this.addProjects(event.added);
     }
 
-    private reindexFile(file: TextDocument, saved: boolean = false) : void
+    private reindexFile(file: TextDocument) : void
     {
         const projectPath = this.getProjectPath(file.uri);
         if (!projectPath)
@@ -540,21 +540,7 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        let reindexArg = "--reindex";
-        let openFiles = this.getOpenTextFiles(projectPath);
-
-        if (saved)
-        {
-            // Rely on the file watch to reindex on save if there are no unsaved files
-            const unsavedFileExists = openFiles.some((file) => { return isUnsavedSourceFile(file); });
-            if (!unsavedFileExists)
-            {
-                reindexArg = "--check-reindex";
-                openFiles = [];
-            }
-        }
-
-        runRc([reindexArg, file.uri.fsPath], (_unused) => {}, openFiles);
+        runRc(["--reindex", file.uri.fsPath], (_unused) => {}, this.getOpenTextFiles(projectPath));
     }
 
     private reindexChangedFile(event: TextDocumentChangeEvent) : void
@@ -605,7 +591,7 @@ export class RtagsManager implements Disposable
         promises.push(this.resumeFileWatch(file));
         await Promise.all(promises);
 
-        this.reindexFile(file, true);
+        this.reindexFile(file);
     }
 
     private suspendFileWatch(event: TextDocumentWillSaveEvent) : void
@@ -624,13 +610,6 @@ export class RtagsManager implements Disposable
         {
             clearTimeout(timer);
             this.reindexDelayTimers.delete(path);
-        }
-
-        // Rely on the file watch to reindex on save if there are no other unsaved files
-        const unsavedFiles = this.getUnsavedSourceFiles(projectPath);
-        if ((unsavedFiles.length === 0) || ((unsavedFiles.length === 1) && (unsavedFiles[0].uri.fsPath === path)))
-        {
-            return;
         }
 
         if (this.suspendedFilePaths.has(path))
