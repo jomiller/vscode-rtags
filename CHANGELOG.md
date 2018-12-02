@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [0.4.1] - 2018-11-28
+## [0.4.1] - 2018-12-02
 
 ### Changed
 - `Go to Implementation` command (`Ctrl+F12`) shows derived classes when invoked for base classes, and virtual method definitions when invoked for virtual methods.
@@ -15,7 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Reduce the debouncing timeout to 500 ms for reindexing changed files.
 
 ### Fixed
-- event-stream NPM package [security issue](https://code.visualstudio.com/blogs/2018/11/26/event-stream).
+- [Issue #19](https://github.com/jomiller/vscode-rtags/issues/19): event-stream NPM package security issue.
 - [Issue #15](https://github.com/jomiller/vscode-rtags/issues/15): Unsaved changes to other files are lost when re-saving a file that has no unsaved changes.
 - Fix-it hints could be displayed in contexts intended only for code actions other than quick fix actions.
 - Code completion was triggered on `>` and `:` even when those characters were not part of complete operators.
