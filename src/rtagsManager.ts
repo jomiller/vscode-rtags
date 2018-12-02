@@ -532,7 +532,7 @@ export class RtagsManager implements Disposable
         this.addProjects(event.added);
     }
 
-    private reindexFile(file: TextDocument, force: boolean) : void
+    private reindexFile(file: TextDocument, force?: boolean) : void
     {
         const projectPath = this.getProjectPath(file.uri);
         if (!projectPath)
@@ -540,7 +540,7 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        const reindexArg = force ? "--reindex" : "--check-reindex";
+        const reindexArg = (force || (force === undefined)) ? "--reindex" : "--check-reindex";
 
         runRc([reindexArg, file.uri.fsPath], (_unused) => {}, this.getOpenTextFiles(projectPath));
     }
@@ -589,13 +589,11 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        // Force reindexing if the file was suspended
-        // Checking whether reindexing is needed does not work for header files that were suspended
-        const suspended = this.suspendedFilePaths.has(file.uri.fsPath); 
+        await Promise.all(this.resumeDelayedFileWatches(projectPath));
 
-        let promises = this.resumeDelayedFileWatches(projectPath);
-        promises.push(this.resumeFileWatch(file));
-        await Promise.all(promises);
+        // Force reindexing if the file was suspended
+        // Checking whether reindexing is needed does not work for files that were suspended
+        const suspended = await this.resumeFileWatch(file);
 
         this.reindexFile(file, suspended);
     }
@@ -692,34 +690,34 @@ export class RtagsManager implements Disposable
         }
     }
 
-    private resumeFileWatch(file: TextDocument) : Promise<void>
+    private resumeFileWatch(file: TextDocument) : Promise<Optional<boolean>>
     {
         const projectPath = this.getProjectPath(file.uri);
 
         if (!isSourceFile(file) || !projectPath)
         {
-            return Promise.resolve();
+            return Promise.resolve(undefined);
         }
 
         const path = file.uri.fsPath;
 
         const resolveCallback =
-            (paths?: string[]) : Promise<void> =>
+            (paths?: string[]) : Promise<Optional<boolean>> =>
             {
                 if (!paths)
                 {
-                    return Promise.resolve();
+                    return Promise.resolve(undefined);
                 }
 
                 if (!paths.includes(path))
                 {
                     // The file is not suspended, so it does not need to be resumed
                     this.suspendedFilePaths.delete(path);
-                    return Promise.resolve();
+                    return Promise.resolve(false);
                 }
 
                 const processCallback =
-                    (output: string) : void =>
+                    (output: string) : boolean =>
                     {
                         const message = path + " is no longer suspended";
                         if (output.trim() === message)
@@ -727,6 +725,7 @@ export class RtagsManager implements Disposable
                             // The file was resumed successfully
                             this.suspendedFilePaths.delete(path);
                         }
+                        return true;
                     };
 
                 return runRc(["--suspend", path], processCallback);
@@ -735,10 +734,10 @@ export class RtagsManager implements Disposable
         return getSuspendedFilePaths(projectPath).then(resolveCallback);
     }
 
-    private resumeDelayedFileWatches(projectPath: Uri) : Promise<void>[]
+    private resumeDelayedFileWatches(projectPath: Uri) : Promise<Optional<boolean>>[]
     {
         // Resume files early so that they may be reindexed if necessary
-        let promises: Promise<void>[] = [];
+        let promises: Promise<Optional<boolean>>[] = [];
         for (const info of this.resumeDelayTimers.values())
         {
             if (this.isInProject(info.file.uri, projectPath))
