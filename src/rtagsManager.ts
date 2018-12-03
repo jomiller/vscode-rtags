@@ -541,9 +541,28 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        const reindexArg = (force || (force === undefined)) ? "--reindex" : "--check-reindex";
+        let reindexArg = "--check-reindex";
+        let openFiles = this.getOpenTextFiles(projectPath);
 
-        runRc([reindexArg, file.uri.fsPath], (_unused) => {}, this.getOpenTextFiles(projectPath));
+        if (force || (force === undefined))
+        {
+            reindexArg = "--reindex";
+        }
+        else
+        {
+            // Force reindexing if there are any unsaved files
+            const unsavedFileExists = openFiles.some((file) => { return isUnsavedSourceFile(file); });
+            if (unsavedFileExists)
+            {
+                reindexArg = "--reindex";
+            }
+            else
+            {
+                openFiles = [];
+            }
+        }
+
+        runRc([reindexArg, file.uri.fsPath], (_unused) => {}, openFiles);
     }
 
     private reindexChangedFile(event: TextDocumentChangeEvent) : void
