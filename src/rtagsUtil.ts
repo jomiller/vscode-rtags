@@ -20,8 +20,8 @@
 
 'use strict';
 
-import { commands, languages, window, DocumentFilter, Location, Position, Range, TextDocument, TextDocumentShowOptions,
-         Uri } from 'vscode';
+import { commands, languages, window, workspace, DocumentFilter, Location, Position, Range, TextDocument,
+         TextDocumentShowOptions, Uri } from 'vscode';
 
 export type Nullable<T> = T | null;
 export type Optional<T> = T | undefined;
@@ -45,6 +45,16 @@ export function isSourceFile(file: TextDocument) : boolean
 export function isUnsavedSourceFile(file: TextDocument) : boolean
 {
     if (!file.isDirty)
+    {
+        return false;
+    }
+    return isSourceFile(file);
+}
+
+export function isOpenSourceFile(uri: Uri) : boolean
+{
+    const file = workspace.textDocuments.find((file) => { return (file.uri.fsPath === uri.fsPath); });
+    if (!file)
     {
         return false;
     }

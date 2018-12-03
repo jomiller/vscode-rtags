@@ -34,7 +34,8 @@ import * as os from 'os';
 
 import * as util from 'util';
 
-import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, fromRtagsPosition, parseJson } from './rtagsUtil';
+import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, isOpenSourceFile, fromRtagsPosition, parseJson }
+         from './rtagsUtil';
 
 enum TaskType
 {
@@ -997,13 +998,9 @@ export class RtagsManager implements Disposable
                 continue;
             }
 
-            if (this.diagnosticsOpenFilesOnly)
+            if (this.diagnosticsOpenFilesOnly && !isOpenSourceFile(uri))
             {
-                const fileOpen = workspace.textDocuments.some((file) => { return (file.uri.fsPath === uri.fsPath); });
-                if (!fileOpen)
-                {
-                    continue;
-                }
+                continue;
             }
 
             let diagnostics: Diagnostic[] = [];
