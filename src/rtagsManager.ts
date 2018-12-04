@@ -542,23 +542,20 @@ export class RtagsManager implements Disposable
         }
 
         let reindexArg = "--check-reindex";
-        let openFiles = this.getOpenTextFiles(projectPath);
+        let openFiles: TextDocument[] = [];
 
         if (force || (force === undefined))
         {
             reindexArg = "--reindex";
+            openFiles = this.getOpenTextFiles(projectPath);
         }
         else
         {
             // Force reindexing if there are any unsaved files
-            const unsavedFileExists = openFiles.some((file) => { return isUnsavedSourceFile(file); });
-            if (unsavedFileExists)
+            openFiles = this.getUnsavedSourceFiles(projectPath);
+            if (openFiles.length !== 0)
             {
                 reindexArg = "--reindex";
-            }
-            else
-            {
-                openFiles = [];
             }
         }
 
