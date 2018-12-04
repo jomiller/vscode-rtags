@@ -542,7 +542,8 @@ export class RtagsManager implements Disposable
         }
 
         let reindexArg = "--check-reindex";
-        let openFiles: TextDocument[] = [];
+        let openFiles: TextDocument[];
+        let delayReindex = false;
 
         if (force || (force === undefined))
         {
@@ -556,10 +557,21 @@ export class RtagsManager implements Disposable
             if (openFiles.length !== 0)
             {
                 reindexArg = "--reindex";
+                delayReindex = true;
             }
         }
 
-        runRc([reindexArg, file.uri.fsPath], (_unused) => {}, openFiles);
+        const reindex = () => { runRc([reindexArg, file.uri.fsPath], (_unused) => {}, openFiles); };
+
+        if (delayReindex)
+        {
+            // Add a delay in order to override the automatic reindexing on save
+            setTimeout(reindex, 1000);
+        }
+        else
+        {
+            reindex();
+        }
     }
 
     private reindexChangedFile(event: TextDocumentChangeEvent) : void
