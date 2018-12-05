@@ -201,7 +201,7 @@ export class RtagsCompletionProvider implements
                 return new CompletionList(completionItems, completionItems.length >= maxCompletionResults);
             };
 
-        return runRc(args, processCallback, this.rtagsMgr.getOpenTextFiles(projectPath));
+        return runRc(args, processCallback, this.rtagsMgr.getUnsavedSourceFiles(projectPath));
     }
 
     public provideSignatureHelp(document: TextDocument, position: Position, _token: CancellationToken) :
@@ -339,7 +339,7 @@ export class RtagsCompletionProvider implements
                 return signatureHelp;
             };
 
-        return runRc(args, processCallback, this.rtagsMgr.getOpenTextFiles(projectPath));
+        return runRc(args, processCallback, this.rtagsMgr.getUnsavedSourceFiles(projectPath));
     }
 
     private rtagsMgr: RtagsManager;

@@ -86,18 +86,13 @@ function getRcExecutable() : string
     return config.get<string>("rc.executable", "rc");
 }
 
-export function runRc<T = void>(args: string[], process?: (stdout: string) => T, files?: TextDocument[]) :
+export function runRc<T = void>(args: string[], process?: (stdout: string) => T, unsavedFiles: TextDocument[] = []) :
     Promise<Optional<T>>
 {
     const executorCallback =
         (resolve: (value?: T) => void, _reject: (reason?: any) => void) : void =>
         {
-            let unsavedSourceFiles: TextDocument[] = [];
-            if (files)
-            {
-                unsavedSourceFiles = files.filter((file) => { return isUnsavedSourceFile(file); });
-            }
-            for (const file of unsavedSourceFiles)
+            for (const file of unsavedFiles)
             {
                 const text = file.uri.fsPath + ':' + file.getText().length.toString();
                 args.push("--unsaved-file", text);
@@ -145,11 +140,11 @@ export function runRc<T = void>(args: string[], process?: (stdout: string) => T,
 
             let rc = execFile(getRcExecutable(), args, options, exitCallback);
 
-            for (const file of unsavedSourceFiles)
+            for (const file of unsavedFiles)
             {
                 rc.stdin.write(file.getText());
             }
-            if (unsavedSourceFiles.length !== 0)
+            if (unsavedFiles.length !== 0)
             {
                 rc.stdin.end();
             }
@@ -439,19 +434,16 @@ export class RtagsManager implements Disposable
         return (loadingProjectPath.fsPath.length > projectPath.fsPath.length);
     }
 
-    public getOpenTextFiles(projectPath?: Uri) : TextDocument[]
-    {
-        return workspace.textDocuments.filter((file) => { return this.isInProject(file.uri, projectPath); });
-    }
-
     public getOpenSourceFiles(projectPath?: Uri) : TextDocument[]
     {
-        return this.getOpenTextFiles(projectPath).filter((file) => { return isSourceFile(file); });
+        return workspace.textDocuments.filter(
+            (file) => { return (isSourceFile(file) && this.isInProject(file.uri, projectPath)); });
     }
 
     public getUnsavedSourceFiles(projectPath?: Uri) : TextDocument[]
     {
-        return this.getOpenTextFiles(projectPath).filter((file) => { return isUnsavedSourceFile(file); });
+        return workspace.textDocuments.filter(
+            (file) => { return (isUnsavedSourceFile(file) && this.isInProject(file.uri, projectPath)); });
     }
 
     private async addProjects(folders?: WorkspaceFolder[]) : Promise<void>
@@ -549,27 +541,22 @@ export class RtagsManager implements Disposable
             return;
         }
 
+        const unsavedFiles = this.getUnsavedSourceFiles(projectPath);
         let reindexArg = "--check-reindex";
-        let openFiles: TextDocument[];
         let delayReindex = false;
 
         if (force || (force === undefined))
         {
             reindexArg = "--reindex";
-            openFiles = this.getOpenTextFiles(projectPath);
         }
-        else
+        else if (unsavedFiles.length !== 0)
         {
             // Force reindexing if there are any unsaved files
-            openFiles = this.getUnsavedSourceFiles(projectPath);
-            if (openFiles.length !== 0)
-            {
-                reindexArg = "--reindex";
-                delayReindex = true;
-            }
+            reindexArg = "--reindex";
+            delayReindex = true;
         }
 
-        const reindex = () => { runRc([reindexArg, file.uri.fsPath], undefined, openFiles); };
+        const reindex = () => { runRc([reindexArg, file.uri.fsPath], undefined, unsavedFiles); };
 
         if (delayReindex)
         {
@@ -866,7 +853,7 @@ export class RtagsManager implements Disposable
                     {
                         const status = await runRc(["--project", projectPath.fsPath, "--reindex"],
                                                    (_unused) => { return true; },
-                                                   this.getOpenTextFiles(projectPath));
+                                                   this.getUnsavedSourceFiles(projectPath));
                         if (!status)
                         {
                             this.currentProjectTask = null;
