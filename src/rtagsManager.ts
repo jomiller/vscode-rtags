@@ -86,13 +86,17 @@ function getRcExecutable() : string
     return config.get<string>("rc.executable", "rc");
 }
 
-export function runRc<T>(args: string[], process: (stdout: string) => T, files: TextDocument[] = []) :
+export function runRc<T = void>(args: string[], process?: (stdout: string) => T, files?: TextDocument[]) :
     Promise<Optional<T>>
 {
     const executorCallback =
         (resolve: (value?: T) => void, _reject: (reason?: any) => void) : void =>
         {
-            const unsavedSourceFiles = files.filter((file) => { return isUnsavedSourceFile(file); });
+            let unsavedSourceFiles: TextDocument[] = [];
+            if (files)
+            {
+                unsavedSourceFiles = files.filter((file) => { return isUnsavedSourceFile(file); });
+            }
             for (const file of unsavedSourceFiles)
             {
                 const text = file.uri.fsPath + ':' + file.getText().length.toString();
@@ -129,9 +133,13 @@ export function runRc<T>(args: string[], process: (stdout: string) => T, files: 
 
                         resolve();
                     }
-                    else
+                    else if (process)
                     {
                         resolve(process(stdout));
+                    }
+                    else
+                    {
+                        resolve();
                     }
                 };
 
@@ -480,13 +488,13 @@ export class RtagsManager implements Disposable
                         {
                             let args: string[] = [];
                             openSourceFiles.forEach((file) => { args.push("--diagnose", file.uri.fsPath); });
-                            runRc(args, (_unused) => {});
+                            runRc(args);
                         }
                     }
                     else
                     {
                         // Resend diagnostics for all files in the project
-                        runRc(["--project", f.uri.fsPath, "--diagnose-all"], (_unused) => {});
+                        runRc(["--project", f.uri.fsPath, "--diagnose-all"]);
                     }
                 }
             }
@@ -524,7 +532,7 @@ export class RtagsManager implements Disposable
             this.projectPaths.splice(index, 1);
         }
 
-        return (purge ? runRc(["--delete-project", projectPath + '/'], (_unused) => {}) : Promise.resolve());
+        return (purge ? runRc(["--delete-project", projectPath + '/']) : Promise.resolve());
     }
 
     private updateProjects(event: WorkspaceFoldersChangeEvent) : void
@@ -561,7 +569,7 @@ export class RtagsManager implements Disposable
             }
         }
 
-        const reindex = () => { runRc([reindexArg, file.uri.fsPath], (_unused) => {}, openFiles); };
+        const reindex = () => { runRc([reindexArg, file.uri.fsPath], undefined, openFiles); };
 
         if (delayReindex)
         {
@@ -1068,7 +1076,7 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        runRc(["--diagnose", file.uri.fsPath], (_unused) => {});
+        runRc(["--diagnose", file.uri.fsPath]);
     }
 
     private undiagnoseFile(file: TextDocument) : void
