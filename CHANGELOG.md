@@ -15,8 +15,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Reduce the debouncing timeout to 500 ms for reindexing changed files.
 
 ### Fixed
-- [Issue #19](https://github.com/jomiller/vscode-rtags/issues/19): event-stream NPM package security issue.
-- [Issue #15](https://github.com/jomiller/vscode-rtags/issues/15): Unsaved changes to other files are lost when re-saving a file that has no unsaved changes.
+- Issue #19: event-stream NPM package security issue.
+- Issue #15: Unsaved changes to other files are lost when re-saving a file that has no unsaved changes.
+- Improve the fix for issue #21.
 - Fix-it hints could be displayed in contexts intended only for code actions other than quick fix actions.
 - Code completion was triggered on `>` and `:` even when those characters were not part of complete operators.
 
@@ -35,13 +36,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - `Show Variables` command from the context menu for C source files.
 
 ### Fixed
-- [Issue #1](https://github.com/jomiller/vscode-rtags/issues/1): Signature help did not work when function arguments contained nested signatures.
+- Issue #1: Signature help did not work when function arguments contained nested signatures.
+- Issue #21: Saving a file may trigger false positive diagnostic messages in other unsaved files.
 - Workspace symbol search only matched the pattern against the beginning of symbol names.
 - Symbol searches did not return results for class/function templates or type aliases.
 - Warning and information diagnostic messages were treated as errors.
 - Diagnostic messages were lost from the Problems panel if the diagnostic process was terminated unexpectedly.
 - Other VS Code tasks could become blocked while the connection between `rc` and `rdm` was being tested, if `rdm` was slow to respond.
-- Saving a file could trigger false positive diagnostic messages in other unsaved files that have references to the same symbols as the saved file.
 - When multiple source files were edited in quick succession without being saved, then only the last edited file was reindexed.
 
 ## [0.3.2] - 2018-10-21
@@ -76,7 +77,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Information message shown when a project was enqueued for loading/reindexing.
 
 ### Fixed
-- [Issue #6](https://github.com/jomiller/vscode-rtags/issues/6): Diagnostic child process tries to connect to rdm before rdm is ready.
+- Issue #6: Diagnostic child process tries to connect to rdm before rdm is ready.
 - Remaining entries in the project indexing queue were not processed if the current entry failed to be loaded/reindexed.
 - Files were potentially identified as belonging to the wrong project when multiple project directory names started with the same string.
 - When folders were removed from the workspace, the corresponding projects were not removed from the indexing queue.
