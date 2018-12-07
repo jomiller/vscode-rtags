@@ -81,17 +81,20 @@ function toSymbolKind(kind: string) : Optional<SymbolKind>
 
 function findSymbols(query: string, args: string[] = []) : Promise<Optional<SymbolInformation[]>>
 {
-    args.push("--find-symbols",
-              query + '*',
-              "--wildcard-symbol-names",
-              "--match-icase",
-              "--strip-paren",
-              "--filter-system-headers",
-              "--absolute-path",
-              "--no-context",
-              "--display-name",
-              "--cursor-kind",
-              "--containing-function");
+    const localArgs =
+    [
+        "--find-symbols",
+        query + '*',
+        "--wildcard-symbol-names",
+        "--match-icase",
+        "--strip-paren",
+        "--filter-system-headers",
+        "--absolute-path",
+        "--no-context",
+        "--display-name",
+        "--cursor-kind",
+        "--containing-function"
+    ];
 
     const processCallback =
         (output: string) : SymbolInformation[] =>
@@ -143,7 +146,7 @@ function findSymbols(query: string, args: string[] = []) : Promise<Optional<Symb
             return symbols;
         };
 
-    return runRc(args, processCallback);
+    return runRc(args.concat(localArgs), processCallback);
 }
 
 export class RtagsSymbolProvider implements

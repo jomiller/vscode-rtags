@@ -92,10 +92,12 @@ export function runRc<T = void>(args: string[], process?: (stdout: string) => T,
     const executorCallback =
         (resolve: (value?: T) => void, _reject: (reason?: any) => void) : void =>
         {
+            let localArgs: string[] = [];
+
             for (const file of unsavedFiles)
             {
                 const text = file.uri.fsPath + ':' + file.getText().length.toString();
-                args.push("--unsaved-file", text);
+                localArgs.push("--unsaved-file", text);
             }
 
             const options: ExecFileOptionsWithStringEncoding =
@@ -138,7 +140,7 @@ export function runRc<T = void>(args: string[], process?: (stdout: string) => T,
                     }
                 };
 
-            let rc = execFile(getRcExecutable(), args, options, exitCallback);
+            let rc = execFile(getRcExecutable(), args.concat(localArgs), options, exitCallback);
 
             for (const file of unsavedFiles)
             {
