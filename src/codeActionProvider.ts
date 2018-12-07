@@ -59,6 +59,16 @@ export class RtagsCodeActionProvider implements
             return [];
         }
 
+        const timeoutMs = 1000;
+
+        const args =
+        [
+            "--fixits",
+            document.uri.fsPath,
+            "--timeout",
+            timeoutMs.toString()
+        ];
+
         const processCallback =
             (output: string) : CodeAction[] =>
             {
@@ -111,7 +121,7 @@ export class RtagsCodeActionProvider implements
                 return codeActions;
             };
 
-        return runRc(["--fixits", document.fileName], processCallback);
+        return runRc(args, processCallback);
     }
 
     private rtagsMgr: RtagsManager;

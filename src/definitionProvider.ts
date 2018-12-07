@@ -390,11 +390,15 @@ export class RtagsDefinitionProvider implements
 
         const location = toRtagsLocation(document.uri, position);
 
+        const timeoutMs = 1000;
+
         const args =
         [
             "--follow-location",
             location,
-            "--absolute-path"
+            "--absolute-path",
+            "--timeout",
+            timeoutMs.toString()
         ];
 
         const processCallback =
