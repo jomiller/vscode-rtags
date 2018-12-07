@@ -910,7 +910,7 @@ export class RtagsManager implements Disposable
                                 }
 
                                 window.showInformationMessage("[RTags] Finished " + indexMsg + " project: " +
-                                                            this.currentProjectTask.uri.fsPath);
+                                                              this.currentProjectTask.uri.fsPath);
 
                                 this.currentProjectTask = null;
                             }
