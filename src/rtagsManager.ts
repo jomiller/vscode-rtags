@@ -876,46 +876,47 @@ export class RtagsManager implements Disposable
 
     private finishProjectTask() : void
     {
-        const processCallback =
-            (output: string) : void =>
-            {
-                const indexing = (output.trim() === "1");
-                if (!indexing)
-                {
-                    if (this.indexPollTimer)
-                    {
-                        clearInterval(this.indexPollTimer);
-                        this.indexPollTimer = null;
-                    }
-                    if (this.currentProjectTask)
-                    {
-                        let indexMsg = "reindexing";
-                        if (this.currentProjectTask.type === TaskType.Load)
-                        {
-                            this.projectPaths.push(this.currentProjectTask.uri);
-                            indexMsg = "loading";
-                        }
-
-                        window.showInformationMessage("[RTags] Finished " + indexMsg + " project: " +
-                                                      this.currentProjectTask.uri.fsPath);
-
-                        this.currentProjectTask = null;
-                    }
-                    this.processNextProjectTask();
-                }
-            };
-
         // Keep polling RTags until it is finished indexing the project
         const intervalCallback =
             () : void =>
             {
                 const timeoutMs = 1000;
+
                 const args =
                 [
                     "--is-indexing",
                     "--timeout",
                     timeoutMs.toString()
                 ];
+
+                const processCallback =
+                    (output: string) : void =>
+                    {
+                        const indexing = (output.trim() === "1");
+                        if (!indexing)
+                        {
+                            if (this.indexPollTimer)
+                            {
+                                clearInterval(this.indexPollTimer);
+                                this.indexPollTimer = null;
+                            }
+                            if (this.currentProjectTask)
+                            {
+                                let indexMsg = "reindexing";
+                                if (this.currentProjectTask.type === TaskType.Load)
+                                {
+                                    this.projectPaths.push(this.currentProjectTask.uri);
+                                    indexMsg = "loading";
+                                }
+
+                                window.showInformationMessage("[RTags] Finished " + indexMsg + " project: " +
+                                                            this.currentProjectTask.uri.fsPath);
+
+                                this.currentProjectTask = null;
+                            }
+                            this.processNextProjectTask();
+                        }
+                    };
 
                 runRc(args, processCallback);
             };
