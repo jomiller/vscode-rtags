@@ -59,7 +59,7 @@ export class RtagsCodeActionProvider implements
             return [];
         }
 
-        const timeoutMs = 1000;
+        const timeoutMs = 5000;
 
         const args =
         [
