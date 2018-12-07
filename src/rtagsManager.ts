@@ -654,7 +654,7 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        const suspendTimeoutMs = 100;
+        const timeoutMs = 100;
 
         const resolveCallback =
             (paths?: string[]) : Promise<Optional<void>> =>
@@ -676,7 +676,7 @@ export class RtagsManager implements Disposable
                     "--suspend",
                     path,
                     "--timeout",
-                    suspendTimeoutMs.toString()
+                    timeoutMs.toString()
                 ];
 
                 const processCallback =
@@ -693,8 +693,9 @@ export class RtagsManager implements Disposable
                 return runRc(args, processCallback);
             };
 
-        // Block the event loop until the file has been suspended
-        event.waitUntil(getSuspendedFilePaths(projectPath, suspendTimeoutMs).then(resolveCallback));
+        // Block the event loop to ensure that the file is suspended before it is saved
+        // Use a timeout because VS Code imposes a time budget on subscribers to the onWillSaveTextDocument event
+        event.waitUntil(getSuspendedFilePaths(projectPath, timeoutMs).then(resolveCallback));
 
         if (!event.document.isDirty)
         {
