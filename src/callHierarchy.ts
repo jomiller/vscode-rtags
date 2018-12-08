@@ -122,7 +122,8 @@ function getCallers(uri: Uri, position: Position) : Promise<Optional<Caller[]>>
     return runRc(args, processCallback);
 }
 
-export function getSymbolInfo(uri: Uri, position: Position, includeTarget: boolean = false) : Promise<Optional<SymbolInfo>>
+export function getSymbolInfo(uri: Uri, position: Position, includeTarget: boolean = false, timeout: number = 0) :
+    Promise<Optional<SymbolInfo>>
 {
     const location = toRtagsLocation(uri, position);
 
@@ -138,6 +139,11 @@ export function getSymbolInfo(uri: Uri, position: Position, includeTarget: boole
     if (includeTarget)
     {
         args.push("--symbol-info-include-targets");
+    }
+
+    if (timeout > 0)
+    {
+        args.push("--timeout", timeout.toString());
     }
 
     const processCallback =

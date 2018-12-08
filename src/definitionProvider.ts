@@ -118,16 +118,11 @@ function getLocations(args: string[]) : Promise<Optional<Location[]>>
     return runRc(args, processCallback);
 }
 
-function getReferences(uri: Uri, position: Position, queryType: LocationQueryType, timeout: number = 0) : Promise<Optional<Location[]>>
+function getReferences(uri: Uri, position: Position, queryType: LocationQueryType) : Promise<Optional<Location[]>>
 {
     const location = toRtagsLocation(uri, position);
 
     let args = ["--absolute-path", "--no-context"];
-
-    if (timeout > 0)
-    {
-        args.push("--timeout", timeout.toString());
-    }
 
     switch (queryType)
     {
@@ -376,10 +371,7 @@ export class RtagsDefinitionProvider implements
                     return undefined;
                 }
 
-                const timeoutMs = 5000;
-
-                const locations =
-                    await getReferences(document.uri, position, LocationQueryType.AllReferencesInFile, timeoutMs);
+                const locations = await getReferences(document.uri, position, LocationQueryType.AllReferencesInFile);
 
                 if (!locations)
                 {
@@ -399,7 +391,9 @@ export class RtagsDefinitionProvider implements
                 return highlights;
             };
 
-        return getSymbolInfo(document.uri, position).then(resolveCallback);
+        const timeoutMs = 5000;
+
+        return getSymbolInfo(document.uri, position, false, timeoutMs).then(resolveCallback);
     }
 
     public provideRenameEdits(document: TextDocument,
