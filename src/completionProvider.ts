@@ -33,6 +33,7 @@ function toCompletionItemKind(kind: string) : CompletionItemKind
     switch (kind)
     {
         case "Namespace":
+        case "NamespaceAlias":
             return CompletionItemKind.Module;
 
         case "ClassDecl":
@@ -59,11 +60,15 @@ function toCompletionItemKind(kind: string) : CompletionItemKind
         case "CXXDestructor":
             return CompletionItemKind.Constructor;
 
+        case "CXXConversion":
+            return CompletionItemKind.Operator;
+
         case "CXXMethod":
             return CompletionItemKind.Method;
 
         case "FunctionDecl":
         case "FunctionTemplate":
+        case "macro definition":
             return CompletionItemKind.Function;
 
         case "FieldDecl":

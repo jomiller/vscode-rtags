@@ -32,6 +32,7 @@ function toSymbolKind(kind: string) : Optional<SymbolKind>
     switch (kind)
     {
         case "Namespace":
+        case "NamespaceAlias":
             return SymbolKind.Namespace;
 
         case "ClassDecl":
@@ -60,11 +61,15 @@ function toSymbolKind(kind: string) : Optional<SymbolKind>
         case "CXXDestructor":
             return SymbolKind.Constructor;
 
+        case "CXXConversion":
+            return SymbolKind.Operator;
+
         case "CXXMethod":
             return SymbolKind.Method;
 
         case "FunctionDecl":
         case "FunctionTemplate":
+        case "macro definition":
             return SymbolKind.Function;
 
         case "FieldDecl":

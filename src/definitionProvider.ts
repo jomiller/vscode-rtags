@@ -79,6 +79,8 @@ async function getSymbolType(uri: Uri, position: Position) : Promise<Optional<st
         "TypedefDecl",
         "TypeAliasDecl",
         "TypeAliasTemplateDecl",
+        "UsingDeclaration",
+        "CXXConversion",
         "FieldDecl",
         "ParmDecl",
         "VarDecl",
@@ -372,7 +374,6 @@ export class RtagsDefinitionProvider implements
                 }
 
                 const locations = await getReferences(document.uri, position, LocationQueryType.AllReferencesInFile);
-
                 if (!locations)
                 {
                     return undefined;
