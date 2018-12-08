@@ -128,7 +128,7 @@ function findSymbols(query: string, args: string[] = []) : Promise<Optional<Symb
                 else
                 {
                     symbolKind = toSymbolKind(kind);
-                    if (!symbolKind)
+                    if (symbolKind === undefined)
                     {
                         continue;
                     }

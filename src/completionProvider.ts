@@ -258,7 +258,7 @@ export class RtagsCompletionProvider implements
             else if (text.charAt(pos) === '(')
             {
                 const closeParenPos = closeParenPositions.pop();
-                if (closeParenPos)
+                if (closeParenPos !== undefined)
                 {
                     // Add a parenthesized range for a nested signature
                     parenRanges.push({start: pos, end: closeParenPos});
