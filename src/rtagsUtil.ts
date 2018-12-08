@@ -111,6 +111,16 @@ const RtagsVariableKinds =
     "DeclRefExpr"
 ];
 
+const RtagsSymbolKinds =
+[
+    ...RtagsMacroKinds,
+    ...RtagsNamespaceKinds,
+    ...RtagsTypeDeclKinds,
+    ...RtagsTypeRefKinds,
+    ...RtagsFunctionKinds,
+    ...RtagsVariableKinds
+];
+
 export function isSourceFile(file: TextDocument) : boolean
 {
     return (languages.match(SourceFileSelector, file) > 0);
@@ -166,15 +176,7 @@ export function getRtagsSymbolKinds(category?: SymbolCategory) : string[]
             break;
 
         default:
-            symbolKinds =
-            [
-                ...RtagsMacroKinds,
-                ...RtagsNamespaceKinds,
-                ...RtagsTypeDeclKinds,
-                ...RtagsTypeRefKinds,
-                ...RtagsFunctionKinds,
-                ...RtagsVariableKinds
-            ];
+            symbolKinds = RtagsSymbolKinds;
             break;
     }
 
