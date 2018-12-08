@@ -40,6 +40,7 @@ interface SymbolInfoBase
 {
     location: string;
     name: string;
+    length: number;
     kind: string;
     type?: string;
     virtual?: boolean;
@@ -152,6 +153,7 @@ export function getSymbolInfo(uri: Uri, position: Position, includeTarget: boole
             {
                 location: jsonObj.location,
                 name: jsonObj.symbolName,
+                length: jsonObj.symbolLength,
                 kind: jsonObj.kind,
                 type: jsonObj.type,
                 virtual: jsonObj.virtual
@@ -164,6 +166,7 @@ export function getSymbolInfo(uri: Uri, position: Position, includeTarget: boole
                 {
                     location: targets[0].location,
                     name: targets[0].symbolName,
+                    length: targets[0].symbolLength,
                     kind: targets[0].kind,
                     type: targets[0].type,
                     virtual: targets[0].virtual

@@ -20,7 +20,7 @@
 
 'use strict';
 
-import { commands, languages, CancellationToken, Definition, DefinitionProvider, Disposable, Hover, HoverProvider,
+import { commands, languages, CancellationToken, Definition, DefinitionProvider, Disposable, DocumentHighlight, DocumentHighlightProvider, Hover, HoverProvider,
          Location, Position, ProviderResult, ReferenceContext, TextDocument, TypeDefinitionProvider,
          ImplementationProvider, Range, ReferenceProvider, RenameProvider, TextEditor, TextEditorEdit, Uri,
          WorkspaceEdit } from 'vscode';
@@ -38,6 +38,7 @@ enum LocationQueryType
     Definition,
     References,
     AllReferences,
+    AllReferencesInFile,
     Rename,
     Virtuals
 }
@@ -117,11 +118,16 @@ function getLocations(args: string[]) : Promise<Optional<Location[]>>
     return runRc(args, processCallback);
 }
 
-function getReferences(uri: Uri, position: Position, queryType: LocationQueryType) : Promise<Optional<Location[]>>
+function getReferences(uri: Uri, position: Position, queryType: LocationQueryType, timeout: number = 0) : Promise<Optional<Location[]>>
 {
     const location = toRtagsLocation(uri, position);
 
     let args = ["--absolute-path", "--no-context"];
+
+    if (timeout > 0)
+    {
+        args.push("--timeout", timeout.toString());
+    }
 
     switch (queryType)
     {
@@ -135,6 +141,10 @@ function getReferences(uri: Uri, position: Position, queryType: LocationQueryTyp
 
         case LocationQueryType.AllReferences:
             args.push("--references", location, "--all-references");
+            break;
+
+        case LocationQueryType.AllReferencesInFile:
+            args.push("--references", location, "--all-references", "--path-filter", uri.fsPath);
             break;
 
         case LocationQueryType.Rename:
@@ -233,6 +243,7 @@ export class RtagsDefinitionProvider implements
     TypeDefinitionProvider,
     ImplementationProvider,
     ReferenceProvider,
+    DocumentHighlightProvider,
     RenameProvider,
     HoverProvider,
     Disposable
@@ -271,6 +282,7 @@ export class RtagsDefinitionProvider implements
             languages.registerTypeDefinitionProvider(SourceFileSelector, this),
             languages.registerImplementationProvider(SourceFileSelector, this),
             languages.registerReferenceProvider(SourceFileSelector, this),
+            languages.registerDocumentHighlightProvider(SourceFileSelector, this),
             languages.registerRenameProvider(SourceFileSelector, this),
             languages.registerHoverProvider(SourceFileSelector, this),
             commands.registerTextEditorCommand("rtags.showVariables", showVariablesCallback),
@@ -346,6 +358,48 @@ export class RtagsDefinitionProvider implements
         const queryType = context.includeDeclaration ? LocationQueryType.AllReferences : LocationQueryType.References;
 
         return getReferences(document.uri, position, queryType);
+    }
+
+    public provideDocumentHighlights(document: TextDocument, position: Position, _token: CancellationToken) :
+        ProviderResult<DocumentHighlight[]>
+    {
+        if (!this.rtagsMgr.isInProject(document.uri))
+        {
+            return [];
+        }
+
+        const resolveCallback =
+            async (symbolInfo?: SymbolInfo) : Promise<Optional<DocumentHighlight[]>> =>
+            {
+                if (!symbolInfo)
+                {
+                    return undefined;
+                }
+
+                const timeoutMs = 5000;
+
+                const locations =
+                    await getReferences(document.uri, position, LocationQueryType.AllReferencesInFile, timeoutMs);
+
+                if (!locations)
+                {
+                    return undefined;
+                }
+
+                let highlights: DocumentHighlight[] = [];
+
+                for (const loc of locations)
+                {
+                    const start = loc.range.start;
+                    const end = start.translate(0, symbolInfo.length);
+                    const range = new Range(start, end);
+                    highlights.push(new DocumentHighlight(range));
+                }
+
+                return highlights;
+            };
+
+        return getSymbolInfo(document.uri, position).then(resolveCallback);
     }
 
     public provideRenameEdits(document: TextDocument,
