@@ -31,10 +31,84 @@ export interface Locatable
     location: Location;
 }
 
+export enum SymbolCategory
+{
+    Macro,
+    Namespace,
+    TypeDecl,
+    Type,
+    Function,
+    Variable
+}
+
 export const SourceFileSelector: DocumentFilter[] =
 [
     { language: "c",   scheme: "file" },
     { language: "cpp", scheme: "file" }
+];
+
+const RtagsMacroKinds =
+[
+    "macro definition",
+    "macro expansion"
+];
+
+const RtagsNamespaceKinds =
+[
+    "Namespace",
+    "NamespaceAlias",
+    "NamespaceRef"
+];
+
+const RtagsTypeDeclKinds =
+[
+    "ClassDecl",
+    "ClassTemplate",
+    "ClassTemplatePartialSpecialization",
+    "StructDecl",
+    "UnionDecl",
+    "EnumDecl",
+    "TypedefDecl",
+    "TypeAliasDecl",
+    "TypeAliasTemplateDecl",
+    "TemplateTypeParameter",
+    "TemplateTemplateParameter"
+];
+
+const RtagsTypeRefKinds =
+[
+    "UsingDeclaration",
+    "CXXConstructor",
+    "CXXDestructor",
+    "CXXConversion",
+    "TypeRef",
+    "TemplateRef",
+    "CallExpr"
+];
+
+const RtagsFunctionKinds =
+[
+    "CXXConstructor",
+    "CXXDestructor",
+    "CXXMethod",
+    "FunctionDecl",
+    "FunctionTemplate",
+    "CallExpr",
+    "MemberRefExpr",
+    "DeclRefExpr"
+];
+
+const RtagsVariableKinds =
+[
+    "FieldDecl",
+    "ParmDecl",
+    "VarDecl",
+    "EnumConstantDecl",
+    "NonTypeTemplateParameter",
+    "MemberRef",
+    "VariableRef",
+    "MemberRefExpr",
+    "DeclRefExpr"
 ];
 
 export function isSourceFile(file: TextDocument) : boolean
@@ -61,14 +135,55 @@ export function isOpenSourceFile(uri: Uri) : boolean
     return isSourceFile(file);
 }
 
-export function setContext<T>(name: string, value: T) : void
+export function getRtagsSymbolKinds(category?: SymbolCategory) : string[]
 {
-    commands.executeCommand("setContext", name, value);
+    let symbolKinds: string[];
+
+    switch (category)
+    {
+        case SymbolCategory.Macro:
+            symbolKinds = RtagsMacroKinds;
+            break;
+
+        case SymbolCategory.Namespace:
+            symbolKinds = RtagsNamespaceKinds;
+            break;
+
+        case SymbolCategory.TypeDecl:
+            symbolKinds = RtagsTypeDeclKinds;
+            break;
+
+        case SymbolCategory.Type:
+            symbolKinds = RtagsTypeDeclKinds.concat(RtagsTypeRefKinds);
+            break;
+
+        case SymbolCategory.Function:
+            symbolKinds = RtagsFunctionKinds;
+            break;
+
+        case SymbolCategory.Variable:
+            symbolKinds = RtagsVariableKinds;
+            break;
+
+        default:
+            symbolKinds =
+            [
+                ...RtagsMacroKinds,
+                ...RtagsNamespaceKinds,
+                ...RtagsTypeDeclKinds,
+                ...RtagsTypeRefKinds,
+                ...RtagsFunctionKinds,
+                ...RtagsVariableKinds
+            ];
+            break;
+    }
+
+    return symbolKinds;
 }
 
-export function showReferences(uri: Uri, position: Position, locations: Location[]) : void
+export function isRtagsSymbolKind(symbolKind: string, category?: SymbolCategory) : boolean
 {
-    commands.executeCommand("editor.action.showReferences", uri, position, locations);
+    return getRtagsSymbolKinds(category).includes(symbolKind);
 }
 
 export function fromRtagsPosition(line: string, column: string) : Position
@@ -96,6 +211,16 @@ export function jumpToLocation(uri: Uri, range: Range) : void
 {
     const options: TextDocumentShowOptions = {selection: range};
     window.showTextDocument(uri, options);
+}
+
+export function setContext<T>(name: string, value: T) : void
+{
+    commands.executeCommand("setContext", name, value);
+}
+
+export function showReferences(uri: Uri, position: Position, locations: Location[]) : void
+{
+    commands.executeCommand("editor.action.showReferences", uri, position, locations);
 }
 
 export function parseJson(input: string) : any

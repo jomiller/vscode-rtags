@@ -27,8 +27,8 @@ import * as path from 'path';
 
 import { RtagsManager, runRc } from './rtagsManager';
 
-import { Nullable, Optional, Locatable, setContext, showReferences, fromRtagsLocation, toRtagsLocation, parseJson }
-         from './rtagsUtil';
+import { Nullable, Optional, Locatable, SymbolCategory, isRtagsSymbolKind, fromRtagsLocation, toRtagsLocation,
+         parseJson, setContext, showReferences } from './rtagsUtil';
 
 interface Caller extends Locatable
 {
@@ -49,28 +49,6 @@ interface SymbolInfoBase
 export interface SymbolInfo extends SymbolInfoBase
 {
     target?: SymbolInfoBase;
-}
-
-function isFunctionKind(symbolKind?: string) : boolean
-{
-    if (!symbolKind)
-    {
-        return false;
-    }
-
-    const functionKinds =
-    [
-        "CXXConstructor",
-        "CXXDestructor",
-        "CXXMethod",
-        "FunctionDecl",
-        "FunctionTemplate",
-        "CallExpr",
-        "MemberRefExpr",
-        "DeclRefExpr"
-    ];
-
-    return functionKinds.includes(symbolKind);
 }
 
 function getCallers(uri: Uri, position: Position) : Promise<Optional<Caller[]>>
@@ -220,7 +198,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                 const symbolInfo = await getSymbolInfo(document.uri, position);
 
                 let callers: Optional<Caller[]> = undefined;
-                if (symbolInfo && isFunctionKind(symbolInfo.kind))
+                if (symbolInfo && isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Function))
                 {
                     callers = await getCallers(document.uri, position);
                 }
@@ -280,7 +258,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                         return [];
                     }
 
-                    if (!isFunctionKind(symbolInfo.kind))
+                    if (!isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Function))
                     {
                         return [];
                     }

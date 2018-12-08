@@ -31,7 +31,8 @@ import { SymbolInfo, getSymbolInfo } from './callHierarchy';
 
 import { getDerivedClasses } from './inheritanceHierarchy';
 
-import { Optional, SourceFileSelector, showReferences, fromRtagsLocation, toRtagsLocation } from './rtagsUtil';
+import { Optional, SourceFileSelector, SymbolCategory, getRtagsSymbolKinds, isRtagsSymbolKind, fromRtagsLocation,
+         toRtagsLocation, showReferences } from './rtagsUtil';
 
 enum LocationQueryType
 {
@@ -51,7 +52,7 @@ enum NameQueryType
 
 function getBaseSymbolType(symbolType: string) : string
 {
-    const baseSymbolType = symbolType.replace(/const|volatile|&|\*|\[\d*\]|\(.*|=>.*/g, "");
+    const baseSymbolType = symbolType.replace(/const|volatile|&|\*|\[\d*\]|\<.*|\(.*|=>.*/g, "");
     return baseSymbolType.trim();
 }
 
@@ -68,32 +69,8 @@ async function getSymbolType(uri: Uri, position: Position) : Promise<Optional<st
         return getBaseSymbolType(symbolInfo.name);
     }
 
-    const symbolKinds =
-    [
-        "ClassDecl",
-        "ClassTemplate",
-        "ClassTemplatePartialSpecialization",
-        "StructDecl",
-        "UnionDecl",
-        "EnumDecl",
-        "TypedefDecl",
-        "TypeAliasDecl",
-        "TypeAliasTemplateDecl",
-        "UsingDeclaration",
-        "CXXConversion",
-        "FieldDecl",
-        "ParmDecl",
-        "VarDecl",
-        "NonTypeTemplateParameter",
-        "TypeRef",
-        "TemplateRef",
-        "MemberRef",
-        "VariableRef",
-        "CallExpr",
-        "MemberRefExpr",
-        "DeclRefExpr"
-    ];
-    if (!symbolKinds.includes(symbolInfo.kind))
+    if (!isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Type) &&
+        !isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Variable))
     {
         return undefined;
     }
@@ -174,19 +151,7 @@ function getReferencesByName(name: string, projectPath: Uri, queryType: NameQuer
     {
         case NameQueryType.TypeDefinition:
         {
-            const symbolKinds =
-            [
-                "ClassDecl",
-                "ClassTemplate",
-                "ClassTemplatePartialSpecialization",
-                "StructDecl",
-                "UnionDecl",
-                "EnumDecl",
-                "TypedefDecl",
-                "TypeAliasDecl",
-                "TypeAliasTemplateDecl"
-            ];
-            symbolKinds.forEach((k) => { args.push("--kind-filter", k); });
+            getRtagsSymbolKinds(SymbolCategory.TypeDecl).forEach((k) => { args.push("--kind-filter", k); });
             args.push("--definition-only");
             break;
         }
@@ -369,6 +334,11 @@ export class RtagsDefinitionProvider implements
             async (symbolInfo?: SymbolInfo) : Promise<Optional<DocumentHighlight[]>> =>
             {
                 if (!symbolInfo)
+                {
+                    return undefined;
+                }
+
+                if (!isRtagsSymbolKind(symbolInfo.kind))
                 {
                     return undefined;
                 }
