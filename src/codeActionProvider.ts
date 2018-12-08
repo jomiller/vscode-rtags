@@ -54,7 +54,7 @@ export class RtagsCodeActionProvider implements
             return [];
         }
 
-        if ((context.only !== undefined) && (context.only !== CodeActionKind.QuickFix))
+        if ((context.only !== undefined) && (context.only.value !== CodeActionKind.QuickFix.value))
         {
             return [];
         }
