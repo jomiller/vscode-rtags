@@ -178,14 +178,13 @@ async function getVariables(uri: Uri, position: Position, projectPath: Uri) : Pr
 
     let constructorLocations: Optional<Location[]> = undefined;
 
-    if ((symbolInfo.kind === "CXXConversion") ||
-        isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Variable))
-    {
-        constructorLocations = await getReferencesForSymbolType(symbolInfo, projectPath, ReferenceType.Constructors);
-    }
-    else if (isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Type))
+    if (isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Type))
     {
         constructorLocations = await getReferences(uri, position, ReferenceType.Constructors);
+    }
+    else if (isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Variable))
+    {
+        constructorLocations = await getReferencesForSymbolType(symbolInfo, projectPath, ReferenceType.Constructors);
     }
 
     if (!constructorLocations)
@@ -296,15 +295,14 @@ export class RtagsDefinitionProvider implements
                     return getReferences(document.uri, position, ReferenceType.Definition);
                 }
 
-                if ((symbolInfo.kind === "CXXConversion") ||
-                    isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Variable))
-                {
-                    return getReferencesForSymbolType(symbolInfo, projectPath, ReferenceType.TypeDefinition);
-                }
-
                 if (isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Type))
                 {
                     return getReferences(document.uri, position, ReferenceType.TypeDefinition);
+                }
+
+                if (isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Variable))
+                {
+                    return getReferencesForSymbolType(symbolInfo, projectPath, ReferenceType.TypeDefinition);
                 }
 
                 return Promise.resolve(undefined);

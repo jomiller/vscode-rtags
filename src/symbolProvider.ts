@@ -61,10 +61,8 @@ function toSymbolKind(kind: string) : Optional<SymbolKind>
         case "CXXDestructor":
             return SymbolKind.Constructor;
 
-        case "CXXConversion":
-            return SymbolKind.Operator;
-
         case "CXXMethod":
+        case "CXXConversion":
             return SymbolKind.Method;
 
         case "FunctionDecl":

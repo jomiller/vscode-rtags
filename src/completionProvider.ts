@@ -60,10 +60,8 @@ function toCompletionItemKind(kind: string) : CompletionItemKind
         case "CXXDestructor":
             return CompletionItemKind.Constructor;
 
-        case "CXXConversion":
-            return CompletionItemKind.Operator;
-
         case "CXXMethod":
+        case "CXXConversion":
             return CompletionItemKind.Method;
 
         case "FunctionDecl":

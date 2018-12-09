@@ -80,7 +80,6 @@ const RtagsTypeFuncKinds = new Set(
 [
     "CXXConstructor",
     "CXXDestructor",
-    "CXXConversion",
     "CallExpr"
 ]);
 
@@ -101,6 +100,7 @@ const RtagsTypeKinds = new Set(
 const RtagsFunctionKinds = new Set(
 [
     ...RtagsTypeFuncKinds,
+    "CXXConversion",
     "CXXMethod",
     "FunctionDecl",
     "FunctionTemplate",
