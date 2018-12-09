@@ -56,28 +56,6 @@ function getBaseSymbolType(symbolType: string) : string
     return baseSymbolType.trim();
 }
 
-async function getSymbolType(uri: Uri, position: Position) : Promise<Optional<string>>
-{
-    const symbolInfo = await getSymbolInfo(uri, position);
-    if (!symbolInfo)
-    {
-        return undefined;
-    }
-
-    if ((symbolInfo.kind === "CXXConstructor") || (symbolInfo.kind === "CXXDestructor"))
-    {
-        return getBaseSymbolType(symbolInfo.name);
-    }
-
-    if (!isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Type) &&
-        !isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Variable))
-    {
-        return undefined;
-    }
-
-    return (symbolInfo.type ? getBaseSymbolType(symbolInfo.type) : getBaseSymbolType(symbolInfo.name));
-}
-
 function getLocations(args: string[]) : Promise<Optional<Location[]>>
 {
     const processCallback =
@@ -164,22 +142,39 @@ function getReferencesByName(name: string, projectPath: Uri, queryType: NameQuer
     return getLocations(args);
 }
 
-async function getReferencesForSymbolType(uri: Uri, position: Position, projectPath: Uri, queryType: NameQueryType) :
+async function getReferencesForSymbolType(symbolInfo: SymbolInfo, projectPath: Uri, queryType: NameQueryType) :
     Promise<Optional<Location[]>>
 {
-    const symbolType = await getSymbolType(uri, position);
-    if (!symbolType)
+    let symbolType: string;
+
+    if (!symbolInfo.type || (symbolInfo.kind === "CXXConstructor") || (symbolInfo.kind === "CXXDestructor"))
     {
-        return undefined;
+        symbolType = symbolInfo.name;
+    }
+    else
+    {
+        symbolType = symbolInfo.type;
     }
 
-    return getReferencesByName(symbolType, projectPath, queryType);
+    return getReferencesByName(getBaseSymbolType(symbolType), projectPath, queryType);
 }
 
 async function getVariables(uri: Uri, position: Position, projectPath: Uri) : Promise<Location[]>
 {
+    const symbolInfo = await getSymbolInfo(uri, position);
+    if (!symbolInfo)
+    {
+        return [];
+    }
+
+    if (!isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Type) &&
+        !isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Variable))
+    {
+        return [];
+    }
+
     const constructorLocations =
-        await getReferencesForSymbolType(uri, position, projectPath, NameQueryType.Constructors);
+        await getReferencesForSymbolType(symbolInfo, projectPath, NameQueryType.Constructors);
 
     if (!constructorLocations)
     {
@@ -276,7 +271,29 @@ export class RtagsDefinitionProvider implements
             return undefined;
         }
 
-        return getReferencesForSymbolType(document.uri, position, projectPath, NameQueryType.TypeDefinition);
+        const resolveCallback =
+            (symbolInfo?: SymbolInfo) : Promise<Optional<Location[]>> =>
+            {
+                if (!symbolInfo)
+                {
+                    return Promise.resolve(undefined);
+                }
+
+                if (isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.TypeRef))
+                {
+                    return getReferences(document.uri, position, LocationQueryType.Definition);
+                }
+
+                if (!isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Type) &&
+                    !isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Variable))
+                {
+                    return Promise.resolve(undefined);
+                }
+
+                return getReferencesForSymbolType(symbolInfo, projectPath, NameQueryType.TypeDefinition);
+            };
+
+        return getSymbolInfo(document.uri, position).then(resolveCallback);
     }
 
     public provideImplementation(document: TextDocument, position: Position, _token: CancellationToken) :

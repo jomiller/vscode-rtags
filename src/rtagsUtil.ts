@@ -36,6 +36,7 @@ export enum SymbolCategory
     Macro,
     Namespace,
     TypeDecl,
+    TypeRef,
     Type,
     Function,
     Variable
@@ -47,20 +48,20 @@ export const SourceFileSelector: DocumentFilter[] =
     { language: "cpp", scheme: "file" }
 ];
 
-const RtagsMacroKinds =
+const RtagsMacroKinds = new Set(
 [
     "macro definition",
     "macro expansion"
-];
+]);
 
-const RtagsNamespaceKinds =
+const RtagsNamespaceKinds = new Set(
 [
     "Namespace",
     "NamespaceAlias",
     "NamespaceRef"
-];
+]);
 
-const RtagsTypeDeclKinds =
+const RtagsTypeDeclKinds = new Set(
 [
     "ClassDecl",
     "ClassTemplate",
@@ -73,32 +74,41 @@ const RtagsTypeDeclKinds =
     "TypeAliasTemplateDecl",
     "TemplateTypeParameter",
     "TemplateTemplateParameter"
-];
+]);
 
-const RtagsTypeRefKinds =
+const RtagsTypeFuncKinds = new Set(
 [
-    "UsingDeclaration",
     "CXXConstructor",
     "CXXDestructor",
     "CXXConversion",
-    "TypeRef",
-    "TemplateRef",
     "CallExpr"
-];
+]);
 
-const RtagsFunctionKinds =
+const RtagsTypeRefKinds = new Set(
 [
-    "CXXConstructor",
-    "CXXDestructor",
+    "UsingDeclaration",
+    "TypeRef",
+    "TemplateRef"
+]);
+
+const RtagsTypeKinds = new Set(
+[
+    ...RtagsTypeDeclKinds,
+    ...RtagsTypeFuncKinds,
+    ...RtagsTypeRefKinds
+]);
+
+const RtagsFunctionKinds = new Set(
+[
+    ...RtagsTypeFuncKinds,
     "CXXMethod",
     "FunctionDecl",
     "FunctionTemplate",
-    "CallExpr",
     "MemberRefExpr",
     "DeclRefExpr"
-];
+]);
 
-const RtagsVariableKinds =
+const RtagsVariableKinds = new Set(
 [
     "FieldDecl",
     "ParmDecl",
@@ -109,17 +119,16 @@ const RtagsVariableKinds =
     "VariableRef",
     "MemberRefExpr",
     "DeclRefExpr"
-];
+]);
 
-const RtagsSymbolKinds =
+const RtagsSymbolKinds = new Set(
 [
     ...RtagsMacroKinds,
     ...RtagsNamespaceKinds,
-    ...RtagsTypeDeclKinds,
-    ...RtagsTypeRefKinds,
+    ...RtagsTypeKinds,
     ...RtagsFunctionKinds,
     ...RtagsVariableKinds
-];
+]);
 
 export function isSourceFile(file: TextDocument) : boolean
 {
@@ -145,9 +154,9 @@ export function isOpenSourceFile(uri: Uri) : boolean
     return isSourceFile(file);
 }
 
-export function getRtagsSymbolKinds(category?: SymbolCategory) : string[]
+export function getRtagsSymbolKinds(category?: SymbolCategory) : Set<string>
 {
-    let symbolKinds: string[];
+    let symbolKinds: Set<string>;
 
     switch (category)
     {
@@ -163,8 +172,12 @@ export function getRtagsSymbolKinds(category?: SymbolCategory) : string[]
             symbolKinds = RtagsTypeDeclKinds;
             break;
 
+        case SymbolCategory.TypeRef:
+            symbolKinds = RtagsTypeRefKinds;
+            break;
+
         case SymbolCategory.Type:
-            symbolKinds = RtagsTypeDeclKinds.concat(RtagsTypeRefKinds);
+            symbolKinds = RtagsTypeKinds;
             break;
 
         case SymbolCategory.Function:
@@ -185,7 +198,7 @@ export function getRtagsSymbolKinds(category?: SymbolCategory) : string[]
 
 export function isRtagsSymbolKind(symbolKind: string, category?: SymbolCategory) : boolean
 {
-    return getRtagsSymbolKinds(category).includes(symbolKind);
+    return getRtagsSymbolKinds(category).has(symbolKind);
 }
 
 export function fromRtagsPosition(line: string, column: string) : Position
