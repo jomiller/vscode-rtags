@@ -18,8 +18,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 import { commands, ExtensionContext } from 'vscode';
 
 import { RtagsCodeActionProvider } from './codeActionProvider';

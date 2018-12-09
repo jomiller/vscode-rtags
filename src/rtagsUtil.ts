@@ -18,8 +18,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 import { commands, languages, window, workspace, DocumentFilter, Location, Position, Range, TextDocument,
          TextDocumentShowOptions, Uri } from 'vscode';
 

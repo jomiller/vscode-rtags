@@ -18,8 +18,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 import { commands, languages, window, workspace, ConfigurationChangeEvent, Diagnostic, DiagnosticCollection,
          DiagnosticSeverity, Disposable, Range, TextDocument, TextDocumentChangeEvent, TextDocumentWillSaveEvent, Uri,
          WorkspaceFolder, WorkspaceFoldersChangeEvent } from 'vscode';

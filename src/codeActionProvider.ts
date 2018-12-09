@@ -18,8 +18,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 import { languages, CancellationToken, CodeActionContext, CodeActionKind, CodeActionProvider, Disposable,
          ProviderResult, Range, TextDocument, WorkspaceEdit, CodeAction } from 'vscode';
 

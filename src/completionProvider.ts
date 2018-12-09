@@ -18,8 +18,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-'use strict';
-
 import { languages, workspace, CancellationToken, CompletionContext, CompletionItemKind, CompletionItem,
          CompletionItemProvider, CompletionList, Disposable, ParameterInformation, Position, ProviderResult, Range,
          SignatureHelp, SignatureHelpProvider, SignatureInformation, TextDocument } from 'vscode';
