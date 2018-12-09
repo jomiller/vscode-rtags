@@ -144,7 +144,7 @@ function getReferencesByName(name: string, projectPath: Uri, queryType: Referenc
             break;
 
         default:
-            assert.ok(false, "Invalid reference query type");
+            assert.fail("Invalid reference query type");
             break;
     }
 
