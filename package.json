@@ -243,6 +243,12 @@
                     "description": "Maximum number of code completion results to report.",
                     "scope": "resource"
                 },
+                "rtags.highlighting.enabled": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "If true, document symbol highlighting will be enabled.",
+                    "scope": "window"
+                },
                 "rtags.misc.compilationDatabaseDirectory": {
                     "type": "string",
                     "default": "",

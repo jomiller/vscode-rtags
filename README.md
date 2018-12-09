@@ -16,6 +16,7 @@ This extension was originally forked from https://github.com/yorver/rtags-vscode
 * Code Actions (Fix-It Hints)
 * Code Completion
 * Signature Help
+* Symbol Highlighting
 * Symbol Searching
 * Symbol Renaming
 
@@ -44,6 +45,8 @@ The commands are available through both the editor context menu and the command 
 `rtags.completion.enabled`: If true, code completion will be enabled.
 
 `rtags.completion.maxResults`: Maximum number of code completion results to report.
+
+`rtags.highlighting.enabled`: If true, document symbol highlighting will be enabled.
 
 `rtags.misc.compilationDatabaseDirectory`: If not empty, the compilation database directory to use instead of the workspace root.
 

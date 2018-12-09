@@ -20,10 +20,10 @@
 
 'use strict';
 
-import { commands, languages, CancellationToken, Definition, DefinitionProvider, Disposable, DocumentHighlight,
-         DocumentHighlightProvider, Hover, HoverProvider, Location, Position, ProviderResult, ReferenceContext,
-         TextDocument, TypeDefinitionProvider, ImplementationProvider, Range, ReferenceProvider, RenameProvider,
-         TextEditor, TextEditorEdit, Uri, WorkspaceEdit } from 'vscode';
+import { commands, languages, workspace, CancellationToken, Definition, DefinitionProvider, Disposable,
+         DocumentHighlight, DocumentHighlightProvider, Hover, HoverProvider, Location, Position, ProviderResult,
+         ReferenceContext, TextDocument, TypeDefinitionProvider, ImplementationProvider, Range, ReferenceProvider,
+         RenameProvider, TextEditor, TextEditorEdit, Uri, WorkspaceEdit } from 'vscode';
 
 import * as assert from 'assert';
 
@@ -245,12 +245,18 @@ export class RtagsDefinitionProvider implements
                 commands.executeCommand("editor.action.goToImplementation", document.uri, position);
             };
 
+        const config = workspace.getConfiguration("rtags");
+        const highlightingEnabled = config.get<boolean>("highlighting.enabled", false);
+        if (highlightingEnabled)
+        {
+            this.disposables.push(languages.registerDocumentHighlightProvider(SourceFileSelector, this));
+        }
+
         this.disposables.push(
             languages.registerDefinitionProvider(SourceFileSelector, this),
             languages.registerTypeDefinitionProvider(SourceFileSelector, this),
             languages.registerImplementationProvider(SourceFileSelector, this),
             languages.registerReferenceProvider(SourceFileSelector, this),
-            languages.registerDocumentHighlightProvider(SourceFileSelector, this),
             languages.registerRenameProvider(SourceFileSelector, this),
             languages.registerHoverProvider(SourceFileSelector, this),
             commands.registerTextEditorCommand("rtags.showVariables", showVariablesCallback),
