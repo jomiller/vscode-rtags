@@ -20,10 +20,12 @@
 
 'use strict';
 
-import { commands, languages, CancellationToken, Definition, DefinitionProvider, Disposable, DocumentHighlight, DocumentHighlightProvider, Hover, HoverProvider,
-         Location, Position, ProviderResult, ReferenceContext, TextDocument, TypeDefinitionProvider,
-         ImplementationProvider, Range, ReferenceProvider, RenameProvider, TextEditor, TextEditorEdit, Uri,
-         WorkspaceEdit } from 'vscode';
+import { commands, languages, CancellationToken, Definition, DefinitionProvider, Disposable, DocumentHighlight,
+         DocumentHighlightProvider, Hover, HoverProvider, Location, Position, ProviderResult, ReferenceContext,
+         TextDocument, TypeDefinitionProvider, ImplementationProvider, Range, ReferenceProvider, RenameProvider,
+         TextEditor, TextEditorEdit, Uri, WorkspaceEdit } from 'vscode';
+
+import * as assert from 'assert';
 
 import { RtagsManager, runRc } from './rtagsManager';
 
@@ -34,20 +36,16 @@ import { getDerivedClasses } from './inheritanceHierarchy';
 import { Optional, SourceFileSelector, SymbolCategory, getRtagsSymbolKinds, isRtagsSymbolKind, fromRtagsLocation,
          toRtagsLocation, showReferences } from './rtagsUtil';
 
-enum LocationQueryType
+enum ReferenceType
 {
     Definition,
+    TypeDefinition,
     References,
     AllReferences,
     AllReferencesInFile,
     Rename,
+    Constructors,
     Virtuals
-}
-
-enum NameQueryType
-{
-    TypeDefinition,
-    Constructors
 }
 
 function getBaseSymbolType(symbolType: string) : string
@@ -75,7 +73,7 @@ function getLocations(args: string[]) : Promise<Optional<Location[]>>
     return runRc(args, processCallback);
 }
 
-function getReferences(uri: Uri, position: Position, queryType: LocationQueryType) : Promise<Optional<Location[]>>
+function getReferences(uri: Uri, position: Position, queryType: ReferenceType) : Promise<Optional<Location[]>>
 {
     const location = toRtagsLocation(uri, position);
 
@@ -83,27 +81,36 @@ function getReferences(uri: Uri, position: Position, queryType: LocationQueryTyp
 
     switch (queryType)
     {
-        case LocationQueryType.Definition:
+        case ReferenceType.Definition:
             args.push("--follow-location", location);
             break;
 
-        case LocationQueryType.References:
+        case ReferenceType.TypeDefinition:
+            args.push("--references", location, "--all-references", "--rename", "--definition-only");
+            getRtagsSymbolKinds(SymbolCategory.TypeDecl).forEach((k) => { args.push("--kind-filter", k); });
+            break;
+
+        case ReferenceType.References:
             args.push("--references", location);
             break;
 
-        case LocationQueryType.AllReferences:
+        case ReferenceType.AllReferences:
             args.push("--references", location, "--all-references");
             break;
 
-        case LocationQueryType.AllReferencesInFile:
+        case ReferenceType.AllReferencesInFile:
             args.push("--references", location, "--all-references", "--path-filter", uri.fsPath);
             break;
 
-        case LocationQueryType.Rename:
+        case ReferenceType.Rename:
             args.push("--references", location, "--all-references", "--rename");
             break;
 
-        case LocationQueryType.Virtuals:
+        case ReferenceType.Constructors:
+            args.push("--references", location, "--all-references", "--rename", "--kind-filter", "CXXConstructor");
+            break;
+
+        case ReferenceType.Virtuals:
             args.push("--references", location, "--find-virtuals", "--definition-only");
             break;
     }
@@ -111,7 +118,7 @@ function getReferences(uri: Uri, position: Position, queryType: LocationQueryTyp
     return getLocations(args);
 }
 
-function getReferencesByName(name: string, projectPath: Uri, queryType: NameQueryType) : Promise<Optional<Location[]>>
+function getReferencesByName(name: string, projectPath: Uri, queryType: ReferenceType) : Promise<Optional<Location[]>>
 {
     let args =
     [
@@ -127,22 +134,24 @@ function getReferencesByName(name: string, projectPath: Uri, queryType: NameQuer
 
     switch (queryType)
     {
-        case NameQueryType.TypeDefinition:
-        {
-            getRtagsSymbolKinds(SymbolCategory.TypeDecl).forEach((k) => { args.push("--kind-filter", k); });
+        case ReferenceType.TypeDefinition:
             args.push("--definition-only");
+            getRtagsSymbolKinds(SymbolCategory.TypeDecl).forEach((k) => { args.push("--kind-filter", k); });
             break;
-        }
 
-        case NameQueryType.Constructors:
+        case ReferenceType.Constructors:
             args.push("--kind-filter", "CXXConstructor");
+            break;
+
+        default:
+            assert.ok(false, "Invalid reference query type");
             break;
     }
 
     return getLocations(args);
 }
 
-async function getReferencesForSymbolType(symbolInfo: SymbolInfo, projectPath: Uri, queryType: NameQueryType) :
+async function getReferencesForSymbolType(symbolInfo: SymbolInfo, projectPath: Uri, queryType: ReferenceType) :
     Promise<Optional<Location[]>>
 {
     let symbolType: string;
@@ -167,14 +176,17 @@ async function getVariables(uri: Uri, position: Position, projectPath: Uri) : Pr
         return [];
     }
 
-    if (!isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Type) &&
-        !isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Variable))
-    {
-        return [];
-    }
+    let constructorLocations: Optional<Location[]> = undefined;
 
-    const constructorLocations =
-        await getReferencesForSymbolType(symbolInfo, projectPath, NameQueryType.Constructors);
+    if ((symbolInfo.kind === "CXXConversion") ||
+        isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Variable))
+    {
+        constructorLocations = await getReferencesForSymbolType(symbolInfo, projectPath, ReferenceType.Constructors);
+    }
+    else if (isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Type))
+    {
+        constructorLocations = await getReferences(uri, position, ReferenceType.Constructors);
+    }
 
     if (!constructorLocations)
     {
@@ -185,7 +197,7 @@ async function getVariables(uri: Uri, position: Position, projectPath: Uri) : Pr
 
     for (const loc of constructorLocations)
     {
-        const locations = await getReferences(loc.uri, loc.range.start, LocationQueryType.References);
+        const locations = await getReferences(loc.uri, loc.range.start, ReferenceType.References);
         if (locations)
         {
             variableLocations.push(...locations);
@@ -259,7 +271,7 @@ export class RtagsDefinitionProvider implements
             return undefined;
         }
 
-        return getReferences(document.uri, position, LocationQueryType.Definition);
+        return getReferences(document.uri, position, ReferenceType.Definition);
     }
 
     public provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
@@ -281,16 +293,21 @@ export class RtagsDefinitionProvider implements
 
                 if (isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.TypeRef))
                 {
-                    return getReferences(document.uri, position, LocationQueryType.Definition);
+                    return getReferences(document.uri, position, ReferenceType.Definition);
                 }
 
-                if (!isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Type) &&
-                    !isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Variable))
+                if ((symbolInfo.kind === "CXXConversion") ||
+                    isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Variable))
                 {
-                    return Promise.resolve(undefined);
+                    return getReferencesForSymbolType(symbolInfo, projectPath, ReferenceType.TypeDefinition);
                 }
 
-                return getReferencesForSymbolType(symbolInfo, projectPath, NameQueryType.TypeDefinition);
+                if (isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Type))
+                {
+                    return getReferences(document.uri, position, ReferenceType.TypeDefinition);
+                }
+
+                return Promise.resolve(undefined);
             };
 
         return getSymbolInfo(document.uri, position).then(resolveCallback);
@@ -314,7 +331,7 @@ export class RtagsDefinitionProvider implements
 
                 if (symbolInfo.virtual || (symbolInfo.target && symbolInfo.target.virtual))
                 {
-                    return getReferences(document.uri, position, LocationQueryType.Virtuals);
+                    return getReferences(document.uri, position, ReferenceType.Virtuals);
                 }
 
                 return getDerivedClasses(document.uri, position);
@@ -334,7 +351,7 @@ export class RtagsDefinitionProvider implements
             return [];
         }
 
-        const queryType = context.includeDeclaration ? LocationQueryType.AllReferences : LocationQueryType.References;
+        const queryType = context.includeDeclaration ? ReferenceType.AllReferences : ReferenceType.References;
 
         return getReferences(document.uri, position, queryType);
     }
@@ -360,7 +377,7 @@ export class RtagsDefinitionProvider implements
                     return undefined;
                 }
 
-                const locations = await getReferences(document.uri, position, LocationQueryType.AllReferencesInFile);
+                const locations = await getReferences(document.uri, position, ReferenceType.AllReferencesInFile);
                 if (!locations)
                 {
                     return undefined;
@@ -414,7 +431,7 @@ export class RtagsDefinitionProvider implements
                 return edit;
             };
 
-        return getReferences(document.uri, position, LocationQueryType.Rename).then(resolveCallback);
+        return getReferences(document.uri, position, ReferenceType.Rename).then(resolveCallback);
     }
 
     public provideHover(document: TextDocument, position: Position, _token: CancellationToken) : ProviderResult<Hover>
