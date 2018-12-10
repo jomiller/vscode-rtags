@@ -38,9 +38,11 @@ The commands are available through both the editor context menu and the command 
 
 `rtags.rdm.arguments`: Array containing arguments to pass to the `rdm` executable, if it is launched automatically. If `-j`/`--job-count` is not present in the array, then `--job-count=max(1, logicalCpuCount / 2)` will be added by default.
 
-`rtags.diagnostics.enabled`: If true, diagnostics and fix-it hints will be enabled.
+`rtags.diagnostics.enabled`: If true, diagnostics will be enabled.
 
 `rtags.diagnostics.openFilesOnly`: If true, diagnostics will be reported only for open files.
+
+`rtags.codeActions.enabled`: If true, code actions (fix-it hints) will be enabled.
 
 `rtags.completion.enabled`: If true, code completion will be enabled.
 

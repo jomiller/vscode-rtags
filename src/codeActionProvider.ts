@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { languages, CancellationToken, CodeActionContext, CodeActionKind, CodeActionProvider, Disposable,
+import { languages, workspace, CancellationToken, CodeActionContext, CodeActionKind, CodeActionProvider, Disposable,
          ProviderResult, Range, TextDocument, WorkspaceEdit, CodeAction } from 'vscode';
 
 import { RtagsManager, runRc } from './rtagsManager';
@@ -33,7 +33,12 @@ export class RtagsCodeActionProvider implements
     {
         this.rtagsMgr = rtagsMgr;
 
-        this.disposables.push(languages.registerCodeActionsProvider(SourceFileSelector, this));
+        const config = workspace.getConfiguration("rtags");
+        const codeActionsEnabled = config.get<boolean>("codeActions.enabled", true);
+        if (codeActionsEnabled)
+        {
+            this.disposables.push(languages.registerCodeActionsProvider(SourceFileSelector, this));
+        }
     }
 
     public dispose() : void
