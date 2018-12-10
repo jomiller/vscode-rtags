@@ -75,41 +75,44 @@ function getReferences(uri: Uri, position: Position, queryType: ReferenceType) :
 {
     const location = toRtagsLocation(uri, position);
 
-    let args = ["--absolute-path", "--no-context"];
+    const referencesArg = (queryType === ReferenceType.Definition) ? "--follow-location" : "--references";
+
+    let args =
+    [
+        referencesArg,
+        location,
+        "--absolute-path",
+        "--no-context"
+    ];
 
     switch (queryType)
     {
-        case ReferenceType.Definition:
-            args.push("--follow-location", location);
-            break;
-
         case ReferenceType.TypeDefinition:
-            args.push("--references", location, "--all-references", "--rename", "--definition-only");
+            args.push("--all-references", "--rename", "--definition-only");
             getRtagsSymbolKinds(SymbolCategory.TypeDecl).forEach((k) => { args.push("--kind-filter", k); });
             break;
 
-        case ReferenceType.References:
-            args.push("--references", location);
-            break;
-
         case ReferenceType.AllReferences:
-            args.push("--references", location, "--all-references");
+            args.push("--all-references");
             break;
 
         case ReferenceType.AllReferencesInFile:
-            args.push("--references", location, "--all-references", "--path-filter", uri.fsPath);
+            args.push("--all-references", "--path-filter", uri.fsPath);
             break;
 
         case ReferenceType.Rename:
-            args.push("--references", location, "--all-references", "--rename");
+            args.push("--all-references", "--rename");
             break;
 
         case ReferenceType.Constructors:
-            args.push("--references", location, "--all-references", "--rename", "--kind-filter", "CXXConstructor");
+            args.push("--all-references", "--rename", "--kind-filter", "CXXConstructor");
             break;
 
         case ReferenceType.Virtuals:
-            args.push("--references", location, "--find-virtuals", "--definition-only");
+            args.push("--find-virtuals", "--definition-only");
+            break;
+
+        default:
             break;
     }
 
