@@ -152,7 +152,7 @@ function getReferencesByName(name: string, projectPath: Uri, queryType: Referenc
     return getLocations(args);
 }
 
-async function getReferencesForSymbolType(symbolInfo: SymbolInfo, projectPath: Uri, queryType: ReferenceType) :
+function getReferencesForSymbolType(symbolInfo: SymbolInfo, projectPath: Uri, queryType: ReferenceType) :
     Promise<Optional<Location[]>>
 {
     let symbolType: string;
