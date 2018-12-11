@@ -462,11 +462,6 @@ export class RtagsDefinitionProvider implements
         const processCallback =
             (output: string) : Optional<Hover> =>
             {
-                if (!output)
-                {
-                    return undefined;
-                }
-
                 const contextIndex = output.indexOf('\t');
                 if (contextIndex === -1)
                 {
@@ -474,7 +469,7 @@ export class RtagsDefinitionProvider implements
                 }
 
                 const context = output.slice(contextIndex).trim();
-                if (!context)
+                if (context.length === 0)
                 {
                     return undefined;
                 }
