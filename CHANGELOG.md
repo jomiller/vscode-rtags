@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.2] - 2018-12-13
+
+### Added
+- Support for highlighting all occurrences of a symbol within a document.
+- `rtags.highlighting.enabled` configuration setting for enabling symbol highlighting (set to `false` by default).
+- `rtags.codeActions.enabled` configuration setting for enabling code actions (set to `true` by default).
+
+### Changed
+- Improve accuracy and speed of `Go to Type Definition` and `Show Variables` commands when invoked for type symbols.
+
+### Fixed
+- Further improve the fix for issue [#21](https://github.com/jomiller/vscode-rtags/issues/21).
+- Mitigate issue [#3](https://github.com/jomiller/vscode-rtags/issues/3) by adding timeouts to the most frequently invoked queries.
+- Symbol searches did not return results for macro definitions, namespace aliases, or conversion operators.
+- `Go to Type Definition` command did not return results for using declarations, enum constants, conversion operators, or template type parameters.
+
 ## [0.4.1] - 2018-12-02
 
 ### Changed
@@ -100,6 +116,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 Initial release
 
+[0.4.2]: https://github.com/jomiller/vscode-rtags/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/jomiller/vscode-rtags/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/jomiller/vscode-rtags/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/jomiller/vscode-rtags/compare/v0.3.1...v0.3.2
