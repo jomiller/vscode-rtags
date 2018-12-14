@@ -85,7 +85,7 @@ function findSymbols(query: string, args: string[] = []) : Promise<Optional<Symb
     const localArgs =
     [
         "--find-symbols",
-        query + '*',
+        query,
         "--wildcard-symbol-names",
         "--match-icase",
         "--strip-paren",
@@ -185,7 +185,7 @@ export class RtagsSymbolProvider implements
             document.uri.fsPath
         ];
 
-        return findSymbols("", args);
+        return findSymbols('*', args);
     }
 
     public provideWorkspaceSymbols(query: string, _token: CancellationToken) : ProviderResult<SymbolInformation[]>
@@ -197,7 +197,7 @@ export class RtagsSymbolProvider implements
 
         if (query.length > 3)
         {
-            return this.findWorkspaceSymbols('*' + query);
+            return this.findWorkspaceSymbols('*' + query + '*');
         }
 
         const resolveCallback =
@@ -208,10 +208,10 @@ export class RtagsSymbolProvider implements
                     return Promise.resolve(symbols);
                 }
 
-                return this.findWorkspaceSymbols('*' + query);
+                return this.findWorkspaceSymbols('*' + query + '*');
             };
 
-        return this.findWorkspaceSymbols(query).then(resolveCallback);
+        return this.findWorkspaceSymbols(query + '*').then(resolveCallback);
     }
 
     private async findWorkspaceSymbols(query: string) : Promise<SymbolInformation[]>
