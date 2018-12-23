@@ -259,6 +259,53 @@ async function startRdm() : Promise<boolean>
     return rcStatus;
 }
 
+async function getLoadedProjectPaths() : Promise<Uri[]>
+{
+    const processProjectsCallback =
+        (output: string) : Uri[] =>
+        {
+            return output.trim().split('\n').map(
+                (p) => { return Uri.file(p.replace(" <=", "").trim().replace(/\/$/, "")); });
+        };
+
+    const candidatePaths = await runRc(["--project"], processProjectsCallback);
+    if (!candidatePaths)
+    {
+        return [];
+    }
+
+    let loadedPaths: Uri[] = [];
+
+    for (const path of candidatePaths)
+    {
+        const statusHeaderLineCount = 3;
+
+        const args =
+        [
+            "--project",
+            path.fsPath,
+            "--status",
+            "sources",
+            "--max",
+            (statusHeaderLineCount + 1).toString()
+        ];
+
+        const processStatusCallback =
+            (output: string) : boolean =>
+            {
+                return (output.trim().split('\n').length > statusHeaderLineCount);
+            };
+
+        const sourcesLoaded = await runRc(args, processStatusCallback);
+        if (sourcesLoaded)
+        {
+            loadedPaths.push(path);
+        }
+    }
+
+    return loadedPaths;
+}
+
 function getSuspendedFilePaths(projectPath: Uri, timeout: number = 0) : Promise<Optional<string[]>>
 {
     let args =
@@ -276,7 +323,7 @@ function getSuspendedFilePaths(projectPath: Uri, timeout: number = 0) : Promise<
     const processCallback =
         (output: string) : string[] =>
         {
-            let suspendedPaths: string[] = [];
+            let paths: string[] = [];
 
             for (const line of output.split('\n'))
             {
@@ -287,11 +334,11 @@ function getSuspendedFilePaths(projectPath: Uri, timeout: number = 0) : Promise<
                 const pathIndex = line.indexOf(" is suspended");
                 if (pathIndex !== -1)
                 {
-                    suspendedPaths.push(line.slice(0, pathIndex));
+                    paths.push(line.slice(0, pathIndex));
                 }
             }
 
-            return suspendedPaths;
+            return paths;
         };
 
     return runRc(args, processCallback);
@@ -453,20 +500,13 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        let rtagsProjectPaths: Uri[] = [];
-
-        const output = await runRc(["--project"], (output: string) => { return output.trim(); });
-        if (output)
-        {
-            rtagsProjectPaths = output.split('\n').map(
-                (p) => { return Uri.file(p.replace(" <=", "").trim().replace(/\/$/, "")); });
-        }
+        const loadedProjectPaths = await getLoadedProjectPaths();
 
         // Consider only VS Code workspace folders, and ignore RTags projects that are not known to VS Code
         for (const f of folders)
         {
-            const projectExists = rtagsProjectPaths.some((p) => { return (p.fsPath === f.uri.fsPath); });
-            if (projectExists)
+            const projectLoaded = loadedProjectPaths.some((p) => { return (p.fsPath === f.uri.fsPath); });
+            if (projectLoaded)
             {
                 // The project is already loaded into RTags
                 this.projectPaths.push(f.uri);
