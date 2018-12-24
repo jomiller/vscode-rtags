@@ -35,6 +35,8 @@ export enum SymbolCategory
     Namespace,
     TypeDecl,
     TypeRef,
+    TypeDeclRef,
+    TypeFunc,
     Type,
     Function,
     Variable
@@ -48,7 +50,9 @@ export const SourceFileSelector: DocumentFilter[] =
 
 const RtagsMacroKinds = new Set(
 [
+    "macrodefinition",
     "macro definition",
+    "macroexpansion",
     "macro expansion"
 ]);
 
@@ -74,13 +78,6 @@ const RtagsTypeDeclKinds = new Set(
     "TemplateTemplateParameter"
 ]);
 
-const RtagsTypeFuncKinds = new Set(
-[
-    "CXXConstructor",
-    "CXXDestructor",
-    "CallExpr"
-]);
-
 const RtagsTypeRefKinds = new Set(
 [
     "UsingDeclaration",
@@ -88,11 +85,24 @@ const RtagsTypeRefKinds = new Set(
     "TemplateRef"
 ]);
 
+const RtagsTypeDeclRefKinds = new Set(
+[
+    ...RtagsTypeDeclKinds,
+    ...RtagsTypeRefKinds
+]);
+
+const RtagsTypeFuncKinds = new Set(
+[
+    "CXXConstructor",
+    "CXXDestructor",
+    "CallExpr"
+]);
+
 const RtagsTypeKinds = new Set(
 [
     ...RtagsTypeDeclKinds,
-    ...RtagsTypeFuncKinds,
-    ...RtagsTypeRefKinds
+    ...RtagsTypeRefKinds,
+    ...RtagsTypeFuncKinds
 ]);
 
 const RtagsFunctionKinds = new Set(
@@ -172,6 +182,14 @@ export function getRtagsSymbolKinds(category?: SymbolCategory) : Set<string>
 
         case SymbolCategory.TypeRef:
             symbolKinds = RtagsTypeRefKinds;
+            break;
+
+        case SymbolCategory.TypeDeclRef:
+            symbolKinds = RtagsTypeDeclRefKinds;
+            break;
+
+        case SymbolCategory.TypeFunc:
+            symbolKinds = RtagsTypeFuncKinds;
             break;
 
         case SymbolCategory.Type:

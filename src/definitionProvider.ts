@@ -71,7 +71,8 @@ function getLocations(args: string[]) : Promise<Optional<Location[]>>
     return runRc(args, processCallback);
 }
 
-function getReferences(uri: Uri, position: Position, queryType: ReferenceType) : Promise<Optional<Location[]>>
+function getReferences(uri: Uri, position: Position, queryType: ReferenceType, kindFilters?: Set<string>) :
+    Promise<Optional<Location[]>>
 {
     const location = toRtagsLocation(uri, position);
 
@@ -116,10 +117,16 @@ function getReferences(uri: Uri, position: Position, queryType: ReferenceType) :
             break;
     }
 
+    if (kindFilters)
+    {
+        kindFilters.forEach((k) => { args.push("--kind-filter", k); });
+    }
+
     return getLocations(args);
 }
 
-function getReferencesByName(name: string, projectPath: Uri, queryType: ReferenceType) : Promise<Optional<Location[]>>
+function getReferencesByName(name: string, projectPath: Uri, queryType: ReferenceType, kindFilters?: Set<string>) :
+    Promise<Optional<Location[]>>
 {
     let args =
     [
@@ -147,6 +154,11 @@ function getReferencesByName(name: string, projectPath: Uri, queryType: Referenc
         default:
             assert.fail("Invalid reference query type");
             break;
+    }
+
+    if (kindFilters)
+    {
+        kindFilters.forEach((k) => { args.push("--kind-filter", k); });
     }
 
     return getLocations(args);
@@ -377,12 +389,35 @@ export class RtagsDefinitionProvider implements
                     return undefined;
                 }
 
-                if (!isRtagsSymbolKind(symbolInfo.kind))
+                let kindFilters: Optional<Set<string>> = undefined;
+
+                const symbolCategories =
+                [
+                    SymbolCategory.Macro,
+                    SymbolCategory.Namespace,
+                    SymbolCategory.TypeDeclRef,
+                    SymbolCategory.TypeFunc,
+                    SymbolCategory.Function,
+                    SymbolCategory.Variable
+                ];
+
+                for (const category of symbolCategories)
+                {
+                    if (isRtagsSymbolKind(symbolInfo.kind, category))
+                    {
+                        kindFilters = getRtagsSymbolKinds(category);
+                        break;
+                    }
+                }
+
+                if (!kindFilters)
                 {
                     return undefined;
                 }
 
-                const locations = await getReferences(document.uri, position, ReferenceType.AllReferencesInFile);
+                const locations =
+                    await getReferences(document.uri, position, ReferenceType.AllReferencesInFile, kindFilters);
+
                 if (!locations)
                 {
                     return undefined;
