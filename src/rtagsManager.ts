@@ -38,6 +38,7 @@ import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, isOpenSourceFile
 enum TaskType
 {
     Load,
+    Reload,
     Reindex
 }
 
@@ -51,6 +52,11 @@ interface ResumeTimerInfo
 {
     file: TextDocument;
     timer: NodeJS.Timer;
+}
+
+function isLoadingTask(task: ProjectTask) : boolean
+{
+    return ((task.type === TaskType.Load) || (task.type === TaskType.Reload));
 }
 
 function toDiagnosticSeverity(severity: string) : DiagnosticSeverity
@@ -259,24 +265,34 @@ async function startRdm() : Promise<boolean>
     return rcStatus;
 }
 
-async function getLoadedProjectPaths() : Promise<Uri[]>
+function getKnownProjectPaths() : Promise<Optional<Uri[]>>
 {
-    const processProjectsCallback =
+    const processCallback =
         (output: string) : Uri[] =>
         {
-            return output.trim().split('\n').map(
-                (p) => { return Uri.file(p.replace(" <=", "").trim().replace(/\/$/, "")); });
+            const trimmedOutput = output.trim();
+            if (trimmedOutput.length === 0)
+            {
+                return [];
+            }
+
+            const paths = trimmedOutput.split('\n');
+            return paths.map((p) => { return Uri.file(p.replace(" <=", "").trim().replace(/\/$/, "")); });
         };
 
-    const candidatePaths = await runRc(["--project"], processProjectsCallback);
-    if (!candidatePaths)
+    return runRc(["--project"], processCallback);
+}
+
+async function getLoadedProjectPaths(knownProjectPaths?: Uri[]) : Promise<Uri[]>
+{
+    if (!knownProjectPaths)
     {
         return [];
     }
 
-    let loadedPaths: Uri[] = [];
+    let loadedProjectPaths: Uri[] = [];
 
-    for (const path of candidatePaths)
+    for (const path of knownProjectPaths)
     {
         const statusHeaderLineCount = 3;
 
@@ -293,17 +309,24 @@ async function getLoadedProjectPaths() : Promise<Uri[]>
         const processStatusCallback =
             (output: string) : boolean =>
             {
-                return (output.trim().split('\n').length > statusHeaderLineCount);
+                const trimmedOutput = output.trim();
+                if (trimmedOutput.length === 0)
+                {
+                    return false;
+                }
+
+                const lines = trimmedOutput.split('\n');
+                return (lines.length > statusHeaderLineCount);
             };
 
         const sourcesLoaded = await runRc(args, processStatusCallback);
         if (sourcesLoaded)
         {
-            loadedPaths.push(path);
+            loadedProjectPaths.push(path);
         }
     }
 
-    return loadedPaths;
+    return loadedProjectPaths;
 }
 
 function getSuspendedFilePaths(projectPath: Uri, timeout: number = 0) : Promise<Optional<string[]>>
@@ -459,7 +482,7 @@ export class RtagsManager implements Disposable
 
     public isInLoadingProject(uri: Uri) : boolean
     {
-        if (!this.currentProjectTask || (this.currentProjectTask.type !== TaskType.Load))
+        if (!this.currentProjectTask || !isLoadingTask(this.currentProjectTask))
         {
             return false;
         }
@@ -500,7 +523,8 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        const loadedProjectPaths = await getLoadedProjectPaths();
+        const knownProjectPaths = await getKnownProjectPaths();
+        const loadedProjectPaths = await getLoadedProjectPaths(knownProjectPaths);
 
         // Consider only VS Code workspace folders, and ignore RTags projects that are not known to VS Code
         for (const f of folders)
@@ -533,7 +557,17 @@ export class RtagsManager implements Disposable
             else
             {
                 // Add the project to the task queue
-                const task: ProjectTask = {uri: f.uri, type: TaskType.Load};
+                let taskType = TaskType.Load;
+                if (knownProjectPaths)
+                {
+                    const projectExists = knownProjectPaths.some((p) => { return (p.fsPath === f.uri.fsPath); });
+                    if (projectExists)
+                    {
+                        taskType = TaskType.Reload;
+                    }
+                }
+
+                const task: ProjectTask = {uri: f.uri, type: taskType};
                 this.processNextProjectTask(task);
             }
         }
@@ -865,6 +899,7 @@ export class RtagsManager implements Disposable
                 switch (this.currentProjectTask.type)
                 {
                     case TaskType.Load:
+                    case TaskType.Reload:
                     {
                         const config = workspace.getConfiguration("rtags", this.currentProjectTask.uri);
                         const compilationDatabaseDir = config.get<string>("misc.compilationDatabaseDirectory");
@@ -877,7 +912,7 @@ export class RtagsManager implements Disposable
                             status = await runRc(["--load-compile-commands", compileCommandsDir],
                                                  (_unused) => { return true; });
                         }
-                        else if (compilationDatabaseDir)
+                        else if ((this.currentProjectTask.type === TaskType.Reload) || compilationDatabaseDir)
                         {
                             window.showErrorMessage("[RTags] Could not load project: " + projectPath.fsPath +
                                                     "; compilation database not found: " + compileCommands);
@@ -942,7 +977,7 @@ export class RtagsManager implements Disposable
                             if (this.currentProjectTask)
                             {
                                 let indexMsg = "reindexing";
-                                if (this.currentProjectTask.type === TaskType.Load)
+                                if (isLoadingTask(this.currentProjectTask))
                                 {
                                     this.projectPaths.push(this.currentProjectTask.uri);
                                     indexMsg = "loading";
