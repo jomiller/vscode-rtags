@@ -66,7 +66,8 @@ function getClasses(classType: ClassType, uri: Uri, position: Position) : Promis
         {
             let nodes: InheritanceNode[] = [];
 
-            const lines = output.trim().split('\n');
+            const trimmedOutput = output.trim();
+            const lines: string[] = (trimmedOutput.length !== 0) ? trimmedOutput.split('\n') : [];
             const baseIndex = lines.indexOf("Superclasses:");
             const derivedIndex = lines.indexOf("Subclasses:");
             let startIndex = baseIndex;
@@ -249,7 +250,7 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
                         return [];
                     }
 
-                    const classType = (baseNodes.length === 0) ? ClassType.Derived : ClassType.Base;
+                    const classType = (baseNodes.length !== 0) ? ClassType.Base : ClassType.Derived;
 
                     const root: InheritanceNode =
                     {
