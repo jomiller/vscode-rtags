@@ -35,7 +35,6 @@ export enum SymbolCategory
     Namespace,
     TypeDecl,
     TypeRef,
-    TypeDeclRef,
     TypeFunc,
     Type,
     Function,
@@ -83,12 +82,6 @@ const RtagsTypeRefKinds = new Set(
     "UsingDeclaration",
     "TypeRef",
     "TemplateRef"
-]);
-
-const RtagsTypeDeclRefKinds = new Set(
-[
-    ...RtagsTypeDeclKinds,
-    ...RtagsTypeRefKinds
 ]);
 
 const RtagsTypeFuncKinds = new Set(
@@ -182,10 +175,6 @@ export function getRtagsSymbolKinds(category?: SymbolCategory) : Set<string>
 
         case SymbolCategory.TypeRef:
             symbolKinds = RtagsTypeRefKinds;
-            break;
-
-        case SymbolCategory.TypeDeclRef:
-            symbolKinds = RtagsTypeDeclRefKinds;
             break;
 
         case SymbolCategory.TypeFunc:

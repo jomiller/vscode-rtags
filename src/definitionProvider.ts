@@ -389,14 +389,13 @@ export class RtagsDefinitionProvider implements
                     return undefined;
                 }
 
-                let kindFilters: Optional<Set<string>> = undefined;
+                let kindFilters = new Set<string>();
 
                 const symbolCategories =
                 [
                     SymbolCategory.Macro,
                     SymbolCategory.Namespace,
-                    SymbolCategory.TypeDeclRef,
-                    SymbolCategory.TypeFunc,
+                    SymbolCategory.Type,
                     SymbolCategory.Function,
                     SymbolCategory.Variable
                 ];
@@ -405,12 +404,11 @@ export class RtagsDefinitionProvider implements
                 {
                     if (isRtagsSymbolKind(symbolInfo.kind, category))
                     {
-                        kindFilters = getRtagsSymbolKinds(category);
-                        break;
+                        getRtagsSymbolKinds(category).forEach(kindFilters.add, kindFilters);
                     }
                 }
 
-                if (!kindFilters)
+                if (kindFilters.size === 0)
                 {
                     return undefined;
                 }
