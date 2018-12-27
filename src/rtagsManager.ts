@@ -19,8 +19,8 @@
  */
 
 import { commands, languages, window, workspace, ConfigurationChangeEvent, Diagnostic, DiagnosticCollection,
-         DiagnosticSeverity, Disposable, Range, TextDocument, TextDocumentChangeEvent, TextDocumentWillSaveEvent, Uri,
-         WorkspaceFolder, WorkspaceFoldersChangeEvent } from 'vscode';
+         DiagnosticSeverity, Disposable, Memento, Range, TextDocument, TextDocumentChangeEvent,
+         TextDocumentWillSaveEvent, Uri, WorkspaceFolder, WorkspaceFoldersChangeEvent } from 'vscode';
 
 import { ChildProcess, ExecFileOptionsWithStringEncoding, SpawnOptions, execFile, spawn } from 'child_process';
 
@@ -369,8 +369,10 @@ function getSuspendedFilePaths(projectPath: Uri, timeout: number = 0) : Promise<
 
 export class RtagsManager implements Disposable
 {
-    constructor()
+    constructor(workspaceState: Memento)
     {
+        this.workspaceState = workspaceState;
+
         const config = workspace.getConfiguration("rtags");
         this.diagnosticsEnabled = config.get<boolean>("diagnostics.enabled", true);
         if (this.diagnosticsEnabled)
@@ -402,36 +404,33 @@ export class RtagsManager implements Disposable
             {
                 if (event.affectsConfiguration("rtags"))
                 {
-                    const reloadAction = "Reload Now";
-                    let message = "Reload to apply the configuration change";
+                    let projectPathsToReload = this.workspaceState.get<Array<string>>("rtags.projectPathsToReload");
 
                     for (const path of this.projectPaths)
                     {
                         if (event.affectsConfiguration("rtags.misc.compilationDatabaseDirectory", path))
                         {
-                            this.projectPathsToPurge.add(path);
+                            if (!projectPathsToReload)
+                            {
+                                projectPathsToReload = [];
+                            }
+                            if (!projectPathsToReload.includes(path.fsPath))
+                            {
+                                projectPathsToReload.push(path.fsPath);
+                            }
                         }
                     }
 
-                    let selectedAction: Optional<string> = undefined;
+                    if (projectPathsToReload)
+                    {
+                        await this.workspaceState.update("rtags.projectPathsToReload", projectPathsToReload);
+                    }
 
-                    if (event.affectsConfiguration("rtags.misc.compilationDatabaseDirectory"))
-                    {
-                        message += ", otherwise new compilation databases will not be loaded";
-                        selectedAction = await window.showWarningMessage(message, reloadAction);
-                    }
-                    else
-                    {
-                        selectedAction = await window.showInformationMessage(message, reloadAction);
-                    }
+                    const reloadAction = "Reload Now";
+                    const selectedAction = await window.showInformationMessage("Reload to apply the configuration change", reloadAction);
 
                     if (selectedAction === reloadAction)
                     {
-                        let promises: Promise<void>[] = [];
-                        this.projectPathsToPurge.forEach((p) => { promises.push(this.removeProject(p, true)); });
-                        this.projectPathsToPurge.clear();
-                        await Promise.all(promises);
-
                         commands.executeCommand("workbench.action.reloadWindow");
                     }
                 }
@@ -523,6 +522,22 @@ export class RtagsManager implements Disposable
             return;
         }
 
+        const projectPathsToReload = this.workspaceState.get<Array<string>>("rtags.projectPathsToReload");
+        if (projectPathsToReload)
+        {
+            let promises: Thenable<void>[] = [];
+            for (const path of projectPathsToReload)
+            {
+                const folderAdded = folders.some((f) => { return (f.uri.fsPath === path); });
+                if (folderAdded)
+                {
+                    promises.push(runRc(["--delete-project", path + '/']));
+                }
+            }
+            promises.push(this.workspaceState.update("rtags.projectPathsToReload", undefined));
+            await Promise.all(promises);
+        }
+
         const knownProjectPaths = await getKnownProjectPaths();
         const loadedProjectPaths = await getLoadedProjectPaths(knownProjectPaths);
 
@@ -577,11 +592,11 @@ export class RtagsManager implements Disposable
     {
         if (folders)
         {
-            folders.forEach((f) => { this.removeProject(f.uri, false); });
+            folders.forEach((f) => { this.removeProject(f.uri); });
         }
     }
 
-    private removeProject(uri: Uri, purge: boolean) : Promise<void>
+    private removeProject(uri: Uri) : void
     {
         const projectPath = uri.fsPath;
 
@@ -597,8 +612,6 @@ export class RtagsManager implements Disposable
         {
             this.projectPaths.splice(index, 1);
         }
-
-        return (purge ? runRc(["--delete-project", projectPath + '/']) : Promise.resolve());
     }
 
     private updateProjects(event: WorkspaceFoldersChangeEvent) : void
@@ -1156,10 +1169,10 @@ export class RtagsManager implements Disposable
         }
     }
 
+    private workspaceState: Memento;
     private projectTaskQueue: ProjectTask[] = [];
     private currentProjectTask: Nullable<ProjectTask> = null;
     private projectPaths: Uri[] = [];
-    private projectPathsToPurge = new Set<Uri>();
     private diagnosticsEnabled: boolean = true;
     private diagnosticsOpenFilesOnly: boolean = true;
     private diagnosticCollection: Nullable<DiagnosticCollection> = null;
