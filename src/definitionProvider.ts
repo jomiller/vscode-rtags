@@ -404,7 +404,7 @@ export class RtagsDefinitionProvider implements
                 {
                     if (isRtagsSymbolKind(symbolInfo.kind, category))
                     {
-                        getRtagsSymbolKinds(category).forEach(kindFilters.add, kindFilters);
+                        getRtagsSymbolKinds(category).forEach(Set.prototype.add, kindFilters);
                     }
                 }
 
