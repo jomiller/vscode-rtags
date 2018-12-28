@@ -119,7 +119,7 @@ export function runRc<T = void>(args: string[], process?: (stdout: string) => T,
                         const stdoutMsg = stdout.trim();
                         if (stderrMsg || (stdoutMsg && (stdoutMsg !== "null") && (stdoutMsg !== "Not indexed")))
                         {
-                            let message: string = "[RTags] ";
+                            let message = "[RTags] ";
                             if (error.message)
                             {
                                 message += error.message + " (";
@@ -211,7 +211,8 @@ async function startRdm() : Promise<boolean>
     const rdmAutoLaunch = config.get<boolean>("rdm.autoLaunch", true);
     if (!rdmAutoLaunch)
     {
-        window.showErrorMessage("[RTags] Server is not running and auto-launch is disabled; launch server manually or enable \"rtags.rdm.autoLaunch\" setting");
+        window.showErrorMessage("[RTags] Server is not running and auto-launch is disabled; " +
+                                "launch server manually or enable \"rtags.rdm.autoLaunch\" setting");
         return false;
     }
 
@@ -259,7 +260,8 @@ async function startRdm() : Promise<boolean>
     }
     else
     {
-        window.showErrorMessage("[RTags] Could not start server; check \"rtags.rdm.executable\" and \"rtags.rdm.arguments\" settings");
+        window.showErrorMessage("[RTags] Could not start server; " +
+                                "check \"rtags.rdm.executable\" and \"rtags.rdm.arguments\" settings");
     }
 
     return rcStatus;
@@ -404,30 +406,27 @@ export class RtagsManager implements Disposable
             {
                 if (event.affectsConfiguration("rtags"))
                 {
-                    let projectPathsToReload = this.workspaceState.get<Array<string>>("rtags.projectPathsToReload");
+                    let projectPathsToReload =
+                        new Set<string>(this.workspaceState.get<string[]>("rtags.projectPathsToReload", []));
+
+                    const origProjectPathCount = projectPathsToReload.size;
 
                     for (const path of this.projectPaths)
                     {
                         if (event.affectsConfiguration("rtags.misc.compilationDatabaseDirectory", path))
                         {
-                            if (!projectPathsToReload)
-                            {
-                                projectPathsToReload = [];
-                            }
-                            if (!projectPathsToReload.includes(path.fsPath))
-                            {
-                                projectPathsToReload.push(path.fsPath);
-                            }
+                            projectPathsToReload.add(path.fsPath);
                         }
                     }
 
-                    if (projectPathsToReload)
+                    if (projectPathsToReload.size !== origProjectPathCount)
                     {
-                        await this.workspaceState.update("rtags.projectPathsToReload", projectPathsToReload);
+                        await this.workspaceState.update("rtags.projectPathsToReload", [...projectPathsToReload]);
                     }
 
                     const reloadAction = "Reload Now";
-                    const selectedAction = await window.showInformationMessage("Reload to apply the configuration change", reloadAction);
+                    const selectedAction =
+                        await window.showInformationMessage("Reload to apply the configuration change", reloadAction);
 
                     if (selectedAction === reloadAction)
                     {
@@ -522,20 +521,32 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        const projectPathsToReload = this.workspaceState.get<Array<string>>("rtags.projectPathsToReload");
-        if (projectPathsToReload)
+        // Delete projects that need to be reloaded
+
+        const projectPathsToReload =
+            new Set<string>(this.workspaceState.get<string[]>("rtags.projectPathsToReload", []));
+
+        const origProjectPathCount = projectPathsToReload.size;
+
+        let args: string[] = [];
+        for (const path of projectPathsToReload)
         {
-            let promises: Thenable<void>[] = [];
-            for (const path of projectPathsToReload)
+            const folderAdded = folders.some((f) => { return (f.uri.fsPath === path); });
+            if (folderAdded)
             {
-                const folderAdded = folders.some((f) => { return (f.uri.fsPath === path); });
-                if (folderAdded)
-                {
-                    promises.push(runRc(["--delete-project", path + '/']));
-                }
+                args.push("--delete-project", path + '/');
+                projectPathsToReload.delete(path);
             }
-            promises.push(this.workspaceState.update("rtags.projectPathsToReload", undefined));
-            await Promise.all(promises);
+        }
+        if (args.length !== 0)
+        {
+            await runRc(args);
+        }
+
+        if (projectPathsToReload.size !== origProjectPathCount)
+        {
+            const paths = (projectPathsToReload.size !== 0) ? [...projectPathsToReload] : undefined;
+            await this.workspaceState.update("rtags.projectPathsToReload", paths);
         }
 
         const knownProjectPaths = await getKnownProjectPaths();
