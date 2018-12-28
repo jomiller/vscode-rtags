@@ -257,6 +257,16 @@ async function startRdm() : Promise<boolean>
     if (rcStatus)
     {
         window.showInformationMessage("[RTags] Started server successfully");
+
+        const exitCallback =
+            (_code: number, _signal: string) : void =>
+            {
+                // Restart the server if it was killed unexpectedly
+                window.showErrorMessage("[RTags] Server stopped; restarting");
+                setTimeout(() => { startRdm(); }, 5000);
+            };
+
+        rdm.on("exit", exitCallback);
     }
     else
     {
