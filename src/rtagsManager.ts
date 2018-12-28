@@ -1047,21 +1047,18 @@ export class RtagsManager implements Disposable
         this.diagnosticProcess.stdout.on("data", dataCallback);
 
         const exitCallback =
-            (_code: number, signal: string) : void =>
+            (_code: number, _signal: string) : void =>
             {
                 this.unprocessedDiagnostics = "";
-                if (signal === "SIGTERM")
-                {
-                    if (this.diagnosticCollection)
-                    {
-                        this.diagnosticCollection.clear();
-                    }
-                }
-                else
+                if (this.diagnosticsEnabled)
                 {
                     // Restart the diagnostics process if it was killed unexpectedly
                     window.showErrorMessage("[RTags] Diagnostics stopped; restarting");
                     setTimeout(() => { this.startDiagnostics(); }, 5000);
+                }
+                else if (this.diagnosticCollection)
+                {
+                    this.diagnosticCollection.clear();
                 }
             };
 
@@ -1072,7 +1069,8 @@ export class RtagsManager implements Disposable
     {
         if (this.diagnosticProcess)
         {
-            this.diagnosticProcess.kill("SIGTERM");
+            this.diagnosticsEnabled = false;
+            this.diagnosticProcess.kill();
             this.diagnosticProcess = null;
         }
     }
