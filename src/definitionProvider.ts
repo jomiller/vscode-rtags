@@ -309,11 +309,6 @@ export class RtagsDefinitionProvider implements
                     return Promise.resolve(undefined);
                 }
 
-                if (isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.TypeRef))
-                {
-                    return getReferences(document.uri, position, ReferenceType.Definition);
-                }
-
                 if (isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Type))
                 {
                     return getReferences(document.uri, position, ReferenceType.TypeDefinition);
