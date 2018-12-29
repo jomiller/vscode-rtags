@@ -42,21 +42,33 @@ enum TaskType
     Reindex
 }
 
-interface ProjectTask
+class ProjectTask
 {
-    uri: Uri;
-    type: TaskType;
+    constructor(uri: Uri, type: TaskType)
+    {
+        this.uri = uri;
+        this.type = type;
+    }
+
+    public isLoadType() : boolean
+    {
+        return ((this.type === TaskType.Load) || (this.type === TaskType.Reload));
+    }
+
+    public typeToString(capitalize: boolean = false) : string
+    {
+        let str = this.isLoadType() ? "loading" : "reindexing";
+        return (capitalize ? (str.charAt(0).toUpperCase() + str.slice(1)) : str);
+    }
+
+    public uri: Uri;
+    public type: TaskType;
 }
 
 interface ResumeTimerInfo
 {
     file: TextDocument;
     timer: NodeJS.Timer;
-}
-
-function isLoadingTask(task: ProjectTask) : boolean
-{
-    return ((task.type === TaskType.Load) || (task.type === TaskType.Reload));
 }
 
 function toDiagnosticSeverity(severity: string) : DiagnosticSeverity
@@ -178,11 +190,11 @@ function testRcProcess() : boolean
 async function testRcStatus() : Promise<boolean>
 {
     let status = false;
-    const run = util.promisify(execFile);
+    const execFilePromise = util.promisify(execFile);
 
     try
     {
-        await run(getRcExecutable(), ["--current-project"]);
+        await execFilePromise(getRcExecutable(), ["--current-project"]);
         status = true;
     }
     catch (_err)
@@ -490,7 +502,7 @@ export class RtagsManager implements Disposable
 
     public isInLoadingProject(uri: Uri) : boolean
     {
-        if (!this.currentProjectTask || !isLoadingTask(this.currentProjectTask))
+        if (!this.currentProjectTask || !this.currentProjectTask.isLoadType())
         {
             return false;
         }
@@ -603,7 +615,7 @@ export class RtagsManager implements Disposable
                     }
                 }
 
-                const task: ProjectTask = {uri: f.uri, type: taskType};
+                const task = new ProjectTask(f.uri, taskType);
                 this.processNextProjectTask(task);
             }
         }
@@ -898,7 +910,7 @@ export class RtagsManager implements Disposable
         }
 
         // Reindex the project to which the active document belongs
-        const task: ProjectTask = {uri: projectPath, type: TaskType.Reindex};
+        const task = new ProjectTask(projectPath, TaskType.Reindex);
         this.processNextProjectTask(task);
     }
 
@@ -906,7 +918,7 @@ export class RtagsManager implements Disposable
     {
         for (const path of this.projectPaths)
         {
-            const task: ProjectTask = {uri: path, type: TaskType.Reindex};
+            const task = new ProjectTask(path, TaskType.Reindex);
             this.processNextProjectTask(task);
         }
     }
@@ -928,7 +940,6 @@ export class RtagsManager implements Disposable
             if (this.currentProjectTask)
             {
                 const projectPath = this.currentProjectTask.uri;
-                let indexMsg = "";
 
                 switch (this.currentProjectTask.type)
                 {
@@ -955,7 +966,6 @@ export class RtagsManager implements Disposable
                         {
                             this.currentProjectTask = null;
                         }
-                        indexMsg = "Loading";
                         break;
                     }
 
@@ -968,14 +978,14 @@ export class RtagsManager implements Disposable
                         {
                             this.currentProjectTask = null;
                         }
-                        indexMsg = "Reindexing";
                         break;
                     }
                 }
 
                 if (this.currentProjectTask)
                 {
-                    window.showInformationMessage("[RTags] " + indexMsg + " project: " + projectPath.fsPath);
+                    window.showInformationMessage("[RTags] " + this.currentProjectTask.typeToString(true) +
+                                                  " project: " + projectPath.fsPath);
                     this.finishProjectTask();
                 }
             }
@@ -1008,25 +1018,26 @@ export class RtagsManager implements Disposable
                                 clearInterval(this.indexPollTimer);
                                 this.indexPollTimer = null;
                             }
+
                             if (this.currentProjectTask)
                             {
-                                let indexMsg = "reindexing";
-                                if (isLoadingTask(this.currentProjectTask))
+                                if (this.currentProjectTask.isLoadType())
                                 {
                                     this.projectPaths.push(this.currentProjectTask.uri);
-                                    indexMsg = "loading";
                                 }
 
-                                window.showInformationMessage("[RTags] Finished " + indexMsg + " project: " +
+                                window.showInformationMessage("[RTags] Finished " +
+                                                              this.currentProjectTask.typeToString() + " project: " +
                                                               this.currentProjectTask.uri.fsPath);
 
                                 this.currentProjectTask = null;
                             }
+
                             this.processNextProjectTask();
                         }
                     };
 
-                runRc(args, processCallback);
+                    runRc(args, processCallback);
             };
 
         this.indexPollTimer = setInterval(intervalCallback, 5000);
