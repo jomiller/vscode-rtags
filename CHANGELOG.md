@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.3] - 2018-12-30
+
+### Changed
+- Display `Reindex Active Workspace Folder` command only when the workspace contains multiple folders.
+- Reload a project when the corresponding workspace folder is opened, and the project is already known to RTags, but is no longer indexed (because `compile_commands.json` was deleted and later recreated).
+- Restart the `rdm` process if it was killed, and initially auto-launched.
+
+### Fixed
+- Incorrect highlighting of macro expansions and definitions of variables of constructible types under certain circumstances. 
+- When the value of the `rtags.compilationDatabaseDirectory` setting changed, the new compilation database was never loaded if the `Reload Now` button in the `Settings` editor was not clicked.
+- The diagnostics child process was not restarted if it was killed via SIGTERM.
+
 ## [0.4.2] - 2018-12-13
 
 ### Added
@@ -57,7 +69,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Workspace symbol search only matched the pattern against the beginning of symbol names.
 - Symbol searches did not return results for class/function templates or type aliases.
 - Warning and information diagnostic messages were treated as errors.
-- Diagnostic messages were lost from the Problems panel if the diagnostic process was terminated unexpectedly.
+- Diagnostic messages were lost from the `Problems` panel if the diagnostic process was terminated unexpectedly.
 - Other VS Code tasks could become blocked while the connection between `rc` and `rdm` was being tested, if `rdm` was slow to respond.
 - When multiple source files were edited in quick succession without being saved, then only the last edited file was reindexed.
 
@@ -116,6 +128,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 Initial release
 
+[0.4.3]: https://github.com/jomiller/vscode-rtags/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/jomiller/vscode-rtags/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/jomiller/vscode-rtags/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/jomiller/vscode-rtags/compare/v0.3.2...v0.4.0
