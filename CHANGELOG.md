@@ -14,7 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ### Fixed
 - Incorrect highlighting of macro expansions and definitions of variables of constructible types under certain circumstances. 
 - When the value of the `rtags.compilationDatabaseDirectory` setting changed, the new compilation database was never loaded if the `Reload Now` button in the `Settings` editor was not clicked.
-- The diagnostics child process was not restarted if it was killed via SIGTERM.
+- The diagnostics child process was not restarted if it was killed via `SIGTERM`.
 
 ## [0.4.2] - 2018-12-13
 
