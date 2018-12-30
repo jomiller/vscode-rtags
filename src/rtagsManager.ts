@@ -32,8 +32,8 @@ import * as os from 'os';
 
 import * as util from 'util';
 
-import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, isOpenSourceFile, fromRtagsPosition, parseJson }
-         from './rtagsUtil';
+import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, isOpenSourceFile, fromRtagsPosition, setContext,
+         parseJson } from './rtagsUtil';
 
 enum TaskType
 {
@@ -57,7 +57,7 @@ class ProjectTask
 
     public typeToString(capitalize: boolean = false) : string
     {
-        let str = this.isLoadType() ? "loading" : "reindexing";
+        const str = this.isLoadType() ? "loading" : "reindexing";
         return (capitalize ? (str.charAt(0).toUpperCase() + str.slice(1)) : str);
     }
 
@@ -494,6 +494,30 @@ export class RtagsManager implements Disposable
         return projectPath;
     }
 
+    public addProjectPath(uri: Uri) : void
+    {
+        this.projectPaths.push(uri);
+
+        if (this.projectPaths.length > 1)
+        {
+            setContext("extension.rtags.reindexActiveFolderVisible", true);
+        }
+    }
+
+    public removeProjectPath(uri: Uri) : void
+    {
+        const index = this.projectPaths.findIndex((p) => { return (p.fsPath === uri.fsPath); });
+        if (index !== -1)
+        {
+            this.projectPaths.splice(index, 1);
+        }
+
+        if (this.projectPaths.length <= 1)
+        {
+            setContext("extension.rtags.reindexActiveFolderVisible", false);
+        }
+    }
+
     public isInProject(uri: Uri, projectPath?: Uri) : boolean
     {
         const path = this.getProjectPath(uri);
@@ -581,7 +605,8 @@ export class RtagsManager implements Disposable
             if (projectLoaded)
             {
                 // The project is already loaded into RTags
-                this.projectPaths.push(f.uri);
+                this.addProjectPath(f.uri);
+
                 if (this.diagnosticsEnabled)
                 {
                     if (this.diagnosticsOpenFilesOnly)
@@ -631,20 +656,14 @@ export class RtagsManager implements Disposable
 
     private removeProject(uri: Uri) : void
     {
-        const projectPath = uri.fsPath;
-
-        if (this.currentProjectTask && (projectPath === this.currentProjectTask.uri.fsPath))
+        if (this.currentProjectTask && (uri.fsPath === this.currentProjectTask.uri.fsPath))
         {
             this.currentProjectTask = null;
         }
 
-        this.projectTaskQueue = this.projectTaskQueue.filter((p) => { return (p.uri.fsPath !== projectPath); });
+        this.projectTaskQueue = this.projectTaskQueue.filter((p) => { return (p.uri.fsPath !== uri.fsPath); });
 
-        const index = this.projectPaths.findIndex((p) => { return (p.fsPath === projectPath); });
-        if (index !== -1)
-        {
-            this.projectPaths.splice(index, 1);
-        }
+        this.removeProjectPath(uri);
     }
 
     private updateProjects(event: WorkspaceFoldersChangeEvent) : void
@@ -1023,7 +1042,7 @@ export class RtagsManager implements Disposable
                             {
                                 if (this.currentProjectTask.isLoadType())
                                 {
-                                    this.projectPaths.push(this.currentProjectTask.uri);
+                                    this.addProjectPath(this.currentProjectTask.uri);
                                 }
 
                                 window.showInformationMessage("[RTags] Finished " +

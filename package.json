@@ -98,6 +98,10 @@
             ],
             "commandPalette": [
                 {
+                    "command": "rtags.reindexActiveFolder",
+                    "when": "extension.rtags.reindexActiveFolderVisible"
+                },
+                {
                     "command": "rtags.showCallers",
                     "when": "resourceLangId =~ /^(c|cpp)$/"
                 },
