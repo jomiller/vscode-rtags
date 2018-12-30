@@ -1063,7 +1063,7 @@ export class RtagsManager implements Disposable
                         }
                     };
 
-                    runRc(args, processCallback);
+                runRc(args, processCallback);
             };
 
         this.indexPollTimer = setInterval(intervalCallback, 5000);
