@@ -428,8 +428,7 @@ export class RtagsManager implements Disposable
             {
                 if (event.affectsConfiguration("rtags"))
                 {
-                    let projectPathsToReload =
-                        new Set<string>(this.workspaceState.get<string[]>("rtags.projectPathsToReload", []));
+                    let projectPathsToReload = this.getProjectPathsToReload();
 
                     const origProjectPathCount = projectPathsToReload.size;
 
@@ -443,7 +442,7 @@ export class RtagsManager implements Disposable
 
                     if (projectPathsToReload.size !== origProjectPathCount)
                     {
-                        await this.workspaceState.update("rtags.projectPathsToReload", [...projectPathsToReload]);
+                        await this.setProjectPathsToReload(projectPathsToReload);
                     }
 
                     const reloadAction = "Reload Now";
@@ -494,30 +493,6 @@ export class RtagsManager implements Disposable
         return projectPath;
     }
 
-    public addProjectPath(uri: Uri) : void
-    {
-        this.projectPaths.push(uri);
-
-        if (this.projectPaths.length > 1)
-        {
-            setContext("extension.rtags.reindexActiveFolderVisible", true);
-        }
-    }
-
-    public removeProjectPath(uri: Uri) : void
-    {
-        const index = this.projectPaths.findIndex((p) => { return (p.fsPath === uri.fsPath); });
-        if (index !== -1)
-        {
-            this.projectPaths.splice(index, 1);
-        }
-
-        if (this.projectPaths.length <= 1)
-        {
-            setContext("extension.rtags.reindexActiveFolderVisible", false);
-        }
-    }
-
     public isInProject(uri: Uri, projectPath?: Uri) : boolean
     {
         const path = this.getProjectPath(uri);
@@ -560,6 +535,40 @@ export class RtagsManager implements Disposable
             (file) => { return (isUnsavedSourceFile(file) && this.isInProject(file.uri, projectPath)); });
     }
 
+    private addProjectPath(uri: Uri) : void
+    {
+        this.projectPaths.push(uri);
+
+        if (this.projectPaths.length > 1)
+        {
+            setContext("extension.rtags.reindexActiveFolderVisible", true);
+        }
+    }
+
+    private removeProjectPath(uri: Uri) : void
+    {
+        const index = this.projectPaths.findIndex((p) => { return (p.fsPath === uri.fsPath); });
+        if (index !== -1)
+        {
+            this.projectPaths.splice(index, 1);
+        }
+
+        if (this.projectPaths.length <= 1)
+        {
+            setContext("extension.rtags.reindexActiveFolderVisible", false);
+        }
+    }
+
+    private getProjectPathsToReload() : Set<string>
+    {
+        return new Set<string>(this.workspaceState.get<string[]>("rtags.projectPathsToReload", []));
+    }
+
+    private setProjectPathsToReload(paths: Set<string>) : Thenable<void>
+    {
+        return this.workspaceState.update("rtags.projectPathsToReload", (paths.size !== 0) ? [...paths] : undefined);
+    }
+
     private async addProjects(folders?: WorkspaceFolder[]) : Promise<void>
     {
         if (!folders || (folders.length === 0))
@@ -569,8 +578,7 @@ export class RtagsManager implements Disposable
 
         // Delete projects that need to be reloaded
 
-        const projectPathsToReload =
-            new Set<string>(this.workspaceState.get<string[]>("rtags.projectPathsToReload", []));
+        const projectPathsToReload = this.getProjectPathsToReload();
 
         const origProjectPathCount = projectPathsToReload.size;
 
@@ -591,8 +599,7 @@ export class RtagsManager implements Disposable
 
         if (projectPathsToReload.size !== origProjectPathCount)
         {
-            const paths = (projectPathsToReload.size !== 0) ? [...projectPathsToReload] : undefined;
-            await this.workspaceState.update("rtags.projectPathsToReload", paths);
+            await this.setProjectPathsToReload(projectPathsToReload);
         }
 
         const knownProjectPaths = await getKnownProjectPaths();
