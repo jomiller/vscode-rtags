@@ -48,7 +48,7 @@ class ProjectTask implements Disposable
 {
     constructor(uri: Uri, type: TaskType)
     {
-        this.id = ProjectTask.nextId++;
+        this.id = ProjectTask.getNextId();
         this.uri = uri;
         this.type = type;
     }
@@ -117,6 +117,13 @@ class ProjectTask implements Disposable
     public readonly id: number;
     public readonly uri: Uri;
     public readonly type: TaskType;
+
+    private static getNextId() : number
+    {
+        const id = ProjectTask.nextId;
+        ProjectTask.nextId = (ProjectTask.nextId !== Number.MAX_SAFE_INTEGER) ? (ProjectTask.nextId + 1) : 0;
+        return id;
+    }
 
     private static nextId: number = 0;
     private timer: Nullable<NodeJS.Timer> = null;
