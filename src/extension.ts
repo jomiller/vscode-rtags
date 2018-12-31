@@ -24,7 +24,7 @@ import { RtagsCodeActionProvider } from './codeActionProvider';
 
 import { RtagsCompletionProvider } from './completionProvider';
 
-import { RtagsReferenceProvider } from './definitionProvider';
+import { RtagsReferenceProvider } from './referenceProvider';
 
 import { RtagsSymbolProvider } from './symbolProvider';
 
