@@ -18,10 +18,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { commands, languages, workspace, CancellationToken, Definition, DefinitionProvider, Disposable,
-         DocumentHighlight, DocumentHighlightProvider, Hover, HoverProvider, Location, Position, ProviderResult,
-         ReferenceContext, TextDocument, TypeDefinitionProvider, ImplementationProvider, Range, ReferenceProvider,
-         RenameProvider, TextEditor, TextEditorEdit, Uri, WorkspaceEdit } from 'vscode';
+import { commands, languages, workspace, CancellationToken, Declaration, DeclarationProvider, Definition,
+         DefinitionProvider, Disposable, DocumentHighlight, DocumentHighlightProvider, Hover, HoverProvider, Location,
+         Position, ProviderResult, ReferenceContext, TextDocument, TypeDefinitionProvider, ImplementationProvider,
+         Range, ReferenceProvider, RenameProvider, TextEditor, TextEditorEdit, Uri, WorkspaceEdit } from 'vscode';
 
 import * as assert from 'assert';
 
@@ -36,6 +36,7 @@ import { Optional, SourceFileSelector, SymbolCategory, getRtagsSymbolKinds, isRt
 
 enum ReferenceType
 {
+    Declaration,
     Definition,
     TypeDefinition,
     References,
@@ -76,11 +77,9 @@ function getReferences(uri: Uri, position: Position, queryType: ReferenceType, k
 {
     const location = toRtagsLocation(uri, position);
 
-    const referencesArg = (queryType === ReferenceType.Definition) ? "--follow-location" : "--references";
-
     let args =
     [
-        referencesArg,
+        "--references",
         location,
         "--absolute-path",
         "--no-context"
@@ -88,6 +87,15 @@ function getReferences(uri: Uri, position: Position, queryType: ReferenceType, k
 
     switch (queryType)
     {
+        case ReferenceType.Declaration:
+            args.push("--all-references", "--declaration-only");
+            getRtagsSymbolKinds(SymbolCategory.Declaration).forEach((k) => { args.push("--kind-filter", k); });
+            break;
+
+        case ReferenceType.Definition:
+            args.push("--all-references", "--definition-only");
+            break;
+        
         case ReferenceType.TypeDefinition:
             args.push("--all-references", "--rename", "--definition-only");
             getRtagsSymbolKinds(SymbolCategory.TypeDecl).forEach((k) => { args.push("--kind-filter", k); });
@@ -220,10 +228,11 @@ async function getVariables(uri: Uri, position: Position, projectPath: Uri) : Pr
 }
 
 export class RtagsReferenceProvider implements
+    DeclarationProvider,
     DefinitionProvider,
     TypeDefinitionProvider,
-    ImplementationProvider,
     ReferenceProvider,
+    ImplementationProvider,
     DocumentHighlightProvider,
     RenameProvider,
     HoverProvider,
@@ -266,10 +275,11 @@ export class RtagsReferenceProvider implements
         }
 
         this.disposables.push(
+            languages.registerDeclarationProvider(SourceFileSelector, this),
             languages.registerDefinitionProvider(SourceFileSelector, this),
             languages.registerTypeDefinitionProvider(SourceFileSelector, this),
-            languages.registerImplementationProvider(SourceFileSelector, this),
             languages.registerReferenceProvider(SourceFileSelector, this),
+            languages.registerImplementationProvider(SourceFileSelector, this),
             languages.registerRenameProvider(SourceFileSelector, this),
             languages.registerHoverProvider(SourceFileSelector, this),
             commands.registerTextEditorCommand("rtags.showVariables", showVariablesCallback),
@@ -279,6 +289,17 @@ export class RtagsReferenceProvider implements
     public dispose() : void
     {
         this.disposables.forEach((d) => { d.dispose(); });
+    }
+
+    public provideDeclaration(document: TextDocument, position: Position, _token: CancellationToken) :
+        ProviderResult<Declaration>
+    {
+        if (!this.rtagsMgr.isInProject(document.uri))
+        {
+            return undefined;
+        }
+
+        return getReferences(document.uri, position, ReferenceType.Declaration);
     }
 
     public provideDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
@@ -325,6 +346,22 @@ export class RtagsReferenceProvider implements
         return getSymbolInfo(document.uri, position).then(resolveCallback);
     }
 
+    public provideReferences(document: TextDocument,
+                             position: Position,
+                             context: ReferenceContext,
+                             _token: CancellationToken) :
+        ProviderResult<Location[]>
+    {
+        if (!this.rtagsMgr.isInProject(document.uri))
+        {
+            return [];
+        }
+
+        const queryType = context.includeDeclaration ? ReferenceType.AllReferences : ReferenceType.References;
+
+        return getReferences(document.uri, position, queryType);
+    }
+
     public provideImplementation(document: TextDocument, position: Position, _token: CancellationToken) :
         ProviderResult<Definition>
     {
@@ -350,22 +387,6 @@ export class RtagsReferenceProvider implements
             };
 
         return getSymbolInfo(document.uri, position, true).then(resolveCallback);
-    }
-
-    public provideReferences(document: TextDocument,
-                             position: Position,
-                             context: ReferenceContext,
-                             _token: CancellationToken) :
-        ProviderResult<Location[]>
-    {
-        if (!this.rtagsMgr.isInProject(document.uri))
-        {
-            return [];
-        }
-
-        const queryType = context.includeDeclaration ? ReferenceType.AllReferences : ReferenceType.References;
-
-        return getReferences(document.uri, position, queryType);
     }
 
     public provideDocumentHighlights(document: TextDocument, position: Position, _token: CancellationToken) :

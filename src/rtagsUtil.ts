@@ -34,11 +34,10 @@ export enum SymbolCategory
     Macro,
     Namespace,
     TypeDecl,
-    TypeRef,
-    TypeFunc,
     Type,
     Function,
-    Variable
+    Variable,
+    Declaration
 }
 
 export const SourceFileSelector: DocumentFilter[] =
@@ -47,7 +46,7 @@ export const SourceFileSelector: DocumentFilter[] =
     { language: "cpp", scheme: "file" }
 ];
 
-const RtagsMacroKinds = new Set(
+const RtagsMacroKinds = new Set<string>(
 [
     "macrodefinition",
     "macro definition",
@@ -55,14 +54,14 @@ const RtagsMacroKinds = new Set(
     "macro expansion"
 ]);
 
-const RtagsNamespaceKinds = new Set(
+const RtagsNamespaceKinds = new Set<string>(
 [
     "Namespace",
     "NamespaceAlias",
     "NamespaceRef"
 ]);
 
-const RtagsTypeDeclKinds = new Set(
+const RtagsTypeDeclKinds = new Set<string>(
 [
     "ClassDecl",
     "ClassTemplate",
@@ -77,52 +76,71 @@ const RtagsTypeDeclKinds = new Set(
     "TemplateTemplateParameter"
 ]);
 
-const RtagsTypeRefKinds = new Set(
+const RtagsTypeFuncDeclKinds = new Set<string>(
 [
+    "CXXConstructor",
+    "CXXDestructor"
+]);
+
+const RtagsTypeFuncKinds = new Set<string>(
+[
+    ...RtagsTypeFuncDeclKinds,
+    "CallExpr"
+]);
+
+const RtagsTypeKinds = new Set<string>(
+[
+    ...RtagsTypeDeclKinds,
+    ...RtagsTypeFuncKinds,
     "UsingDeclaration",
     "TypeRef",
     "TemplateRef"
 ]);
 
-const RtagsTypeFuncKinds = new Set(
+const RtagsFunctionDeclKinds = new Set<string>(
 [
-    "CXXConstructor",
-    "CXXDestructor",
-    "CallExpr"
-]);
-
-const RtagsTypeKinds = new Set(
-[
-    ...RtagsTypeDeclKinds,
-    ...RtagsTypeRefKinds,
-    ...RtagsTypeFuncKinds
-]);
-
-const RtagsFunctionKinds = new Set(
-[
-    ...RtagsTypeFuncKinds,
+    ...RtagsTypeFuncDeclKinds,
     "CXXConversion",
     "CXXMethod",
     "FunctionDecl",
-    "FunctionTemplate",
+    "FunctionTemplate"
+]);
+
+const RtagsFunctionKinds = new Set<string>(
+[
+    ...RtagsTypeFuncKinds,
+    ...RtagsFunctionDeclKinds,
     "MemberRefExpr",
     "DeclRefExpr"
 ]);
 
-const RtagsVariableKinds = new Set(
+const RtagsVariableDeclKinds = new Set<string>(
 [
     "FieldDecl",
     "ParmDecl",
     "VarDecl",
     "EnumConstantDecl",
-    "NonTypeTemplateParameter",
+    "NonTypeTemplateParameter"
+]);
+    
+const RtagsVariableKinds = new Set<string>(
+[
+    ...RtagsVariableDeclKinds,
     "MemberRef",
     "VariableRef",
     "MemberRefExpr",
     "DeclRefExpr"
 ]);
 
-const RtagsSymbolKinds = new Set(
+const RtagsDeclarationKinds = new Set<string>(
+[
+    ...RtagsTypeDeclKinds,
+    ...RtagsTypeFuncDeclKinds,
+    ...RtagsFunctionDeclKinds,
+    ...RtagsVariableDeclKinds
+]);
+
+const RtagsSymbolKinds = new Set<string>(
 [
     ...RtagsMacroKinds,
     ...RtagsNamespaceKinds,
@@ -173,14 +191,6 @@ export function getRtagsSymbolKinds(category?: SymbolCategory) : Set<string>
             symbolKinds = RtagsTypeDeclKinds;
             break;
 
-        case SymbolCategory.TypeRef:
-            symbolKinds = RtagsTypeRefKinds;
-            break;
-
-        case SymbolCategory.TypeFunc:
-            symbolKinds = RtagsTypeFuncKinds;
-            break;
-
         case SymbolCategory.Type:
             symbolKinds = RtagsTypeKinds;
             break;
@@ -191,6 +201,10 @@ export function getRtagsSymbolKinds(category?: SymbolCategory) : Set<string>
 
         case SymbolCategory.Variable:
             symbolKinds = RtagsVariableKinds;
+            break;
+
+        case SymbolCategory.Declaration:
+            symbolKinds = RtagsDeclarationKinds;
             break;
 
         default:
