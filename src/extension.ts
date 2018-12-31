@@ -24,7 +24,7 @@ import { RtagsCodeActionProvider } from './codeActionProvider';
 
 import { RtagsCompletionProvider } from './completionProvider';
 
-import { RtagsDefinitionProvider } from './definitionProvider';
+import { RtagsReferenceProvider } from './definitionProvider';
 
 import { RtagsSymbolProvider } from './symbolProvider';
 
@@ -41,7 +41,7 @@ export function activate(context: ExtensionContext) : void
     let rtagsManager = new RtagsManager(context.workspaceState);
     let codeActionProvider = new RtagsCodeActionProvider(rtagsManager);
     let completionProvider = new RtagsCompletionProvider(rtagsManager);
-    let definitionProvider = new RtagsDefinitionProvider(rtagsManager);
+    let referenceProvider = new RtagsReferenceProvider(rtagsManager);
     let symbolProvider = new RtagsSymbolProvider(rtagsManager);
     let callHierarchyProvider = new CallHierarchyProvider(rtagsManager);
     let inheritanceHierarchyProvider = new InheritanceHierarchyProvider(rtagsManager);
@@ -56,7 +56,7 @@ export function activate(context: ExtensionContext) : void
         rtagsManager,
         codeActionProvider,
         completionProvider,
-        definitionProvider,
+        referenceProvider,
         symbolProvider,
         callHierarchyProvider,
         inheritanceHierarchyProvider,

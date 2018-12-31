@@ -219,7 +219,7 @@ async function getVariables(uri: Uri, position: Position, projectPath: Uri) : Pr
     return variableLocations;
 }
 
-export class RtagsDefinitionProvider implements
+export class RtagsReferenceProvider implements
     DefinitionProvider,
     TypeDefinitionProvider,
     ImplementationProvider,
