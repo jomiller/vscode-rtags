@@ -26,6 +26,8 @@ import { ChildProcess, ExecFileOptionsWithStringEncoding, SpawnOptions, execFile
 
 import { setTimeout, clearTimeout, setInterval, clearInterval } from 'timers';
 
+import * as assert from 'assert';
+
 import * as fs from 'fs';
 
 import * as os from 'os';
@@ -42,12 +44,22 @@ enum TaskType
     Reindex
 }
 
-class ProjectTask
+class ProjectTask implements Disposable
 {
     constructor(uri: Uri, type: TaskType)
     {
+        this.id = ProjectTask.nextId++;
         this.uri = uri;
         this.type = type;
+    }
+
+    public dispose()
+    {
+        if (this.timer)
+        {
+            clearInterval(this.timer);
+            this.timer = null;
+        }
     }
 
     public isLoadType() : boolean
@@ -57,12 +69,56 @@ class ProjectTask
 
     public typeToString(capitalize: boolean = false) : string
     {
-        const str = this.isLoadType() ? "loading" : "reindexing";
+        let str: string;
+        if (this.isLoadType())
+        {
+            str = "loading";
+        }
+        else
+        {
+            assert.ok(this.type === TaskType.Reindex);
+            str = "reindexing";
+        }
         return (capitalize ? (str.charAt(0).toUpperCase() + str.slice(1)) : str);
     }
 
-    public uri: Uri;
-    public type: TaskType;
+    public start(stop: (task: ProjectTask) => void) : void
+    {
+        // Keep polling RTags until it is finished indexing the project
+        const intervalCallback =
+            () : void =>
+            {
+                const timeoutMs = 1000;
+
+                const args =
+                [
+                    "--is-indexing=" + this.uri.fsPath,
+                    "--timeout",
+                    timeoutMs.toString()
+                ];
+
+                const processCallback =
+                    (output: string) : void =>
+                    {
+                        const indexing = (output.trim() === "1");
+                        if (!indexing)
+                        {
+                            stop(this);
+                        }
+                    };
+
+                runRc(args, processCallback);
+            };
+
+        this.timer = setInterval(intervalCallback, 5000);
+    }
+
+    public readonly id: number;
+    public readonly uri: Uri;
+    public readonly type: TaskType;
+
+    private static nextId: number = 0;
+    private timer: Nullable<NodeJS.Timer> = null;
 }
 
 interface ResumeTimerInfo
@@ -501,17 +557,30 @@ export class RtagsManager implements Disposable
 
     public isInLoadingProject(uri: Uri) : boolean
     {
-        if (!this.currentProjectTask || !this.currentProjectTask.isLoadType())
+        let candidateTasks: ProjectTask[] = [];
+        for (const task of this.projectTasks.values())
+        {
+            if (task.isLoadType() && (uri.fsPath.startsWith(task.uri.fsPath + '/')))
+            {
+                candidateTasks.push(task);
+            }
+        }
+
+        let projectTask = candidateTasks.pop();
+        for (const task of candidateTasks)
+        {
+            // Assume that the URI belongs to the project with the deepest path
+            if (projectTask && (task.uri.fsPath.length > projectTask.uri.fsPath.length))
+            {
+                projectTask = task;
+            }
+        }
+        if (!projectTask)
         {
             return false;
         }
 
-        const loadingProjectPath = this.currentProjectTask.uri;
-
-        if (!uri.fsPath.startsWith(loadingProjectPath.fsPath + '/'))
-        {
-            return false;
-        }
+        const loadingProjectPath = projectTask.uri;
 
         const projectPath = this.getProjectPath(uri);
         if (!projectPath)
@@ -636,7 +705,6 @@ export class RtagsManager implements Disposable
             }
             else
             {
-                // Add the project to the task queue
                 let taskType = TaskType.Load;
                 if (knownProjectPaths)
                 {
@@ -647,8 +715,7 @@ export class RtagsManager implements Disposable
                     }
                 }
 
-                const task = new ProjectTask(f.uri, taskType);
-                this.processNextProjectTask(task);
+                this.startProjectTask(f.uri, taskType);
             }
         }
     }
@@ -663,12 +730,13 @@ export class RtagsManager implements Disposable
 
     private removeProject(uri: Uri) : void
     {
-        if (this.currentProjectTask && (uri.fsPath === this.currentProjectTask.uri.fsPath))
+        for (const task of this.projectTasks.values())
         {
-            this.currentProjectTask = null;
+            if (task.uri.fsPath === uri.fsPath)
+            {
+                this.stopProjectTask(task);
+            }
         }
-
-        this.projectTaskQueue = this.projectTaskQueue.filter((p) => { return (p.uri.fsPath !== uri.fsPath); });
 
         this.removeProjectPath(uri);
     }
@@ -936,137 +1004,76 @@ export class RtagsManager implements Disposable
         }
 
         // Reindex the project to which the active document belongs
-        const task = new ProjectTask(projectPath, TaskType.Reindex);
-        this.processNextProjectTask(task);
+        this.startProjectTask(projectPath, TaskType.Reindex);
     }
 
     private reindexProjects() : void
     {
-        for (const path of this.projectPaths)
-        {
-            const task = new ProjectTask(path, TaskType.Reindex);
-            this.processNextProjectTask(task);
-        }
+        this.projectPaths.forEach((p) => { this.startProjectTask(p, TaskType.Reindex); });
     }
 
-    private async processNextProjectTask(enqueuedTask?: ProjectTask) : Promise<void>
+    private async startProjectTask(projectPath: Uri, taskType: TaskType) : Promise<void>
     {
-        if (enqueuedTask)
-        {
-            this.projectTaskQueue.push(enqueuedTask);
-        }
+        let status: Optional<boolean> = false;
+        let task = new ProjectTask(projectPath, taskType);
 
-        // Allow indexing only one project at a time because RTags reports only a global status of whether or not
-        // it is currently indexing
-        while (!this.currentProjectTask && (this.projectTaskQueue.length !== 0))
+        if (task.isLoadType())
         {
-            const dequeuedTask = this.projectTaskQueue.shift();
-            this.currentProjectTask = dequeuedTask ? dequeuedTask : null;
+            const config = workspace.getConfiguration("rtags", projectPath);
+            const compilationDatabaseDir = config.get<string>("misc.compilationDatabaseDirectory");
+            const compileCommandsDir =
+                compilationDatabaseDir ? compilationDatabaseDir.replace(/\/*$/, "") : projectPath.fsPath;
+            const compileCommands = compileCommandsDir + "/compile_commands.json";
 
-            if (this.currentProjectTask)
+            status = await fileExists(compileCommands);
+            if (status)
             {
-                const projectPath = this.currentProjectTask.uri;
-
-                switch (this.currentProjectTask.type)
-                {
-                    case TaskType.Load:
-                    case TaskType.Reload:
-                    {
-                        const config = workspace.getConfiguration("rtags", this.currentProjectTask.uri);
-                        const compilationDatabaseDir = config.get<string>("misc.compilationDatabaseDirectory");
-                        const compileCommandsDir =
-                            compilationDatabaseDir ? compilationDatabaseDir.replace(/\/*$/, "") : projectPath.fsPath;
-                        const compileCommands = compileCommandsDir + "/compile_commands.json";
-                        let status: Optional<boolean> = await fileExists(compileCommands);
-                        if (status)
-                        {
-                            status = await runRc(["--load-compile-commands", compileCommandsDir],
-                                                 (_unused) => { return true; });
-                        }
-                        else if ((this.currentProjectTask.type === TaskType.Reload) || compilationDatabaseDir)
-                        {
-                            window.showErrorMessage("[RTags] Could not load project: " + projectPath.fsPath +
-                                                    "; compilation database not found: " + compileCommands);
-                        }
-                        if (!status)
-                        {
-                            this.currentProjectTask = null;
-                        }
-                        break;
-                    }
-
-                    case TaskType.Reindex:
-                    {
-                        const status = await runRc(["--project", projectPath.fsPath, "--reindex"],
-                                                   (_unused) => { return true; },
-                                                   this.getUnsavedSourceFiles(projectPath));
-                        if (!status)
-                        {
-                            this.currentProjectTask = null;
-                        }
-                        break;
-                    }
-                }
-
-                if (this.currentProjectTask)
-                {
-                    window.showInformationMessage("[RTags] " + this.currentProjectTask.typeToString(true) +
-                                                  " project: " + projectPath.fsPath);
-                    this.finishProjectTask();
-                }
+                status = await runRc(["--load-compile-commands", compileCommandsDir],
+                                     (_unused) => { return true; });
+            }
+            else if ((task.type === TaskType.Reload) || compilationDatabaseDir)
+            {
+                window.showErrorMessage("[RTags] Could not load project: " + projectPath.fsPath +
+                                        "; compilation database not found: " + compileCommands);
             }
         }
+        else
+        {
+            assert.ok(task.type === TaskType.Reindex);
+
+            status = await runRc(["--project", projectPath.fsPath, "--reindex"],
+                                 (_unused) => { return true; },
+                                 this.getUnsavedSourceFiles(projectPath));
+        }
+
+        if (status)
+        {
+            window.showInformationMessage("[RTags] " + task.typeToString(true) + " project: " + projectPath.fsPath);
+
+            this.projectTasks.set(task.id, task);
+
+            const stopCallback =
+                (task: ProjectTask) : void =>
+                {
+                    this.stopProjectTask(task);
+
+                    if (task.isLoadType())
+                    {
+                        this.addProjectPath(task.uri);
+                    }
+
+                    window.showInformationMessage("[RTags] Finished " + task.typeToString() + " project: " +
+                                                    task.uri.fsPath);
+                };
+
+            task.start(stopCallback);
+        }
     }
 
-    private finishProjectTask() : void
+    private stopProjectTask(task: ProjectTask) : void
     {
-        // Keep polling RTags until it is finished indexing the project
-        const intervalCallback =
-            () : void =>
-            {
-                const timeoutMs = 1000;
-
-                const args =
-                [
-                    "--is-indexing",
-                    "--timeout",
-                    timeoutMs.toString()
-                ];
-
-                const processCallback =
-                    (output: string) : void =>
-                    {
-                        const indexing = (output.trim() === "1");
-                        if (!indexing)
-                        {
-                            if (this.indexPollTimer)
-                            {
-                                clearInterval(this.indexPollTimer);
-                                this.indexPollTimer = null;
-                            }
-
-                            if (this.currentProjectTask)
-                            {
-                                if (this.currentProjectTask.isLoadType())
-                                {
-                                    this.addProjectPath(this.currentProjectTask.uri);
-                                }
-
-                                window.showInformationMessage("[RTags] Finished " +
-                                                              this.currentProjectTask.typeToString() + " project: " +
-                                                              this.currentProjectTask.uri.fsPath);
-
-                                this.currentProjectTask = null;
-                            }
-
-                            this.processNextProjectTask();
-                        }
-                    };
-
-                runRc(args, processCallback);
-            };
-
-        this.indexPollTimer = setInterval(intervalCallback, 5000);
+        task.dispose();
+        this.projectTasks.delete(task.id);
     }
 
     private startDiagnostics() : void
@@ -1226,8 +1233,7 @@ export class RtagsManager implements Disposable
     }
 
     private workspaceState: Memento;
-    private projectTaskQueue: ProjectTask[] = [];
-    private currentProjectTask: Nullable<ProjectTask> = null;
+    private projectTasks = new Map<number, ProjectTask>();
     private projectPaths: Uri[] = [];
     private diagnosticsEnabled: boolean = true;
     private diagnosticsOpenFilesOnly: boolean = true;
@@ -1237,6 +1243,5 @@ export class RtagsManager implements Disposable
     private reindexDelayTimers = new Map<string, NodeJS.Timer>();
     private suspendedFilePaths = new Set<string>();
     private resumeDelayTimers = new Map<string, ResumeTimerInfo>();
-    private indexPollTimer: Nullable<NodeJS.Timer> = null;
     private disposables: Disposable[] = [];
 }
