@@ -18,8 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { languages, workspace, CancellationToken, CodeActionContext, CodeActionKind, CodeActionProvider, Disposable,
-         ProviderResult, Range, TextDocument, WorkspaceEdit, CodeAction } from 'vscode';
+import { languages, workspace, CancellationToken, CodeAction, CodeActionContext, CodeActionKind, CodeActionProvider,
+         CodeActionProviderMetadata, Disposable, ProviderResult, Range, TextDocument, WorkspaceEdit } from 'vscode';
 
 import { RtagsManager, runRc } from './rtagsManager';
 
@@ -37,7 +37,11 @@ export class RtagsCodeActionProvider implements
         const codeActionsEnabled = config.get<boolean>("codeActions.enabled", true);
         if (codeActionsEnabled)
         {
-            this.disposables.push(languages.registerCodeActionsProvider(SourceFileSelector, this));
+            const metadata: CodeActionProviderMetadata =
+            {
+                providedCodeActionKinds: [CodeActionKind.QuickFix]
+            };
+            this.disposables.push(languages.registerCodeActionsProvider(SourceFileSelector, this, metadata));
         }
     }
 
@@ -48,16 +52,11 @@ export class RtagsCodeActionProvider implements
 
     public provideCodeActions(document: TextDocument,
                               range: Range,
-                              context: CodeActionContext,
+                              _context: CodeActionContext,
                               _token: CancellationToken) :
         ProviderResult<CodeAction[]>
     {
         if (!this.rtagsMgr.isInProject(document.uri))
-        {
-            return [];
-        }
-
-        if ((context.only !== undefined) && (context.only.value !== CodeActionKind.QuickFix.value))
         {
             return [];
         }
