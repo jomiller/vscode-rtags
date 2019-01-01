@@ -252,6 +252,16 @@ export function setContext<T>(name: string, value: T) : void
     commands.executeCommand("setContext", name, value);
 }
 
+export function showContribution(name: string) : void
+{
+    setContext("extension." + name + "Visible", true);
+}
+
+export function hideContribution(name: string) : void
+{
+    setContext("extension." + name + "Visible", false);
+}
+
 export function showReferences(uri: Uri, position: Position, locations: Location[]) : void
 {
     commands.executeCommand("editor.action.showReferences", uri, position, locations);

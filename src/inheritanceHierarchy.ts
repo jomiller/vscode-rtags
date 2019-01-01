@@ -25,8 +25,8 @@ import * as path from 'path';
 
 import { RtagsManager, runRc } from './rtagsManager';
 
-import { Nullable, Optional, Locatable, setContext, showReferences, fromRtagsLocation, toRtagsLocation,
-         jumpToLocation } from './rtagsUtil';
+import { Nullable, Optional, Locatable, showContribution, hideContribution, showReferences, fromRtagsLocation,
+         toRtagsLocation, jumpToLocation } from './rtagsUtil';
 
 enum NodeType
 {
@@ -149,14 +149,14 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
         const inheritanceHierarchyCallback =
             () : void =>
             {
-                setContext("extension.rtags.inheritanceHierarchyVisible", true);
+                showContribution("rtags.inheritanceHierarchy");
                 this.refresh();
             };
 
         const closeInheritanceHierarchyCallback =
             () : void =>
             {
-                setContext("extension.rtags.inheritanceHierarchyVisible", false);
+                hideContribution("rtags.inheritanceHierarchy");
                 this.refresh();
             };
 

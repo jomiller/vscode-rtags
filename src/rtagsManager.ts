@@ -34,8 +34,8 @@ import * as os from 'os';
 
 import * as util from 'util';
 
-import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, isOpenSourceFile, fromRtagsPosition, setContext,
-         parseJson } from './rtagsUtil';
+import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, isOpenSourceFile, fromRtagsPosition, showContribution,
+         hideContribution, parseJson } from './rtagsUtil';
 
 enum TaskType
 {
@@ -618,7 +618,7 @@ export class RtagsManager implements Disposable
 
         if (this.projectPaths.length > 1)
         {
-            setContext("extension.rtags.reindexActiveFolderVisible", true);
+            showContribution("rtags.reindexActiveFolder");
         }
     }
 
@@ -632,7 +632,7 @@ export class RtagsManager implements Disposable
 
         if (this.projectPaths.length <= 1)
         {
-            setContext("extension.rtags.reindexActiveFolderVisible", false);
+            hideContribution("rtags.reindexActiveFolder");
         }
     }
 

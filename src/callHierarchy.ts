@@ -26,7 +26,7 @@ import * as path from 'path';
 import { RtagsManager, runRc } from './rtagsManager';
 
 import { Nullable, Optional, Locatable, SymbolCategory, isRtagsSymbolKind, fromRtagsLocation, toRtagsLocation,
-         parseJson, setContext, showReferences } from './rtagsUtil';
+         parseJson, showContribution, hideContribution, showReferences } from './rtagsUtil';
 
 interface Caller extends Locatable
 {
@@ -171,14 +171,14 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
         const callHierarchyCallback =
             () : void =>
             {
-                setContext("extension.rtags.callHierarchyVisible", true);
+                showContribution("rtags.callHierarchy");
                 this.refresh();
             };
 
         const closeCallHierarchyCallback =
             () : void =>
             {
-                setContext("extension.rtags.callHierarchyVisible", false);
+                hideContribution("rtags.callHierarchy");
                 this.refresh();
             };
 
