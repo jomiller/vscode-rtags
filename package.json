@@ -36,12 +36,12 @@
                 {
                     "id": "rtags.callHierarchy",
                     "name": "Call Hierarchy",
-                    "when": "extension.rtags.callHierarchyVisible"
+                    "when": "rtags.callHierarchy.visible"
                 },
                 {
                     "id": "rtags.inheritanceHierarchy",
                     "name": "Inheritance Hierarchy",
-                    "when": "extension.rtags.inheritanceHierarchyVisible"
+                    "when": "rtags.inheritanceHierarchy.visible"
                 }
             ]
         },
@@ -99,7 +99,7 @@
             "commandPalette": [
                 {
                     "command": "rtags.reindexActiveFolder",
-                    "when": "extension.rtags.reindexActiveFolderVisible"
+                    "when": "rtags.reindexActiveFolder.visible"
                 },
                 {
                     "command": "rtags.showCallers",

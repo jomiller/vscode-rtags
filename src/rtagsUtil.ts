@@ -254,12 +254,12 @@ export function setContext<T>(name: string, value: T) : void
 
 export function showContribution(name: string) : void
 {
-    setContext("extension." + name + "Visible", true);
+    setContext(name + ".visible", true);
 }
 
 export function hideContribution(name: string) : void
 {
-    setContext("extension." + name + "Visible", false);
+    setContext(name + ".visible", false);
 }
 
 export function showReferences(uri: Uri, position: Position, locations: Location[]) : void
