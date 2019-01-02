@@ -490,33 +490,65 @@ export class RtagsManager implements Disposable
         const changeConfigCallback =
             async (event: ConfigurationChangeEvent) : Promise<void> =>
             {
-                if (event.affectsConfiguration("rtags"))
+                // Consider only workspace folders that have not just been opened or closed
+
+                // Copy current list of workspace paths
+                const workspacePaths =
+                    workspace.workspaceFolders ?
+                    new Set<Uri>(workspace.workspaceFolders.map((f) => { return f.uri; })) :
+                    new Set<Uri>();
+
+                // FIXME: onDidChangeConfiguration event fires before workspace.workspaceFolders has been updated
+                //        Allow workspace.workspaceFolders to be updated before continuing
+                await Promise.resolve();
+
+                // Remove workspace paths corresponding to folders that were just closed
+                for (const path of workspacePaths)
                 {
-                    let projectPathsToReload = this.getProjectPathsToReload();
+                    const folderExists =
+                        workspace.workspaceFolders &&
+                        workspace.workspaceFolders.some((f) => { return (f.uri.fsPath === path.fsPath); });
 
-                    const origProjectPathCount = projectPathsToReload.size;
-
-                    for (const path of this.projectPaths)
+                    if (!folderExists)
                     {
-                        if (event.affectsConfiguration("rtags.misc.compilationDatabaseDirectory", path))
-                        {
-                            projectPathsToReload.add(path.fsPath);
-                        }
+                        workspacePaths.delete(path);
                     }
+                }
 
-                    if (projectPathsToReload.size !== origProjectPathCount)
+                const affectsConfig =
+                    (workspacePaths.size !== 0) ?
+                    [...workspacePaths].some((p) => { return event.affectsConfiguration("rtags", p); }) :
+                    event.affectsConfiguration("rtags");
+
+                if (!affectsConfig)
+                {
+                    return;
+                }
+
+                let projectPathsToReload = this.getProjectPathsToReload();
+
+                const origProjectPathCount = projectPathsToReload.size;
+
+                for (const path of this.projectPaths)
+                {
+                    if (event.affectsConfiguration("rtags.misc.compilationDatabaseDirectory", path))
                     {
-                        await this.setProjectPathsToReload(projectPathsToReload);
+                        projectPathsToReload.add(path.fsPath);
                     }
+                }
 
-                    const reloadAction = "Reload Now";
-                    const selectedAction =
-                        await window.showInformationMessage("Reload to apply the configuration change", reloadAction);
+                if (projectPathsToReload.size !== origProjectPathCount)
+                {
+                    await this.setProjectPathsToReload(projectPathsToReload);
+                }
 
-                    if (selectedAction === reloadAction)
-                    {
-                        commands.executeCommand("workbench.action.reloadWindow");
-                    }
+                const reloadAction = "Reload Now";
+                const selectedAction =
+                    await window.showInformationMessage("Reload to apply the configuration change", reloadAction);
+
+                if (selectedAction === reloadAction)
+                {
+                    commands.executeCommand("workbench.action.reloadWindow");
                 }
             };
 
@@ -683,20 +715,20 @@ export class RtagsManager implements Disposable
         const loadedProjectPaths = await getLoadedProjectPaths(knownProjectPaths);
 
         // Consider only VS Code workspace folders, and ignore RTags projects that are not known to VS Code
-        for (const f of folders)
+        for (const folder of folders)
         {
-            const projectLoaded = loadedProjectPaths.some((p) => { return (p.fsPath === f.uri.fsPath); });
+            const projectLoaded = loadedProjectPaths.some((p) => { return (p.fsPath === folder.uri.fsPath); });
             if (projectLoaded)
             {
                 // The project is already loaded into RTags
-                this.addProjectPath(f.uri);
+                this.addProjectPath(folder.uri);
 
                 if (this.diagnosticsEnabled)
                 {
                     if (this.diagnosticsOpenFilesOnly)
                     {
                         // Resend diagnostics for open files in the project
-                        const openSourceFiles = this.getOpenSourceFiles(f.uri);
+                        const openSourceFiles = this.getOpenSourceFiles(folder.uri);
                         if (openSourceFiles.length !== 0)
                         {
                             let args: string[] = [];
@@ -707,7 +739,7 @@ export class RtagsManager implements Disposable
                     else
                     {
                         // Resend diagnostics for all files in the project
-                        runRc(["--project", f.uri.fsPath, "--diagnose-all"]);
+                        runRc(["--project", folder.uri.fsPath, "--diagnose-all"]);
                     }
                 }
             }
@@ -716,14 +748,14 @@ export class RtagsManager implements Disposable
                 let taskType = TaskType.Load;
                 if (knownProjectPaths)
                 {
-                    const projectExists = knownProjectPaths.some((p) => { return (p.fsPath === f.uri.fsPath); });
+                    const projectExists = knownProjectPaths.some((p) => { return (p.fsPath === folder.uri.fsPath); });
                     if (projectExists)
                     {
                         taskType = TaskType.Reload;
                     }
                 }
 
-                this.startProjectTask(f.uri, taskType);
+                this.startProjectTask(folder.uri, taskType);
             }
         }
     }
