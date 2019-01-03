@@ -378,7 +378,7 @@ export class RtagsReferenceProvider implements
                     return Promise.resolve(undefined);
                 }
 
-                if (symbolInfo.virtual || (symbolInfo.target && symbolInfo.target.virtual))
+                if (symbolInfo.virtual || (symbolInfo.targets && symbolInfo.targets[0].virtual))
                 {
                     return getReferences(document.uri, position, ReferenceType.Virtuals);
                 }

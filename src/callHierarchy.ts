@@ -41,12 +41,13 @@ interface SymbolInfoBase
     length: number;
     kind: string;
     type?: string;
+    definition?: boolean;
     virtual?: boolean;
 }
 
 export interface SymbolInfo extends SymbolInfoBase
 {
-    target?: SymbolInfoBase;
+    targets?: SymbolInfoBase[];
 }
 
 function getCallers(uri: Uri, position: Position) : Promise<Optional<Caller[]>>
@@ -98,7 +99,7 @@ function getCallers(uri: Uri, position: Position) : Promise<Optional<Caller[]>>
     return runRc(args, processCallback);
 }
 
-export function getSymbolInfo(uri: Uri, position: Position, includeTarget: boolean = false, timeout: number = 0) :
+export function getSymbolInfo(uri: Uri, position: Position, includeTargets: boolean = false, timeout: number = 0) :
     Promise<Optional<SymbolInfo>>
 {
     const location = toRtagsLocation(uri, position);
@@ -112,7 +113,7 @@ export function getSymbolInfo(uri: Uri, position: Position, includeTarget: boole
         "--json"
     ];
 
-    if (includeTarget)
+    if (includeTargets)
     {
         args.push("--symbol-info-include-targets");
     }
@@ -138,22 +139,28 @@ export function getSymbolInfo(uri: Uri, position: Position, includeTarget: boole
                 length: jsonObj.symbolLength,
                 kind: jsonObj.kind,
                 type: jsonObj.type,
+                definition: jsonObj.definition,
                 virtual: jsonObj.virtual
             };
 
             const targets = jsonObj.targets;
             if (targets && (targets.length !== 0))
             {
-                const targetSymbolInfo: SymbolInfoBase =
+                symbolInfo.targets = [];
+                for (const target of targets)
                 {
-                    location: targets[0].location,
-                    name: targets[0].symbolName,
-                    length: targets[0].symbolLength,
-                    kind: targets[0].kind,
-                    type: targets[0].type,
-                    virtual: targets[0].virtual
-                };
-                symbolInfo.target = targetSymbolInfo;
+                    const targetSymbolInfo: SymbolInfoBase =
+                    {
+                        location: target.location,
+                        name: target.symbolName,
+                        length: target.symbolLength,
+                        kind: target.kind,
+                        type: target.type,
+                        definition: target.definition,
+                        virtual: target.virtual
+                    };
+                    symbolInfo.targets.push(targetSymbolInfo);
+                }
             }
 
             return symbolInfo;
@@ -262,9 +269,9 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                     }
 
                     let containerLocation = new Location(document.uri, position);
-                    if (symbolInfo.target)
+                    if (symbolInfo.targets)
                     {
-                        containerLocation = fromRtagsLocation(symbolInfo.target.location);
+                        containerLocation = fromRtagsLocation(symbolInfo.targets[0].location);
                     }
 
                     const root: Caller =
