@@ -36,8 +36,6 @@ import { Optional, SourceFileSelector, SymbolCategory, getRtagsSymbolKinds, isRt
 
 enum ReferenceType
 {
-    Declaration,
-    Definition,
     TypeDefinition,
     References,
     AllReferences,
@@ -72,6 +70,31 @@ function getLocations(args: string[]) : Promise<Optional<Location[]>>
     return runRc(args, processCallback);
 }
 
+async function getTargets(uri: Uri, position: Position, isTarget: (symbolInfo: SymbolInfo) => boolean) :
+    Promise<Location[]>
+{
+    const symbolInfo = await getSymbolInfo(uri, position, true);
+    if (!symbolInfo)
+    {
+        return [];
+    }
+
+    let targets: Location[] = [];
+
+    if (isTarget(symbolInfo))
+    {
+        targets.push(fromRtagsLocation(symbolInfo.location));
+    }
+
+    if (symbolInfo.targets)
+    {
+        const targetInfo = symbolInfo.targets.filter((t) => { return isTarget(t); });
+        targets.push(...targetInfo.map((t) => { return fromRtagsLocation(t.location); }));
+    }
+
+    return targets;
+}
+
 function getReferences(uri: Uri, position: Position, queryType: ReferenceType, kindFilters?: Set<string>) :
     Promise<Optional<Location[]>>
 {
@@ -87,15 +110,6 @@ function getReferences(uri: Uri, position: Position, queryType: ReferenceType, k
 
     switch (queryType)
     {
-        case ReferenceType.Declaration:
-            args.push("--all-references", "--declaration-only");
-            getRtagsSymbolKinds(SymbolCategory.Declaration).forEach((k) => { args.push("--kind-filter", k); });
-            break;
-
-        case ReferenceType.Definition:
-            args.push("--all-references", "--definition-only");
-            break;
-        
         case ReferenceType.TypeDefinition:
             args.push("--all-references", "--rename", "--definition-only");
             getRtagsSymbolKinds(SymbolCategory.TypeDecl).forEach((k) => { args.push("--kind-filter", k); });
@@ -299,7 +313,13 @@ export class RtagsReferenceProvider implements
             return undefined;
         }
 
-        return getReferences(document.uri, position, ReferenceType.Declaration);
+        const isTargetCallback =
+            (symbolInfo: SymbolInfo) : boolean =>
+            {
+                return (isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Declaration) && !symbolInfo.definition);
+            };
+
+        return getTargets(document.uri, position, isTargetCallback);
     }
 
     public provideDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
@@ -310,7 +330,13 @@ export class RtagsReferenceProvider implements
             return undefined;
         }
 
-        return getReferences(document.uri, position, ReferenceType.Definition);
+        const isTargetCallback =
+            (symbolInfo: SymbolInfo) : boolean =>
+            {
+                return (symbolInfo.definition || isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.MacroDef));
+            };
+
+        return getTargets(document.uri, position, isTargetCallback);
     }
 
     public provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken) :

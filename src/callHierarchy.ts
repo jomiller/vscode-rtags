@@ -149,7 +149,7 @@ export function getSymbolInfo(uri: Uri, position: Position, includeTargets: bool
                 symbolInfo.targets = [];
                 for (const target of targets)
                 {
-                    const targetSymbolInfo: SymbolInfoBase =
+                    const targetInfo: SymbolInfoBase =
                     {
                         location: target.location,
                         name: target.symbolName,
@@ -159,7 +159,7 @@ export function getSymbolInfo(uri: Uri, position: Position, includeTargets: bool
                         definition: target.definition,
                         virtual: target.virtual
                     };
-                    symbolInfo.targets.push(targetSymbolInfo);
+                    symbolInfo.targets.push(targetInfo);
                 }
             }
 

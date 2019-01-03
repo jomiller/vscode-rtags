@@ -31,6 +31,7 @@ export interface Locatable
 
 export enum SymbolCategory
 {
+    MacroDef,
     Macro,
     Namespace,
     TypeDecl,
@@ -46,10 +47,15 @@ export const SourceFileSelector: DocumentFilter[] =
     { language: "cpp", scheme: "file" }
 ];
 
-const RtagsMacroKinds = new Set<string>(
+const RtagsMacroDefKinds = new Set<string>(
 [
     "macrodefinition",
     "macro definition",
+]);
+
+const RtagsMacroKinds = new Set<string>(
+[
+    ...RtagsMacroDefKinds,
     "macroexpansion",
     "macro expansion"
 ]);
@@ -179,6 +185,10 @@ export function getRtagsSymbolKinds(category?: SymbolCategory) : Set<string>
 
     switch (category)
     {
+        case SymbolCategory.MacroDef:
+            symbolKinds = RtagsMacroDefKinds;
+            break;
+
         case SymbolCategory.Macro:
             symbolKinds = RtagsMacroKinds;
             break;
