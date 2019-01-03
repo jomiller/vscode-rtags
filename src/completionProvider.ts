@@ -22,9 +22,9 @@ import { languages, workspace, CancellationToken, CompletionContext, CompletionI
          CompletionItemProvider, CompletionList, Disposable, ParameterInformation, Position, ProviderResult, Range,
          SignatureHelp, SignatureHelpProvider, SignatureInformation, TextDocument } from 'vscode';
 
-import { RtagsManager, runRc } from './rtagsManager';
+import { RtagsManager } from './rtagsManager';
 
-import { Optional, SourceFileSelector, toRtagsLocation, parseJson } from './rtagsUtil';
+import { Optional, SourceFileSelector, toRtagsLocation, parseJson, runRc } from './rtagsUtil';
 
 function toCompletionItemKind(kind: string) : CompletionItemKind
 {

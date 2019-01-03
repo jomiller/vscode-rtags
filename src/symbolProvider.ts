@@ -21,9 +21,9 @@
 import { languages, workspace, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult,
          SymbolInformation, SymbolKind, TextDocument, WorkspaceSymbolProvider } from 'vscode';
 
-import { RtagsManager, runRc } from './rtagsManager';
+import { RtagsManager } from './rtagsManager';
 
-import { Optional, SourceFileSelector, fromRtagsLocation } from './rtagsUtil';
+import { Optional, SourceFileSelector, fromRtagsLocation, runRc } from './rtagsUtil';
 
 function toSymbolKind(kind: string) : Optional<SymbolKind>
 {

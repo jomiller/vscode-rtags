@@ -21,9 +21,9 @@
 import { languages, workspace, CancellationToken, CodeAction, CodeActionContext, CodeActionKind, CodeActionProvider,
          CodeActionProviderMetadata, Disposable, ProviderResult, Range, TextDocument, WorkspaceEdit } from 'vscode';
 
-import { RtagsManager, runRc } from './rtagsManager';
+import { RtagsManager } from './rtagsManager';
 
-import { SourceFileSelector, fromRtagsPosition } from './rtagsUtil';
+import { SourceFileSelector, fromRtagsPosition, runRc } from './rtagsUtil';
 
 export class RtagsCodeActionProvider implements
     CodeActionProvider,

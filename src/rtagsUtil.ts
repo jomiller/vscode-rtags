@@ -21,12 +21,30 @@
 import { commands, languages, window, workspace, DocumentFilter, Location, Position, Range, TextDocument,
          TextDocumentShowOptions, Uri } from 'vscode';
 
+import { ExecFileOptionsWithStringEncoding, execFile } from 'child_process';
+
 export type Nullable<T> = T | null;
 export type Optional<T> = T | undefined;
 
 export interface Locatable
 {
     location: Location;
+}
+
+interface SymbolInfoBase
+{
+    location: string;
+    name: string;
+    length: number;
+    kind: string;
+    type?: string;
+    definition?: boolean;
+    virtual?: boolean;
+}
+
+export interface SymbolInfo extends SymbolInfoBase
+{
+    targets?: SymbolInfoBase[];
 }
 
 export enum SymbolCategory
@@ -128,7 +146,7 @@ const RtagsVariableDeclKinds = new Set<string>(
     "EnumConstantDecl",
     "NonTypeTemplateParameter"
 ]);
-    
+
 const RtagsVariableKinds = new Set<string>(
 [
     ...RtagsVariableDeclKinds,
@@ -288,4 +306,149 @@ export function parseJson(input: string) : any
     {
     }
     return jsonObj;
+}
+
+export function getRcExecutable() : string
+{
+    const config = workspace.getConfiguration("rtags");
+    return config.get<string>("rc.executable", "rc");
+}
+
+export function runRc<T = void>(args: string[], process?: (stdout: string) => T, unsavedFiles: TextDocument[] = []) :
+    Promise<Optional<T>>
+{
+    const executorCallback =
+        (resolve: (value?: T) => void, _reject: (reason?: any) => void) : void =>
+        {
+            let localArgs: string[] = [];
+
+            for (const file of unsavedFiles)
+            {
+                const text = file.uri.fsPath + ':' + file.getText().length.toString();
+                localArgs.push("--unsaved-file", text);
+            }
+
+            const options: ExecFileOptionsWithStringEncoding =
+            {
+                encoding: "utf8",
+                maxBuffer: 4 * 1024 * 1024
+            };
+
+            const exitCallback =
+                (error: Nullable<Error>, stdout: string, stderr: string) : void =>
+                {
+                    if (error)
+                    {
+                        const stderrMsg = stderr.trim();
+                        const stdoutMsg = stdout.trim();
+                        if (stderrMsg || (stdoutMsg && (stdoutMsg !== "null") && (stdoutMsg !== "Not indexed")))
+                        {
+                            let message = "[RTags] ";
+                            if (error.message)
+                            {
+                                message += error.message + " (";
+                            }
+                            message += "Client error: " + (stderrMsg ? stderrMsg : stdoutMsg);
+                            if (error.message)
+                            {
+                                message += ')';
+                            }
+                            window.showErrorMessage(message);
+                        }
+
+                        resolve();
+                    }
+                    else if (process)
+                    {
+                        resolve(process(stdout));
+                    }
+                    else
+                    {
+                        resolve();
+                    }
+                };
+
+            let rc = execFile(getRcExecutable(), args.concat(localArgs), options, exitCallback);
+
+            for (const file of unsavedFiles)
+            {
+                rc.stdin.write(file.getText());
+            }
+            if (unsavedFiles.length !== 0)
+            {
+                rc.stdin.end();
+            }
+        };
+
+    return new Promise<T>(executorCallback);
+}
+
+export function getSymbolInfo(uri: Uri, position: Position, includeTargets: boolean = false, timeout: number = 0) :
+    Promise<Optional<SymbolInfo>>
+{
+    const location = toRtagsLocation(uri, position);
+
+    let args =
+    [
+        "--symbol-info",
+        location,
+        "--absolute-path",
+        "--no-context",
+        "--json"
+    ];
+
+    if (includeTargets)
+    {
+        args.push("--symbol-info-include-targets");
+    }
+
+    if (timeout > 0)
+    {
+        args.push("--timeout", timeout.toString());
+    }
+
+    const processCallback =
+        (output: string) : Optional<SymbolInfo> =>
+        {
+            const jsonObj = parseJson(output);
+            if (!jsonObj)
+            {
+                return undefined;
+            }
+
+            let symbolInfo: SymbolInfo =
+            {
+                location: jsonObj.location,
+                name: jsonObj.symbolName,
+                length: jsonObj.symbolLength,
+                kind: jsonObj.kind,
+                type: jsonObj.type,
+                definition: jsonObj.definition,
+                virtual: jsonObj.virtual
+            };
+
+            const targets = jsonObj.targets;
+            if (targets && (targets.length !== 0))
+            {
+                symbolInfo.targets = [];
+                for (const target of targets)
+                {
+                    const targetInfo: SymbolInfoBase =
+                    {
+                        location: target.location,
+                        name: target.symbolName,
+                        length: target.symbolLength,
+                        kind: target.kind,
+                        type: target.type,
+                        definition: target.definition,
+                        virtual: target.virtual
+                    };
+                    symbolInfo.targets.push(targetInfo);
+                }
+            }
+
+            return symbolInfo;
+        };
+
+    return runRc(args, processCallback);
 }

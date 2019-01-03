@@ -22,7 +22,7 @@ import { commands, languages, window, workspace, ConfigurationChangeEvent, Diagn
          DiagnosticSeverity, Disposable, Memento, Range, TextDocument, TextDocumentChangeEvent,
          TextDocumentWillSaveEvent, Uri, WorkspaceFolder, WorkspaceFoldersChangeEvent } from 'vscode';
 
-import { ChildProcess, ExecFileOptionsWithStringEncoding, SpawnOptions, execFile, spawn } from 'child_process';
+import { ChildProcess, SpawnOptions, execFile, spawn } from 'child_process';
 
 import { setTimeout, clearTimeout, setInterval, clearInterval } from 'timers';
 
@@ -35,7 +35,7 @@ import * as os from 'os';
 import * as util from 'util';
 
 import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, isOpenSourceFile, fromRtagsPosition, showContribution,
-         hideContribution, parseJson } from './rtagsUtil';
+         hideContribution, parseJson, getRcExecutable, runRc } from './rtagsUtil';
 
 enum TaskType
 {
@@ -158,81 +158,6 @@ function fileExists(file: string) : Promise<boolean>
         {
             fs.access(file, fs.constants.F_OK, (err) => { resolve(!err); });
         });
-}
-
-function getRcExecutable() : string
-{
-    const config = workspace.getConfiguration("rtags");
-    return config.get<string>("rc.executable", "rc");
-}
-
-export function runRc<T = void>(args: string[], process?: (stdout: string) => T, unsavedFiles: TextDocument[] = []) :
-    Promise<Optional<T>>
-{
-    const executorCallback =
-        (resolve: (value?: T) => void, _reject: (reason?: any) => void) : void =>
-        {
-            let localArgs: string[] = [];
-
-            for (const file of unsavedFiles)
-            {
-                const text = file.uri.fsPath + ':' + file.getText().length.toString();
-                localArgs.push("--unsaved-file", text);
-            }
-
-            const options: ExecFileOptionsWithStringEncoding =
-            {
-                encoding: "utf8",
-                maxBuffer: 4 * 1024 * 1024
-            };
-
-            const exitCallback =
-                (error: Nullable<Error>, stdout: string, stderr: string) : void =>
-                {
-                    if (error)
-                    {
-                        const stderrMsg = stderr.trim();
-                        const stdoutMsg = stdout.trim();
-                        if (stderrMsg || (stdoutMsg && (stdoutMsg !== "null") && (stdoutMsg !== "Not indexed")))
-                        {
-                            let message = "[RTags] ";
-                            if (error.message)
-                            {
-                                message += error.message + " (";
-                            }
-                            message += "Client error: " + (stderrMsg ? stderrMsg : stdoutMsg);
-                            if (error.message)
-                            {
-                                message += ')';
-                            }
-                            window.showErrorMessage(message);
-                        }
-
-                        resolve();
-                    }
-                    else if (process)
-                    {
-                        resolve(process(stdout));
-                    }
-                    else
-                    {
-                        resolve();
-                    }
-                };
-
-            let rc = execFile(getRcExecutable(), args.concat(localArgs), options, exitCallback);
-
-            for (const file of unsavedFiles)
-            {
-                rc.stdin.write(file.getText());
-            }
-            if (unsavedFiles.length !== 0)
-            {
-                rc.stdin.end();
-            }
-        };
-
-    return new Promise<T>(executorCallback);
 }
 
 function spawnRc(args: string[], ignoreStdio: boolean = false) : ChildProcess

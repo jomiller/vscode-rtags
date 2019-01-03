@@ -23,31 +23,16 @@ import { commands, window, Disposable, Event, EventEmitter, Location, Position, 
 
 import * as path from 'path';
 
-import { RtagsManager, runRc } from './rtagsManager';
+import { RtagsManager } from './rtagsManager';
 
-import { Nullable, Optional, Locatable, SymbolCategory, isRtagsSymbolKind, fromRtagsLocation, toRtagsLocation,
-         parseJson, showContribution, hideContribution, showReferences } from './rtagsUtil';
+import { Nullable, Optional, Locatable, SymbolInfo, SymbolCategory, isRtagsSymbolKind, fromRtagsLocation,
+         toRtagsLocation, showContribution, hideContribution, showReferences, parseJson, runRc, getSymbolInfo }
+         from './rtagsUtil';
 
 interface Caller extends Locatable
 {
     containerName: string;
     containerLocation: Location;
-}
-
-interface SymbolInfoBase
-{
-    location: string;
-    name: string;
-    length: number;
-    kind: string;
-    type?: string;
-    definition?: boolean;
-    virtual?: boolean;
-}
-
-export interface SymbolInfo extends SymbolInfoBase
-{
-    targets?: SymbolInfoBase[];
 }
 
 function getCallers(uri: Uri, position: Position) : Promise<Optional<Caller[]>>
@@ -94,76 +79,6 @@ function getCallers(uri: Uri, position: Position) : Promise<Optional<Caller[]>>
             }
 
             return callers;
-        };
-
-    return runRc(args, processCallback);
-}
-
-export function getSymbolInfo(uri: Uri, position: Position, includeTargets: boolean = false, timeout: number = 0) :
-    Promise<Optional<SymbolInfo>>
-{
-    const location = toRtagsLocation(uri, position);
-
-    let args =
-    [
-        "--symbol-info",
-        location,
-        "--absolute-path",
-        "--no-context",
-        "--json"
-    ];
-
-    if (includeTargets)
-    {
-        args.push("--symbol-info-include-targets");
-    }
-
-    if (timeout > 0)
-    {
-        args.push("--timeout", timeout.toString());
-    }
-
-    const processCallback =
-        (output: string) : Optional<SymbolInfo> =>
-        {
-            const jsonObj = parseJson(output);
-            if (!jsonObj)
-            {
-                return undefined;
-            }
-
-            let symbolInfo: SymbolInfo =
-            {
-                location: jsonObj.location,
-                name: jsonObj.symbolName,
-                length: jsonObj.symbolLength,
-                kind: jsonObj.kind,
-                type: jsonObj.type,
-                definition: jsonObj.definition,
-                virtual: jsonObj.virtual
-            };
-
-            const targets = jsonObj.targets;
-            if (targets && (targets.length !== 0))
-            {
-                symbolInfo.targets = [];
-                for (const target of targets)
-                {
-                    const targetInfo: SymbolInfoBase =
-                    {
-                        location: target.location,
-                        name: target.symbolName,
-                        length: target.symbolLength,
-                        kind: target.kind,
-                        type: target.type,
-                        definition: target.definition,
-                        virtual: target.virtual
-                    };
-                    symbolInfo.targets.push(targetInfo);
-                }
-            }
-
-            return symbolInfo;
         };
 
     return runRc(args, processCallback);
