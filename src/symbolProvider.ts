@@ -80,7 +80,8 @@ function toSymbolKind(kind: string) : Optional<SymbolKind>
     return undefined;
 }
 
-function findSymbols(query: string, args: string[] = []) : Promise<Optional<SymbolInformation[]>>
+function findSymbols(query: string, args: string[] = [], includeFiles: boolean = false) :
+    Promise<Optional<SymbolInformation[]>>
 {
     const localArgs =
     [
@@ -113,7 +114,7 @@ function findSymbols(query: string, args: string[] = []) : Promise<Optional<Symb
                 let symbolKind: Optional<SymbolKind> = undefined;
                 if (!name)
                 {
-                    if (query.length === 0)
+                    if (!includeFiles)
                     {
                         continue;
                     }
@@ -233,7 +234,7 @@ export class RtagsSymbolProvider implements
                 maxSearchResults.toString()
             ];
 
-            const symbols = await findSymbols(query, args);
+            const symbols = await findSymbols(query, args, true);
             if (symbols)
             {
                 workspaceSymbols.push(...symbols);
