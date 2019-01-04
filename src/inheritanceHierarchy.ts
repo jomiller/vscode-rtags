@@ -23,10 +23,10 @@ import { commands, window, Disposable, Event, EventEmitter, Location, Position, 
 
 import * as path from 'path';
 
-import { RtagsManager, runRc } from './rtagsManager';
+import { RtagsManager } from './rtagsManager';
 
-import { Nullable, Optional, Locatable, showContribution, hideContribution, showReferences, fromRtagsLocation,
-         toRtagsLocation, jumpToLocation } from './rtagsUtil';
+import { Nullable, Optional, Locatable, fromRtagsLocation, toRtagsLocation, jumpToLocation, showContribution,
+         hideContribution, showReferences, runRc } from './rtagsUtil';
 
 enum NodeType
 {

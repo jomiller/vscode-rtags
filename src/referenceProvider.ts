@@ -25,14 +25,12 @@ import { commands, languages, workspace, CancellationToken, Declaration, Declara
 
 import * as assert from 'assert';
 
-import { RtagsManager, runRc } from './rtagsManager';
-
-import { SymbolInfo, getSymbolInfo } from './callHierarchy';
+import { RtagsManager } from './rtagsManager';
 
 import { getDerivedClasses } from './inheritanceHierarchy';
 
-import { Optional, SourceFileSelector, SymbolCategory, getRtagsSymbolKinds, isRtagsSymbolKind, fromRtagsLocation,
-         toRtagsLocation, showReferences } from './rtagsUtil';
+import { Optional, SourceFileSelector, SymbolInfo, SymbolCategory, getRtagsSymbolKinds, isRtagsSymbolKind,
+         fromRtagsLocation, toRtagsLocation, showReferences, runRc, getSymbolInfo } from './rtagsUtil';
 
 enum ReferenceType
 {
