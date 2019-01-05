@@ -49,7 +49,6 @@ export interface SymbolInfo extends SymbolInfoBase
 
 export enum SymbolCategory
 {
-    Inclusion,
     MacroDef,
     Macro,
     Namespace,
@@ -65,12 +64,6 @@ export const SourceFileSelector: DocumentFilter[] =
     { language: "c",   scheme: "file" },
     { language: "cpp", scheme: "file" }
 ];
-
-const RtagsInclusionKinds = new Set<string>(
-[
-    "inclusiondirective",
-    "inclusion directive",
-]);
 
 const RtagsMacroDefKinds = new Set<string>(
 [
@@ -210,10 +203,6 @@ export function getRtagsSymbolKinds(category?: SymbolCategory) : Set<string>
 
     switch (category)
     {
-        case SymbolCategory.Inclusion:
-            symbolKinds = RtagsInclusionKinds;
-            break;
-
         case SymbolCategory.MacroDef:
             symbolKinds = RtagsMacroDefKinds;
             break;
@@ -439,7 +428,7 @@ export function getSymbolInfo(uri: Uri, position: Position, includeTargets: bool
             };
 
             const targets = jsonObj.targets;
-            if (targets && (targets.length !== 0))
+            if (targets && (targets.length !== 0) && ((targets.length !== 1) || (targets[0] !== null)))
             {
                 symbolInfo.targets = [];
                 for (const target of targets)
@@ -447,9 +436,9 @@ export function getSymbolInfo(uri: Uri, position: Position, includeTargets: bool
                     const targetInfo: SymbolInfoBase =
                     {
                         location: target.location,
-                        name: target.symbolName,
-                        length: target.symbolLength,
-                        kind: target.kind,
+                        name: target.symbolName ? target.symbolName : "",
+                        length: target.symbolLength ? target.symbolLength : 0,
+                        kind: target.kind ? target.kind : "",
                         type: target.type,
                         definition: target.definition,
                         virtual: target.virtual

@@ -331,10 +331,34 @@ export class RtagsReferenceProvider implements
         const isTargetCallback =
             (symbolInfo: SymbolInfo) : boolean =>
             {
-                return (symbolInfo.definition || isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.MacroDef));
+                return (symbolInfo.definition || (symbolInfo.kind.length === 0) ||
+                        isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.MacroDef));
             };
 
-        return getTargets(document.uri, position, isTargetCallback);
+        // For backward compatibility with RTags before it supported outputting targets of include directives and
+        // break/continue/return statements
+        const resolveCallback =
+            (locations: Location[]) : Promise<Optional<Location[]>> =>
+            {
+                if (locations.length !== 0)
+                {
+                    return Promise.resolve(locations);
+                }
+
+                const location = toRtagsLocation(document.uri, position);
+
+                const args =
+                [
+                    "--follow-location",
+                    location,
+                    "--absolute-path",
+                    "--no-context"
+                ];
+
+                return getLocations(args);
+            };
+
+        return getTargets(document.uri, position, isTargetCallback).then(resolveCallback);
     }
 
     public provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
