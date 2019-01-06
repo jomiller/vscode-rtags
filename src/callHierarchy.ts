@@ -25,7 +25,7 @@ import * as path from 'path';
 
 import { RtagsManager } from './rtagsManager';
 
-import { Nullable, Optional, Locatable, SymbolInfo, SymbolCategory, isRtagsSymbolKind, fromRtagsLocation,
+import { Nullable, Optional, Locatable, SymbolInfo, SymbolBaseCategory, isRtagsSymbolKind, fromRtagsLocation,
          toRtagsLocation, showContribution, hideContribution, showReferences, parseJson, runRc, getSymbolInfo }
          from './rtagsUtil';
 
@@ -118,7 +118,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                 const symbolInfo = await getSymbolInfo(document.uri, position);
 
                 let callers: Optional<Caller[]> = undefined;
-                if (symbolInfo && isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Function))
+                if (symbolInfo && isRtagsSymbolKind(symbolInfo.kind, SymbolBaseCategory.Function))
                 {
                     callers = await getCallers(document.uri, position);
                 }
@@ -178,7 +178,7 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
                         return [];
                     }
 
-                    if (!isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Function))
+                    if (!isRtagsSymbolKind(symbolInfo.kind, SymbolBaseCategory.Function))
                     {
                         return [];
                     }

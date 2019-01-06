@@ -29,8 +29,9 @@ import { RtagsManager } from './rtagsManager';
 
 import { getDerivedClasses } from './inheritanceHierarchy';
 
-import { Optional, SourceFileSelector, SymbolInfo, SymbolCategory, getRtagsSymbolKinds, isRtagsSymbolKind,
-         fromRtagsLocation, toRtagsLocation, showReferences, runRc, getSymbolInfo } from './rtagsUtil';
+import { Optional, SourceFileSelector, SymbolInfo, SymbolBaseCategory, SymbolSubCategory, getRtagsSymbolKinds,
+         isRtagsSymbolKind, fromRtagsLocation, toRtagsLocation, showReferences, runRc, getSymbolInfo }
+         from './rtagsUtil';
 
 enum ReferenceType
 {
@@ -86,7 +87,9 @@ async function getTargets(uri: Uri, position: Position, isTarget: (symbolInfo: S
 
     if (symbolInfo.targets)
     {
-        const targetInfo = symbolInfo.targets.filter((t) => { return isTarget(t); });
+        const targetInfo = symbolInfo.targets.filter(
+            (t) => { return (isTarget(t) && ((t.kind.length === 0) || isRtagsSymbolKind(t.kind, symbolInfo.kind))); });
+
         targets.push(...targetInfo.map((t) => { return fromRtagsLocation(t.location); }));
     }
 
@@ -110,7 +113,7 @@ function getReferences(uri: Uri, position: Position, queryType: ReferenceType, k
     {
         case ReferenceType.TypeDefinition:
             args.push("--all-references", "--rename", "--definition-only");
-            getRtagsSymbolKinds(SymbolCategory.TypeDecl).forEach((k) => { args.push("--kind-filter", k); });
+            getRtagsSymbolKinds(SymbolSubCategory.TypeDecl).forEach((k) => { args.push("--kind-filter", k); });
             break;
 
         case ReferenceType.AllReferences:
@@ -164,7 +167,7 @@ function getReferencesByName(name: string, projectPath: Uri, queryType: Referenc
     {
         case ReferenceType.TypeDefinition:
             args.push("--definition-only");
-            getRtagsSymbolKinds(SymbolCategory.TypeDecl).forEach((k) => { args.push("--kind-filter", k); });
+            getRtagsSymbolKinds(SymbolSubCategory.TypeDecl).forEach((k) => { args.push("--kind-filter", k); });
             break;
 
         case ReferenceType.Constructors:
@@ -211,11 +214,11 @@ async function getVariables(uri: Uri, position: Position, projectPath: Uri) : Pr
 
     let constructorLocations: Optional<Location[]> = undefined;
 
-    if (isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Type))
+    if (isRtagsSymbolKind(symbolInfo.kind, SymbolBaseCategory.Type))
     {
         constructorLocations = await getReferences(uri, position, ReferenceType.Constructors);
     }
-    else if (isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Variable))
+    else if (isRtagsSymbolKind(symbolInfo.kind, SymbolBaseCategory.Variable))
     {
         constructorLocations = await getReferencesForSymbolType(symbolInfo, projectPath, ReferenceType.Constructors);
     }
@@ -314,7 +317,7 @@ export class RtagsReferenceProvider implements
         const isTargetCallback =
             (symbolInfo: SymbolInfo) : boolean =>
             {
-                return (isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Declaration) && !symbolInfo.definition);
+                return (isRtagsSymbolKind(symbolInfo.kind, SymbolSubCategory.Declaration) && !symbolInfo.definition);
             };
 
         return getTargets(document.uri, position, isTargetCallback);
@@ -332,7 +335,7 @@ export class RtagsReferenceProvider implements
             (symbolInfo: SymbolInfo) : boolean =>
             {
                 return (symbolInfo.definition || (symbolInfo.kind.length === 0) ||
-                        isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.MacroDef));
+                        isRtagsSymbolKind(symbolInfo.kind, SymbolSubCategory.MacroDef));
             };
 
         // For backward compatibility with RTags before it supported outputting targets of include directives and
@@ -378,12 +381,12 @@ export class RtagsReferenceProvider implements
                     return Promise.resolve(undefined);
                 }
 
-                if (isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Type))
+                if (isRtagsSymbolKind(symbolInfo.kind, SymbolBaseCategory.Type))
                 {
                     return getReferences(document.uri, position, ReferenceType.TypeDefinition);
                 }
 
-                if (isRtagsSymbolKind(symbolInfo.kind, SymbolCategory.Variable))
+                if (isRtagsSymbolKind(symbolInfo.kind, SymbolBaseCategory.Variable))
                 {
                     return getReferencesForSymbolType(symbolInfo, projectPath, ReferenceType.TypeDefinition);
                 }
@@ -453,24 +456,7 @@ export class RtagsReferenceProvider implements
                     return undefined;
                 }
 
-                let kindFilters = new Set<string>();
-
-                const symbolCategories =
-                [
-                    SymbolCategory.Macro,
-                    SymbolCategory.Namespace,
-                    SymbolCategory.Type,
-                    SymbolCategory.Function,
-                    SymbolCategory.Variable
-                ];
-
-                for (const category of symbolCategories)
-                {
-                    if (isRtagsSymbolKind(symbolInfo.kind, category))
-                    {
-                        getRtagsSymbolKinds(category).forEach(Set.prototype.add, kindFilters);
-                    }
-                }
+                const kindFilters = getRtagsSymbolKinds(symbolInfo.kind);
 
                 if (kindFilters.size === 0)
                 {

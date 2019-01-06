@@ -47,17 +47,23 @@ export interface SymbolInfo extends SymbolInfoBase
     targets?: SymbolInfoBase[];
 }
 
-export enum SymbolCategory
+export enum SymbolBaseCategory
 {
-    MacroDef,
     Macro,
     Namespace,
-    TypeDecl,
     Type,
     Function,
-    Variable,
+    Variable
+}
+
+export enum SymbolSubCategory
+{
+    MacroDef = SymbolBaseCategory.Variable + 1,
+    TypeDecl,
     Declaration
 }
+
+export type SymbolCategory = SymbolBaseCategory | SymbolSubCategory;
 
 export const SourceFileSelector: DocumentFilter[] =
 [
@@ -197,41 +203,41 @@ export function isOpenSourceFile(uri: Uri) : boolean
     return isSourceFile(file);
 }
 
-export function getRtagsSymbolKinds(category?: SymbolCategory) : Set<string>
+function getRtagsSymbolKindsImpl(category?: SymbolCategory) : Set<string>
 {
     let symbolKinds: Set<string>;
 
     switch (category)
     {
-        case SymbolCategory.MacroDef:
-            symbolKinds = RtagsMacroDefKinds;
-            break;
-
-        case SymbolCategory.Macro:
+        case SymbolBaseCategory.Macro:
             symbolKinds = RtagsMacroKinds;
             break;
 
-        case SymbolCategory.Namespace:
+        case SymbolBaseCategory.Namespace:
             symbolKinds = RtagsNamespaceKinds;
             break;
 
-        case SymbolCategory.TypeDecl:
-            symbolKinds = RtagsTypeDeclKinds;
-            break;
-
-        case SymbolCategory.Type:
+        case SymbolBaseCategory.Type:
             symbolKinds = RtagsTypeKinds;
             break;
 
-        case SymbolCategory.Function:
+        case SymbolBaseCategory.Function:
             symbolKinds = RtagsFunctionKinds;
             break;
 
-        case SymbolCategory.Variable:
+        case SymbolBaseCategory.Variable:
             symbolKinds = RtagsVariableKinds;
             break;
 
-        case SymbolCategory.Declaration:
+        case SymbolSubCategory.MacroDef:
+            symbolKinds = RtagsMacroDefKinds;
+            break;
+
+        case SymbolSubCategory.TypeDecl:
+            symbolKinds = RtagsTypeDeclKinds;
+            break;
+
+        case SymbolSubCategory.Declaration:
             symbolKinds = RtagsDeclarationKinds;
             break;
 
@@ -243,9 +249,48 @@ export function getRtagsSymbolKinds(category?: SymbolCategory) : Set<string>
     return symbolKinds;
 }
 
-export function isRtagsSymbolKind(symbolKind: string, category?: SymbolCategory) : boolean
+function getSymbolCategories(symbolKind: string) : SymbolCategory[]
 {
-    return getRtagsSymbolKinds(category).has(symbolKind);
+    let categories: SymbolCategory[] = [];
+    for (const cat in SymbolBaseCategory)
+    {
+        const category = parseInt(cat);
+        if (!isNaN(category) && getRtagsSymbolKindsImpl(category).has(symbolKind))
+        {
+            categories.push(category);
+        }
+    }
+    return categories;
+}
+
+export function isRtagsSymbolKind(symbolKind: string,
+                                  symbolKindOrCategories?: string | SymbolCategory | SymbolCategory[])
+    : boolean
+{
+    if (typeof symbolKindOrCategories === "string")
+    {
+        symbolKindOrCategories = getSymbolCategories(symbolKindOrCategories);
+    }
+    if (symbolKindOrCategories && Array.isArray(symbolKindOrCategories))
+    {
+        return symbolKindOrCategories.some((c) => { return getRtagsSymbolKindsImpl(c).has(symbolKind); });
+    }
+    return getRtagsSymbolKindsImpl(symbolKindOrCategories).has(symbolKind);
+}
+
+export function getRtagsSymbolKinds(symbolKindOrCategories?: string | SymbolCategory | SymbolCategory[]) : Set<string>
+{
+    if (typeof symbolKindOrCategories === "string")
+    {
+        symbolKindOrCategories = getSymbolCategories(symbolKindOrCategories);
+    }
+    if (symbolKindOrCategories && Array.isArray(symbolKindOrCategories))
+    {
+        let symbolKinds = new Set<string>();
+        symbolKindOrCategories.forEach((c) => { getRtagsSymbolKindsImpl(c).forEach(Set.prototype.add, symbolKinds); });
+        return symbolKinds;
+    }
+    return getRtagsSymbolKindsImpl(symbolKindOrCategories);
 }
 
 export function fromRtagsPosition(line: string, column: string) : Position
