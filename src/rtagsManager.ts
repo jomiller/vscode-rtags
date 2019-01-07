@@ -243,7 +243,7 @@ function isRtagsVersionGreater(version: string, referenceVersion: string, orEqua
             ((major === refMajor) && (minor === refMinor) && (database > refDatabase)));
 }
 
-async function checkRtagsRecommendedVersion(rtagsVersion: string, globalState: Memento) : Promise<void>
+async function showRtagsRecommendedVersion(rtagsVersion: string, globalState: Memento) : Promise<void>
 {
     if (!isExtensionUpgraded(globalState))
     {
@@ -383,7 +383,7 @@ async function initializeRtags(globalState: Memento) : Promise<boolean>
         return false;
     }
 
-    checkRtagsRecommendedVersion(rtagsVersion, globalState);
+    showRtagsRecommendedVersion(rtagsVersion, globalState);
 
     return startRdm();
 }
