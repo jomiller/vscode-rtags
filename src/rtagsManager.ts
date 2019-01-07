@@ -39,8 +39,8 @@ import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, isOpenSourceFile
 
 const ExtensionId             = "jomiller.rtags-client";
 const RtagsRepository         = "Andersbakken/rtags";
-const RtagsMinimumVersion     = "2.18";
-const RtagsRecommendedVersion = "2.21";
+const RtagsMinimumVersion     = "2.18.120";
+const RtagsRecommendedVersion = "2.21.126";
 const RtagsRecommendedCommit  = "5f887b6f58be6150bd51f240ad4a7433fa552676";
 
 enum TaskType
@@ -228,12 +228,19 @@ function getRtagsVersion() : Promise<Optional<string>>
     return runRc(["--version"], (output: string) => { return output.trim(); });
 }
 
-function checkRtagsVersion(version: string, minimumVersion: string) : boolean
+function isRtagsVersionGreater(version: string, referenceVersion: string, orEqual: boolean = false) : boolean
 {
-    const [major, minor] = version.split('.');
-    const [minMajor, minMinor] = minimumVersion.split('.');
+    if (orEqual && (version === referenceVersion))
+    {
+        return true;
+    }
 
-    return ((major > minMajor) || ((major === minMajor) && (minor >= minMinor)));
+    const [major, minor, database] = version.split('.');
+    const [refMajor, refMinor, refDatabase] = referenceVersion.split('.');
+
+    return ((major > refMajor) ||
+            ((major === refMajor) && (minor > refMinor)) ||
+            ((major === refMajor) && (minor === refMinor) && (database > refDatabase)));
 }
 
 async function checkRtagsRecommendedVersion(rtagsVersion: string, globalState: Memento) : Promise<void>
@@ -243,7 +250,12 @@ async function checkRtagsRecommendedVersion(rtagsVersion: string, globalState: M
         return;
     }
 
-    if (checkRtagsVersion(rtagsVersion, RtagsRecommendedVersion) && (RtagsRecommendedCommit.length === 0))
+    if (isRtagsVersionGreater(rtagsVersion, RtagsRecommendedVersion))
+    {
+        return;
+    }
+
+    if ((rtagsVersion === RtagsRecommendedVersion) && (RtagsRecommendedCommit.length === 0))
     {
         return;
     }
@@ -260,10 +272,10 @@ async function checkRtagsRecommendedVersion(rtagsVersion: string, globalState: M
     }
 
     const selectedAction =
-        await window.showInformationMessage("[RTags] Extension recommends a newer version of RTags (>= " +
-                                            recommendedVersion + ") than is currently installed (" + rtagsVersion +
-                                            ") for optimal user experience",
-                                            action);
+            await window.showInformationMessage("[RTags] Extension recommends a newer version of RTags (>= " +
+            recommendedVersion + ") than is currently installed (" + rtagsVersion +
+            ") for optimal user experience",
+            action);
 
     if (selectedAction === action)
     {
@@ -364,9 +376,9 @@ async function initializeRtags(globalState: Memento) : Promise<boolean>
         return false;
     }
 
-    if (!checkRtagsVersion(rtagsVersion, RtagsMinimumVersion))
+    if (!isRtagsVersionGreater(rtagsVersion, RtagsMinimumVersion, true))
     {
-        window.showErrorMessage("[RTags] Extension requires a newer version of RTags (>= " + RtagsMinimumVersion +
+        window.showErrorMessage("[RTags] Newer version of RTags required (>= " + RtagsMinimumVersion +
                                 ") than is currently installed (" + rtagsVersion + ")");
         return false;
     }
