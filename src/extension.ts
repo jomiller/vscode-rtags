@@ -38,7 +38,7 @@ import { Locatable, jumpToLocation } from './rtagsUtil';
 
 export function activate(context: ExtensionContext) : void
 {
-    let rtagsManager = new RtagsManager(context.workspaceState);
+    let rtagsManager = new RtagsManager(context.globalState, context.workspaceState);
     let codeActionProvider = new RtagsCodeActionProvider(rtagsManager);
     let completionProvider = new RtagsCompletionProvider(rtagsManager);
     let referenceProvider = new RtagsReferenceProvider(rtagsManager);

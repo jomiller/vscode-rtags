@@ -18,8 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { commands, languages, window, workspace, ConfigurationChangeEvent, Diagnostic, DiagnosticCollection,
-         DiagnosticSeverity, Disposable, Memento, Range, TextDocument, TextDocumentChangeEvent,
+import { commands, extensions, languages, window, workspace, ConfigurationChangeEvent, Diagnostic,
+         DiagnosticCollection, DiagnosticSeverity, Disposable, Memento, Range, TextDocument, TextDocumentChangeEvent,
          TextDocumentWillSaveEvent, Uri, WorkspaceFolder, WorkspaceFoldersChangeEvent } from 'vscode';
 
 import { ChildProcess, SpawnOptions, execFile, spawn } from 'child_process';
@@ -36,6 +36,12 @@ import * as util from 'util';
 
 import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, isOpenSourceFile, fromRtagsPosition, showContribution,
          hideContribution, parseJson, getRcExecutable, runRc } from './rtagsUtil';
+
+const ExtensionId             = "jomiller.rtags-client";
+const RtagsRepository         = "Andersbakken/rtags";
+const RtagsMinimumVersion     = "2.18";
+const RtagsRecommendedVersion = "2.21";
+const RtagsRecommendedCommit  = "5f887b6f58be6150bd51f240ad4a7433fa552676";
 
 enum TaskType
 {
@@ -160,6 +166,30 @@ function fileExists(file: string) : Promise<boolean>
         });
 }
 
+function isExtensionUpgraded(globalState: Memento) : boolean
+{
+    const extension = extensions.getExtension(ExtensionId);
+    if (!extension)
+    {
+        return false;
+    }
+
+    const extVersion: string = extension.packageJSON.version;
+    const [extMajor, extMinor, extPatch] = extVersion.split('.');
+
+    const prevExtVersion = globalState.get<string>("rtags.extensionVersion", "0.0.0");
+    const [prevExtMajor, prevExtMinor, prevExtPatch] = prevExtVersion.split('.');
+
+    if (prevExtVersion !== extVersion)
+    {
+        globalState.update("rtags.extensionVersion", extVersion);
+    }
+
+    return ((extMajor > prevExtMajor) ||
+            ((extMajor === prevExtMajor) && (extMinor > prevExtMinor)) ||
+            ((extMajor === prevExtMajor) && (extMinor === prevExtMinor) && (extPatch > prevExtPatch)));
+}
+
 function spawnRc(args: string[], ignoreStdio: boolean = false) : ChildProcess
 {
     const options: SpawnOptions =
@@ -176,7 +206,7 @@ function testRcProcess() : boolean
     return (rc.pid !== undefined);
 }
 
-async function testRcStatus() : Promise<boolean>
+async function testRcConnection() : Promise<boolean>
 {
     let status = false;
     const execFilePromise = util.promisify(execFile);
@@ -193,15 +223,57 @@ async function testRcStatus() : Promise<boolean>
     return status;
 }
 
-async function startRdm() : Promise<boolean>
+function getRtagsVersion() : Promise<Optional<string>>
 {
-    if (!testRcProcess())
+    return runRc(["--version"], (output: string) => { return output.trim(); });
+}
+
+function checkRtagsVersion(version: string, minimumVersion: string) : boolean
+{
+    const [major, minor] = version.split('.');
+    const [minMajor, minMinor] = minimumVersion.split('.');
+
+    return ((major > minMajor) || ((major === minMajor) && (minor >= minMinor)));
+}
+
+async function checkRtagsRecommendedVersion(rtagsVersion: string, globalState: Memento) : Promise<void>
+{
+    if (!isExtensionUpgraded(globalState))
     {
-        window.showErrorMessage("[RTags] Could not run client; check \"rtags.rc.executable\" setting");
-        return false;
+        return;
     }
 
-    let rcStatus = await testRcStatus();
+    if (checkRtagsVersion(rtagsVersion, RtagsRecommendedVersion) && (RtagsRecommendedCommit.length === 0))
+    {
+        return;
+    }
+
+    let recommendedVersion = RtagsRecommendedVersion;
+    let url = "https://github.com/" + RtagsRepository + "/releases/tag/v" + RtagsRecommendedVersion;
+    let action = RtagsRepository + "@v" + RtagsRecommendedVersion;
+    if (RtagsRecommendedCommit.length !== 0)
+    {
+        const commitAbbrev = RtagsRecommendedCommit.slice(0, 7);
+        recommendedVersion = commitAbbrev;
+        url = "https://github.com/" + RtagsRepository + "/commit/" + RtagsRecommendedCommit;
+        action = RtagsRepository + '@' + commitAbbrev;
+    }
+
+    const selectedAction =
+        await window.showInformationMessage("[RTags] Extension recommends a newer version of RTags (>= " +
+                                            recommendedVersion + ") than is currently installed (" + rtagsVersion +
+                                            ") for optimal user experience",
+                                            action);
+
+    if (selectedAction === action)
+    {
+        commands.executeCommand("vscode.open", Uri.parse(url));
+    }
+}
+
+async function startRdm() : Promise<boolean>
+{
+    let rcStatus = await testRcConnection();
     if (rcStatus)
     {
         // rc connected to rdm successfully
@@ -245,7 +317,7 @@ async function startRdm() : Promise<boolean>
         const delayMs = 1000;
         const timeoutMs = 30 * delayMs;
         const endTimeMs = Date.now() + timeoutMs;
-        while (!(rcStatus = await testRcStatus()))
+        while (!(rcStatus = await testRcConnection()))
         {
             if (Date.now() >= endTimeMs)
             {
@@ -276,6 +348,32 @@ async function startRdm() : Promise<boolean>
     }
 
     return rcStatus;
+}
+
+async function initializeRtags(globalState: Memento) : Promise<boolean>
+{
+    if (!testRcProcess())
+    {
+        window.showErrorMessage("[RTags] Could not run client; check \"rtags.rc.executable\" setting");
+        return false;
+    }
+
+    const rtagsVersion = await getRtagsVersion();
+    if (!rtagsVersion)
+    {
+        return false;
+    }
+
+    if (!checkRtagsVersion(rtagsVersion, RtagsMinimumVersion))
+    {
+        window.showErrorMessage("[RTags] Extension requires a newer version of RTags (>= " + RtagsMinimumVersion +
+                                ") than is currently installed (" + rtagsVersion + ")");
+        return false;
+    }
+
+    checkRtagsRecommendedVersion(rtagsVersion, globalState);
+
+    return startRdm();
 }
 
 function getKnownProjectPaths() : Promise<Optional<Uri[]>>
@@ -382,7 +480,7 @@ function getSuspendedFilePaths(projectPath: Uri, timeout: number = 0) : Promise<
 
 export class RtagsManager implements Disposable
 {
-    constructor(workspaceState: Memento)
+    constructor(globalState: Memento, workspaceState: Memento)
     {
         this.workspaceState = workspaceState;
 
@@ -404,8 +502,8 @@ export class RtagsManager implements Disposable
 
         (async () =>
         {
-            const rdmRunning = await startRdm();
-            if (rdmRunning)
+            const initialized = await initializeRtags(globalState);
+            if (initialized)
             {
                 this.startDiagnostics();
                 this.addProjects(workspace.workspaceFolders);
