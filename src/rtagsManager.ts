@@ -248,26 +248,26 @@ async function checkRtagsRecommendedVersion(rtagsVersion: string, globalState: M
         return;
     }
 
-    let recommendedVersion = RtagsRecommendedVersion;
-    let url = "https://github.com/" + RtagsRepository + "/releases/tag/v" + RtagsRecommendedVersion;
-    let action = RtagsRepository + "@v" + RtagsRecommendedVersion;
+    let version = RtagsRecommendedVersion;
+    let versionUrl = "https://github.com/" + RtagsRepository + "/releases/tag/v" + RtagsRecommendedVersion;
+    let versionAction = RtagsRepository + "@v" + RtagsRecommendedVersion;
     if (RtagsRecommendedCommit.length !== 0)
     {
         const commitAbbrev = RtagsRecommendedCommit.slice(0, 7);
-        recommendedVersion = commitAbbrev;
-        url = "https://github.com/" + RtagsRepository + "/commit/" + RtagsRecommendedCommit;
-        action = RtagsRepository + '@' + commitAbbrev;
+        version = commitAbbrev;
+        versionUrl = "https://github.com/" + RtagsRepository + "/commit/" + RtagsRecommendedCommit;
+        versionAction = RtagsRepository + '@' + commitAbbrev;
     }
 
     const selectedAction =
         await window.showInformationMessage("[RTags] Extension recommends a newer version of RTags (>= " +
-                                            recommendedVersion + ") than is currently installed (" + rtagsVersion +
+                                            version + ") than is currently installed (" + rtagsVersion +
                                             ") for optimal user experience",
-                                            action);
+                                            versionAction);
 
-    if (selectedAction === action)
+    if (selectedAction === versionAction)
     {
-        commands.executeCommand("vscode.open", Uri.parse(url));
+        commands.executeCommand("vscode.open", Uri.parse(versionUrl));
     }
 }
 
