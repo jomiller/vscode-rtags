@@ -272,10 +272,10 @@ async function checkRtagsRecommendedVersion(rtagsVersion: string, globalState: M
     }
 
     const selectedAction =
-            await window.showInformationMessage("[RTags] Extension recommends a newer version of RTags (>= " +
-            recommendedVersion + ") than is currently installed (" + rtagsVersion +
-            ") for optimal user experience",
-            action);
+        await window.showInformationMessage("[RTags] Extension recommends a newer version of RTags (>= " +
+                                            recommendedVersion + ") than is currently installed (" + rtagsVersion +
+                                            ") for optimal user experience",
+                                            action);
 
     if (selectedAction === action)
     {
