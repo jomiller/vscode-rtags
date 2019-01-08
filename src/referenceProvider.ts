@@ -75,8 +75,22 @@ function getLocations(args: string[]) : Promise<Optional<Location[]>>
     return runRc(args, processCallback);
 }
 
+function followLocation(location: string) : Promise<Optional<Location[]>>
+{
+    const args =
+    [
+        "--follow-location",
+        location,
+        "--all-targets",
+        "--absolute-path",
+        "--no-context"
+    ];
+
+    return getLocations(args);
+}
+
 async function getTargets(uri: Uri, position: Position, queryType: TargetType) :
-    Promise<Location[]>
+    Promise<Optional<Location[]>>
 {
     let isTarget: (symbolInfo: SymbolInfo) => boolean;
 
@@ -110,6 +124,11 @@ async function getTargets(uri: Uri, position: Position, queryType: TargetType) :
 
     let targets: Location[] = [];
 
+    if ((queryType === TargetType.Definition) && (symbolInfo.kind === "CallExpr"))
+    {
+        return followLocation(symbolInfo.location);
+    }
+
     if (isTarget(symbolInfo))
     {
         targets.push(fromRtagsLocation(symbolInfo.location));
@@ -123,17 +142,9 @@ async function getTargets(uri: Uri, position: Position, queryType: TargetType) :
         targets.push(...targetInfo.map((t) => { return fromRtagsLocation(t.location); }));
     }
 
-    if ((queryType === TargetType.Definition) && ((targets.length === 0) || (symbolInfo.kind === "CallExpr")))
+    if ((queryType === TargetType.Definition) && ((targets.length === 0)))
     {
-        const args =
-        [
-            "--follow-location",
-            symbolInfo.location,
-            "--absolute-path",
-            "--no-context"
-        ];
-
-        const defTargets = await getLocations(args);
+        const defTargets = await followLocation(symbolInfo.location);
         if (defTargets)
         {
             targets.push(...defTargets);
