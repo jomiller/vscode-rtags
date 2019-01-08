@@ -33,6 +33,12 @@ import { Optional, SourceFileSelector, SymbolInfo, SymbolBaseCategory, SymbolSub
          isRtagsSymbolKind, fromRtagsLocation, toRtagsLocation, showReferences, runRc, getSymbolInfo }
          from './rtagsUtil';
 
+enum TargetType
+{
+    Declaration,
+    Definition
+}
+
 enum ReferenceType
 {
     TypeDefinition,
@@ -69,9 +75,33 @@ function getLocations(args: string[]) : Promise<Optional<Location[]>>
     return runRc(args, processCallback);
 }
 
-async function getTargets(uri: Uri, position: Position, isTarget: (symbolInfo: SymbolInfo) => boolean) :
+async function getTargets(uri: Uri, position: Position, queryType: TargetType) :
     Promise<Location[]>
 {
+    let isTarget: (symbolInfo: SymbolInfo) => boolean;
+
+    if (queryType === TargetType.Definition)
+    {
+        isTarget =
+            (symbolInfo: SymbolInfo) : boolean =>
+            {
+                return (symbolInfo.definition || (symbolInfo.kind.length === 0) ||
+                        isRtagsSymbolKind(symbolInfo.kind,
+                                          [SymbolSubCategory.MacroDef, SymbolSubCategory.NamespaceDef]));
+            };
+    }
+    else
+    {
+        assert.ok(queryType === TargetType.Declaration);
+
+        isTarget =
+            (symbolInfo: SymbolInfo) : boolean =>
+            {
+                return (isRtagsSymbolKind(symbolInfo.kind, SymbolSubCategory.Declaration) &&
+                        !symbolInfo.definition);
+            };
+    }
+
     const symbolInfo = await getSymbolInfo(uri, position, true);
     if (!symbolInfo)
     {
@@ -91,6 +121,23 @@ async function getTargets(uri: Uri, position: Position, isTarget: (symbolInfo: S
             (t) => { return (isTarget(t) && ((t.kind.length === 0) || isRtagsSymbolKind(t.kind, symbolInfo.kind))); });
 
         targets.push(...targetInfo.map((t) => { return fromRtagsLocation(t.location); }));
+    }
+
+    if ((queryType === TargetType.Definition) && ((targets.length === 0) || (symbolInfo.kind === "CallExpr")))
+    {
+        const args =
+        [
+            "--follow-location",
+            symbolInfo.location,
+            "--absolute-path",
+            "--no-context"
+        ];
+
+        const defTargets = await getLocations(args);
+        if (defTargets)
+        {
+            targets.push(...defTargets);
+        }
     }
 
     return targets;
@@ -314,13 +361,7 @@ export class RtagsReferenceProvider implements
             return undefined;
         }
 
-        const isTargetCallback =
-            (symbolInfo: SymbolInfo) : boolean =>
-            {
-                return (isRtagsSymbolKind(symbolInfo.kind, SymbolSubCategory.Declaration) && !symbolInfo.definition);
-            };
-
-        return getTargets(document.uri, position, isTargetCallback);
+        return getTargets(document.uri, position, TargetType.Declaration);
     }
 
     public provideDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
@@ -331,37 +372,7 @@ export class RtagsReferenceProvider implements
             return undefined;
         }
 
-        const isTargetCallback =
-            (symbolInfo: SymbolInfo) : boolean =>
-            {
-                return (symbolInfo.definition || (symbolInfo.kind.length === 0) ||
-                        isRtagsSymbolKind(symbolInfo.kind, SymbolSubCategory.MacroDef));
-            };
-
-        // For backward compatibility with RTags before it supported outputting targets of include directives and
-        // break/continue/return statements
-        const resolveCallback =
-            (locations: Location[]) : Promise<Optional<Location[]>> =>
-            {
-                if (locations.length !== 0)
-                {
-                    return Promise.resolve(locations);
-                }
-
-                const location = toRtagsLocation(document.uri, position);
-
-                const args =
-                [
-                    "--follow-location",
-                    location,
-                    "--absolute-path",
-                    "--no-context"
-                ];
-
-                return getLocations(args);
-            };
-
-        return getTargets(document.uri, position, isTargetCallback).then(resolveCallback);
+        return getTargets(document.uri, position, TargetType.Definition);
     }
 
     public provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken) :

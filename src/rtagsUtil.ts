@@ -59,6 +59,7 @@ export enum SymbolBaseCategory
 export enum SymbolSubCategory
 {
     MacroDef = SymbolBaseCategory.Variable + 1,
+    NamespaceDef,
     TypeDecl,
     Declaration
 }
@@ -84,10 +85,15 @@ const RtagsMacroKinds = new Set<string>(
     "macro expansion"
 ]);
 
-const RtagsNamespaceKinds = new Set<string>(
+const RtagsNamespaceDefKinds = new Set<string>(
 [
     "Namespace",
-    "NamespaceAlias",
+    "NamespaceAlias"
+]);
+
+const RtagsNamespaceKinds = new Set<string>(
+[
+    ...RtagsNamespaceDefKinds,
     "NamespaceRef"
 ]);
 
@@ -231,6 +237,10 @@ function getRtagsSymbolKindsImpl(category?: SymbolCategory) : Set<string>
 
         case SymbolSubCategory.MacroDef:
             symbolKinds = RtagsMacroDefKinds;
+            break;
+
+        case SymbolSubCategory.NamespaceDef:
+            symbolKinds = RtagsNamespaceDefKinds;
             break;
 
         case SymbolSubCategory.TypeDecl:
