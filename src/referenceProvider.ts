@@ -103,59 +103,6 @@ function getTargets(symbolInfo: SymbolInfo, isTarget: (symbolInfo: SymbolInfo) =
     return targets;
 }
 
-async function getDeclarations(uri: Uri, position: Position) : Promise<Location[]>
-{
-    const symbolInfo = await getSymbolInfo(uri, position, true);
-    if (!symbolInfo)
-    {
-        return [];
-    }
-
-    const isDeclarationCallback =
-        (symbolInfo: SymbolInfo) : boolean =>
-        {
-            return (isRtagsSymbolKind(symbolInfo.kind, SymbolSubCategory.Declaration) &&
-                    !symbolInfo.definition);
-        };
-
-    return getTargets(symbolInfo, isDeclarationCallback);
-}
-
-async function getDefinitions(uri: Uri, position: Position) : Promise<Optional<Location[]>>
-{
-    const symbolInfo = await getSymbolInfo(uri, position, true);
-    if (!symbolInfo)
-    {
-        return [];
-    }
-
-    if (symbolInfo.kind === "CallExpr")
-    {
-        return followLocation(symbolInfo.location);
-    }
-
-    const isDefinitionCallback =
-        (symbolInfo: SymbolInfo) : boolean =>
-        {
-            return (symbolInfo.definition || (symbolInfo.kind.length === 0) ||
-                    isRtagsSymbolKind(symbolInfo.kind,
-                                      [SymbolSubCategory.MacroDef, SymbolSubCategory.NamespaceDef]));
-        };
-
-    let definitions = getTargets(symbolInfo, isDefinitionCallback);
-
-    if (definitions.length === 0)
-    {
-        const followDefs = await followLocation(symbolInfo.location);
-        if (followDefs)
-        {
-            definitions.push(...followDefs);
-        }
-    }
-
-    return definitions;
-}
-
 function getReferences(uri: Uri, position: Position, queryType: ReferenceType, kindFilters?: Set<string>) :
     Promise<Optional<Location[]>>
 {
@@ -374,7 +321,25 @@ export class RtagsReferenceProvider implements
             return undefined;
         }
 
-        return getDeclarations(document.uri, position);
+        const resolveCallback =
+            (symbolInfo?: SymbolInfo) : Location[] =>
+            {
+                if (!symbolInfo)
+                {
+                    return [];
+                }
+
+                const isDeclarationCallback =
+                    (symbolInfo: SymbolInfo) : boolean =>
+                    {
+                        return (isRtagsSymbolKind(symbolInfo.kind, SymbolSubCategory.Declaration) &&
+                                !symbolInfo.definition);
+                    };
+
+                return getTargets(symbolInfo, isDeclarationCallback);
+            };
+
+        return getSymbolInfo(document.uri, position, true).then(resolveCallback);
     }
 
     public provideDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
@@ -385,7 +350,42 @@ export class RtagsReferenceProvider implements
             return undefined;
         }
 
-        return getDefinitions(document.uri, position);
+        const resolveCallback =
+            async (symbolInfo?: SymbolInfo) : Promise<Optional<Location[]>> =>
+            {
+                if (!symbolInfo)
+                {
+                    return undefined;
+                }
+
+                if (symbolInfo.kind === "CallExpr")
+                {
+                    return followLocation(symbolInfo.location);
+                }
+
+                const isDefinitionCallback =
+                    (symbolInfo: SymbolInfo) : boolean =>
+                    {
+                        return (symbolInfo.definition || (symbolInfo.kind.length === 0) ||
+                                isRtagsSymbolKind(symbolInfo.kind,
+                                                  [SymbolSubCategory.MacroDef, SymbolSubCategory.NamespaceDef]));
+                    };
+
+                let definitions = getTargets(symbolInfo, isDefinitionCallback);
+
+                if (definitions.length === 0)
+                {
+                    const followDefs = await followLocation(symbolInfo.location);
+                    if (followDefs)
+                    {
+                        definitions.push(...followDefs);
+                    }
+                }
+
+                return definitions;
+            };
+
+        return getSymbolInfo(document.uri, position, true).then(resolveCallback);
     }
 
     public provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
