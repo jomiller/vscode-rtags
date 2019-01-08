@@ -39,8 +39,8 @@ import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, isOpenSourceFile
 
 const ExtensionId             = "jomiller.rtags-client";
 const RtagsRepository         = "Andersbakken/rtags";
-const RtagsMinimumVersion     = "2.18.120";
-const RtagsRecommendedVersion = "2.21.126";
+const RtagsMinimumVersion     = "2.18";
+const RtagsRecommendedVersion = "2.21";
 const RtagsRecommendedCommit  = "5f887b6f58be6150bd51f240ad4a7433fa552676";
 
 enum TaskType
@@ -225,7 +225,33 @@ async function testRcConnection() : Promise<boolean>
 
 function getRtagsVersion() : Promise<Optional<string>>
 {
-    return runRc(["--version"], (output: string) => { return output.trim(); });
+    const processCallback =
+        (output: string) : string =>
+        {
+            const trimmedOutput = output.trim();
+            const databaseIndex = trimmedOutput.lastIndexOf('.');
+            return ((databaseIndex !== -1) ? trimmedOutput.slice(0, databaseIndex) : trimmedOutput);
+        };
+
+    return runRc(["--version"], processCallback);
+}
+
+function getRtagsRecommendedVersionInfo() : {version: string, linkUrl: string, linkText: string}
+{
+    let version: string;
+    let url: string;
+    if (RtagsRecommendedCommit.length !== 0)
+    {
+        version = RtagsRecommendedCommit.slice(0, 7);
+        url = "https://github.com/" + RtagsRepository + "/commit/" + RtagsRecommendedCommit;
+    }
+    else
+    {
+        version = 'v' + RtagsRecommendedVersion;
+        url = "https://github.com/" + RtagsRepository + "/releases/tag/" + version;
+    }
+
+    return {version: version, linkUrl: url, linkText: RtagsRepository + "@" + version};
 }
 
 function isRtagsVersionGreater(version: string, referenceVersion: string, orEqual: boolean = false) : boolean
@@ -235,51 +261,48 @@ function isRtagsVersionGreater(version: string, referenceVersion: string, orEqua
         return true;
     }
 
-    const [major, minor, database] = version.split('.');
-    const [refMajor, refMinor, refDatabase] = referenceVersion.split('.');
+    const [major, minor] = version.split('.');
+    const [refMajor, refMinor] = referenceVersion.split('.');
 
-    return ((major > refMajor) ||
-            ((major === refMajor) && (minor > refMinor)) ||
-            ((major === refMajor) && (minor === refMinor) && (database > refDatabase)));
+    return ((major > refMajor) || ((major === refMajor) && (minor > refMinor)));
 }
 
-async function showRtagsRecommendedVersion(rtagsVersion: string, globalState: Memento) : Promise<void>
+async function showRtagsRecommendedVersion(currentVersion: string, globalState: Memento) : Promise<void>
 {
     if (!isExtensionUpgraded(globalState))
     {
         return;
     }
 
-    if (isRtagsVersionGreater(rtagsVersion, RtagsRecommendedVersion))
+    if (isRtagsVersionGreater(currentVersion, RtagsRecommendedVersion))
     {
         return;
     }
 
-    if ((rtagsVersion === RtagsRecommendedVersion) && (RtagsRecommendedCommit.length === 0))
+    if ((currentVersion === RtagsRecommendedVersion) && (RtagsRecommendedCommit.length === 0))
     {
         return;
     }
 
-    let version = RtagsRecommendedVersion;
-    let versionUrl = "https://github.com/" + RtagsRepository + "/releases/tag/v" + RtagsRecommendedVersion;
-    let versionAction = RtagsRepository + "@v" + RtagsRecommendedVersion;
-    if (RtagsRecommendedCommit.length !== 0)
+    const recommendedVersionInfo = getRtagsRecommendedVersionInfo();
+
+    let message = "[Rtags] ";
+    if (currentVersion === RtagsRecommendedVersion)
     {
-        const commitAbbrev = RtagsRecommendedCommit.slice(0, 7);
-        version = commitAbbrev;
-        versionUrl = "https://github.com/" + RtagsRepository + "/commit/" + RtagsRecommendedCommit;
-        versionAction = RtagsRepository + '@' + commitAbbrev;
+        message += "Recommended RTags version: " + recommendedVersionInfo.version;
+    }
+    else
+    {
+        message += "Newer version of RTags is recommended\n" +
+                   "        Recommended version: " + recommendedVersionInfo.version + '\n' +
+                   "        Installed version:   v" + currentVersion;
     }
 
-    const selectedAction =
-        await window.showInformationMessage("[RTags] Newer version of RTags recommended (>= " + version +
-                                            "), than is currently installed (" + rtagsVersion +
-                                            "), for best user experience",
-                                            versionAction);
+    const selectedAction = await window.showInformationMessage(message, recommendedVersionInfo.linkText);
 
-    if (selectedAction === versionAction)
+    if (selectedAction === recommendedVersionInfo.linkText)
     {
-        commands.executeCommand("vscode.open", Uri.parse(versionUrl));
+        commands.executeCommand("vscode.open", Uri.parse(recommendedVersionInfo.linkUrl));
     }
 }
 
@@ -378,8 +401,24 @@ async function initializeRtags(globalState: Memento) : Promise<boolean>
 
     if (!isRtagsVersionGreater(rtagsVersion, RtagsMinimumVersion, true))
     {
-        window.showErrorMessage("[RTags] Newer version of RTags required (>= " + RtagsMinimumVersion +
-                                ") than is currently installed (" + rtagsVersion + ")");
+        const recommendedVersionInfo = getRtagsRecommendedVersionInfo();
+
+        const message = "[RTags] Newer version of RTags is required\n" +
+                        "        Minimum version:     v" + RtagsMinimumVersion + '\n' +
+                        "        Recommended version: " + recommendedVersionInfo.version + '\n' +
+                        "        Installed version:   v" + rtagsVersion;
+
+        const resolveCallback =
+            (selectedAction?: string) : void =>
+            {
+                if (selectedAction === recommendedVersionInfo.linkText)
+                {
+                    commands.executeCommand("vscode.open", Uri.parse(recommendedVersionInfo.linkUrl));
+                }
+            };
+
+        window.showErrorMessage(message, recommendedVersionInfo.linkText).then(resolveCallback);
+
         return false;
     }
 
