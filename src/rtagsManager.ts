@@ -286,16 +286,16 @@ async function showRtagsRecommendedVersion(currentVersion: string, globalState: 
 
     const recommendedVersionInfo = getRtagsRecommendedVersionInfo();
 
-    let message = "[Rtags] ";
+    let message = "[RTags] ";
     if (currentVersion === RtagsRecommendedVersion)
     {
-        message += "Recommended RTags version: " + recommendedVersionInfo.version;
+        message += "Recommended RTags version: >= " + recommendedVersionInfo.version;
     }
     else
     {
-        message += "Newer version of RTags is recommended\n" +
-                   "        Recommended version: " + recommendedVersionInfo.version + '\n' +
-                   "        Installed version:   v" + currentVersion;
+        message += "Newer version of RTags is recommended" +
+                   ". Installed version: v" + currentVersion +
+                   ". Recommended version: >= " + recommendedVersionInfo.version;
     }
 
     const selectedAction = await window.showInformationMessage(message, recommendedVersionInfo.linkText);
@@ -319,8 +319,8 @@ async function startRdm() : Promise<boolean>
     const rdmAutoLaunch = config.get<boolean>("rdm.autoLaunch", true);
     if (!rdmAutoLaunch)
     {
-        window.showErrorMessage("[RTags] Server is not running and auto-launch is disabled; " +
-                                "launch server manually or enable \"rtags.rdm.autoLaunch\" setting");
+        window.showErrorMessage("[RTags] Server is not running and auto-launch is disabled. " +
+                                "Launch server manually or enable \"rtags.rdm.autoLaunch\" setting.");
         return false;
     }
 
@@ -370,7 +370,7 @@ async function startRdm() : Promise<boolean>
             (_code: number, _signal: string) : void =>
             {
                 // Restart the server if it was killed unexpectedly
-                window.showErrorMessage("[RTags] Server stopped; restarting");
+                window.showErrorMessage("[RTags] Server stopped running. Restarting it.");
                 setTimeout(() => { startRdm(); }, 5000);
             };
 
@@ -378,8 +378,8 @@ async function startRdm() : Promise<boolean>
     }
     else
     {
-        window.showErrorMessage("[RTags] Could not start server; " +
-                                "check \"rtags.rdm.executable\" and \"rtags.rdm.arguments\" settings");
+        window.showErrorMessage("[RTags] Could not start server. " +
+                                "Check \"rtags.rdm.executable\" and \"rtags.rdm.arguments\" settings.");
     }
 
     return rcStatus;
@@ -389,7 +389,7 @@ async function initializeRtags(globalState: Memento) : Promise<boolean>
 {
     if (!testRcProcess())
     {
-        window.showErrorMessage("[RTags] Could not run client; check \"rtags.rc.executable\" setting");
+        window.showErrorMessage("[RTags] Could not run client. Check \"rtags.rc.executable\" setting.");
         return false;
     }
 
@@ -403,10 +403,10 @@ async function initializeRtags(globalState: Memento) : Promise<boolean>
     {
         const recommendedVersionInfo = getRtagsRecommendedVersionInfo();
 
-        const message = "[RTags] Newer version of RTags is required\n" +
-                        "        Minimum version:     v" + RtagsMinimumVersion + '\n' +
-                        "        Recommended version: " + recommendedVersionInfo.version + '\n' +
-                        "        Installed version:   v" + rtagsVersion;
+        const message = "[RTags] Newer version of RTags is required" +
+                        ". Installed version: v" + rtagsVersion +
+                        ". Minimum version: v" + RtagsMinimumVersion +
+                        ". Recommended version: >= " + recommendedVersionInfo.version;
 
         const resolveCallback =
             (selectedAction?: string) : void =>
@@ -1148,7 +1148,7 @@ export class RtagsManager implements Disposable
             else if ((task.type === TaskType.Reload) || compilationDatabaseDir)
             {
                 window.showErrorMessage("[RTags] Could not load project: " + projectPath.fsPath +
-                                        "; compilation database not found: " + compileCommands);
+                                        ". Compilation database not found: " + compileCommands);
             }
         }
         else
@@ -1221,7 +1221,7 @@ export class RtagsManager implements Disposable
                 if (this.diagnosticsEnabled)
                 {
                     // Restart the diagnostics process if it was killed unexpectedly
-                    window.showErrorMessage("[RTags] Diagnostics stopped; restarting");
+                    window.showErrorMessage("[RTags] Diagnostics process stopped running. Restarting it.");
                     setTimeout(() => { this.startDiagnostics(); }, 5000);
                 }
                 else if (this.diagnosticCollection)
