@@ -33,12 +33,6 @@ import { Optional, SourceFileSelector, SymbolInfo, SymbolBaseCategory, SymbolSub
          isRtagsSymbolKind, fromRtagsLocation, toRtagsLocation, showReferences, runRc, getSymbolInfo }
          from './rtagsUtil';
 
-enum TargetType
-{
-    Declaration,
-    Definition
-}
-
 enum ReferenceType
 {
     TypeDefinition,
@@ -89,45 +83,9 @@ function followLocation(location: string) : Promise<Optional<Location[]>>
     return getLocations(args);
 }
 
-async function getTargets(uri: Uri, position: Position, queryType: TargetType) :
-    Promise<Optional<Location[]>>
+function getTargets(symbolInfo: SymbolInfo, isTarget: (symbolInfo: SymbolInfo) => boolean) : Location[]
 {
-    let isTarget: (symbolInfo: SymbolInfo) => boolean;
-
-    if (queryType === TargetType.Definition)
-    {
-        isTarget =
-            (symbolInfo: SymbolInfo) : boolean =>
-            {
-                return (symbolInfo.definition || (symbolInfo.kind.length === 0) ||
-                        isRtagsSymbolKind(symbolInfo.kind,
-                                          [SymbolSubCategory.MacroDef, SymbolSubCategory.NamespaceDef]));
-            };
-    }
-    else
-    {
-        assert.ok(queryType === TargetType.Declaration);
-
-        isTarget =
-            (symbolInfo: SymbolInfo) : boolean =>
-            {
-                return (isRtagsSymbolKind(symbolInfo.kind, SymbolSubCategory.Declaration) &&
-                        !symbolInfo.definition);
-            };
-    }
-
-    const symbolInfo = await getSymbolInfo(uri, position, true);
-    if (!symbolInfo)
-    {
-        return [];
-    }
-
     let targets: Location[] = [];
-
-    if ((queryType === TargetType.Definition) && (symbolInfo.kind === "CallExpr"))
-    {
-        return followLocation(symbolInfo.location);
-    }
 
     if (isTarget(symbolInfo))
     {
@@ -142,16 +100,60 @@ async function getTargets(uri: Uri, position: Position, queryType: TargetType) :
         targets.push(...targetInfo.map((t) => { return fromRtagsLocation(t.location); }));
     }
 
-    if ((queryType === TargetType.Definition) && ((targets.length === 0)))
+    return targets;
+}
+
+async function getDeclarations(uri: Uri, position: Position) : Promise<Location[]>
+{
+    const symbolInfo = await getSymbolInfo(uri, position, true);
+    if (!symbolInfo)
     {
-        const defTargets = await followLocation(symbolInfo.location);
-        if (defTargets)
+        return [];
+    }
+
+    const isDeclarationCallback =
+        (symbolInfo: SymbolInfo) : boolean =>
         {
-            targets.push(...defTargets);
+            return (isRtagsSymbolKind(symbolInfo.kind, SymbolSubCategory.Declaration) &&
+                    !symbolInfo.definition);
+        };
+
+    return getTargets(symbolInfo, isDeclarationCallback);
+}
+
+async function getDefinitions(uri: Uri, position: Position) : Promise<Optional<Location[]>>
+{
+    const symbolInfo = await getSymbolInfo(uri, position, true);
+    if (!symbolInfo)
+    {
+        return [];
+    }
+
+    if (symbolInfo.kind === "CallExpr")
+    {
+        return followLocation(symbolInfo.location);
+    }
+
+    const isDefinitionCallback =
+        (symbolInfo: SymbolInfo) : boolean =>
+        {
+            return (symbolInfo.definition || (symbolInfo.kind.length === 0) ||
+                    isRtagsSymbolKind(symbolInfo.kind,
+                                      [SymbolSubCategory.MacroDef, SymbolSubCategory.NamespaceDef]));
+        };
+
+    let definitions = getTargets(symbolInfo, isDefinitionCallback);
+
+    if (definitions.length === 0)
+    {
+        const followDefs = await followLocation(symbolInfo.location);
+        if (followDefs)
+        {
+            definitions.push(...followDefs);
         }
     }
 
-    return targets;
+    return definitions;
 }
 
 function getReferences(uri: Uri, position: Position, queryType: ReferenceType, kindFilters?: Set<string>) :
@@ -372,7 +374,7 @@ export class RtagsReferenceProvider implements
             return undefined;
         }
 
-        return getTargets(document.uri, position, TargetType.Declaration);
+        return getDeclarations(document.uri, position);
     }
 
     public provideDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
@@ -383,7 +385,7 @@ export class RtagsReferenceProvider implements
             return undefined;
         }
 
-        return getTargets(document.uri, position, TargetType.Definition);
+        return getDefinitions(document.uri, position);
     }
 
     public provideTypeDefinition(document: TextDocument, position: Position, _token: CancellationToken) :
