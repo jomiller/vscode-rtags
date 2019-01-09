@@ -327,8 +327,8 @@ async function startRdm() : Promise<boolean>
     const rdmExecutable = config.get<string>("rdm.executable", "rdm");
     let rdmArguments = config.get<string[]>("rdm.arguments", []);
 
-    const jobCountArg = rdmArguments.find((arg) => { return (/^(-j=?(\d+)?|--job-count(=(\d+)?)?)$/).test(arg); });
-    if (!jobCountArg)
+    const jobCountExists = rdmArguments.some((arg) => { return (/^(-j=?(\d+)?|--job-count(=(\d+)?)?)$/).test(arg); });
+    if (!jobCountExists)
     {
         const logicalCpuCount = os.cpus().length;
         const jobCount = Math.max(1, logicalCpuCount / 2);
