@@ -553,8 +553,8 @@ export class RtagsManager implements Disposable
 
         (async () =>
         {
-            const initialized = await initializeRtags(globalState);
-            if (initialized)
+            this.rtagsInitialized = initializeRtags(globalState);
+            if (await this.rtagsInitialized)
             {
                 this.startDiagnostics();
                 this.addProjects(workspace.workspaceFolders);
@@ -855,10 +855,13 @@ export class RtagsManager implements Disposable
         this.removeProjectPath(uri);
     }
 
-    private updateProjects(event: WorkspaceFoldersChangeEvent) : void
+    private async updateProjects(event: WorkspaceFoldersChangeEvent) : Promise<void>
     {
-        this.removeProjects(event.removed);
-        this.addProjects(event.added);
+        if (await this.rtagsInitialized)
+        {
+            this.removeProjects(event.removed);
+            this.addProjects(event.added);
+        }
     }
 
     private reindexFile(file: TextDocument, force?: boolean) : void
@@ -1347,6 +1350,7 @@ export class RtagsManager implements Disposable
     }
 
     private workspaceState: Memento;
+    private rtagsInitialized: Promise<boolean> = Promise.resolve(false);
     private projectTasks = new Map<number, ProjectTask>();
     private projectPaths: Uri[] = [];
     private diagnosticsEnabled: boolean = true;
