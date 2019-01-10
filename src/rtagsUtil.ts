@@ -454,10 +454,10 @@ export function runRc<T = void>(args: string[], process?: (stdout: string) => T,
                     }
                 };
 
-            const rcExec = getRcExecutable();
+            const rcExe = getRcExecutable();
             const rcArgs = args.concat(localArgs);
 
-            let rc = safeExecFile(rcExec, rcArgs, options, exitCallback);
+            let rc = safeExecFile(rcExe, rcArgs, options, exitCallback);
 
             if (rc)
             {
@@ -472,7 +472,7 @@ export function runRc<T = void>(args: string[], process?: (stdout: string) => T,
             }
             else
             {
-                window.showErrorMessage("[RTags] Command failed: " + rcExec + ' ' + rcArgs.join(' '));
+                window.showErrorMessage("[RTags] Command failed: " + rcExe + ' ' + rcArgs.join(' '));
 
                 resolve();
             }
