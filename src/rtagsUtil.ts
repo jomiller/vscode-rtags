@@ -21,7 +21,7 @@
 import { commands, languages, window, workspace, DocumentFilter, Location, Position, Range, TextDocument,
          TextDocumentShowOptions, Uri } from 'vscode';
 
-import { ExecFileOptionsWithStringEncoding, execFile } from 'child_process';
+import { ChildProcess, ExecFileOptionsWithStringEncoding, SpawnOptions, execFile, spawn } from 'child_process';
 
 export type Nullable<T> = T | null;
 export type Optional<T> = T | undefined;
@@ -363,6 +363,37 @@ export function parseJson(input: string) : any
     return jsonObj;
 }
 
+export function safeSpawn(command: string, args: ReadonlyArray<string>, options: SpawnOptions) :
+    Nullable<ChildProcess>
+{
+    let process: Nullable<ChildProcess> = null;
+    try
+    {
+        process = spawn(command, args, options);
+    }
+    catch (_err)
+    {
+    }
+    return process;
+}
+
+function safeExecFile(file: string,
+                      args: ReadonlyArray<string>,
+                      options: ExecFileOptionsWithStringEncoding,
+                      callback: (error: Nullable<Error>, stdout: string, stderr: string) => void) :
+    Nullable<ChildProcess>
+{
+    let process: Nullable<ChildProcess> = null;
+    try
+    {
+        process = execFile(file, args, options, callback);
+    }
+    catch (_err)
+    {
+    }
+    return process;
+}
+
 export function getRcExecutable() : string
 {
     const config = workspace.getConfiguration("rtags");
@@ -423,15 +454,27 @@ export function runRc<T = void>(args: string[], process?: (stdout: string) => T,
                     }
                 };
 
-            let rc = execFile(getRcExecutable(), args.concat(localArgs), options, exitCallback);
+            const rcExec = getRcExecutable();
+            const rcArgs = args.concat(localArgs);
 
-            for (const file of unsavedFiles)
+            let rc = safeExecFile(rcExec, rcArgs, options, exitCallback);
+
+            if (rc)
             {
-                rc.stdin.write(file.getText());
+                for (const file of unsavedFiles)
+                {
+                    rc.stdin.write(file.getText());
+                }
+                if (unsavedFiles.length !== 0)
+                {
+                    rc.stdin.end();
+                }
             }
-            if (unsavedFiles.length !== 0)
+            else
             {
-                rc.stdin.end();
+                window.showErrorMessage("[RTags] Command failed: " + rcExec + ' ' + rcArgs.join(' '));
+
+                resolve();
             }
         };
 

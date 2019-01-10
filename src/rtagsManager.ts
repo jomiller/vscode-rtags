@@ -22,7 +22,7 @@ import { commands, extensions, languages, window, workspace, ConfigurationChange
          DiagnosticCollection, DiagnosticSeverity, Disposable, Memento, Range, TextDocument, TextDocumentChangeEvent,
          TextDocumentWillSaveEvent, Uri, WorkspaceFolder, WorkspaceFoldersChangeEvent } from 'vscode';
 
-import { ChildProcess, SpawnOptions, execFile, spawn } from 'child_process';
+import { ChildProcess, SpawnOptions, execFile } from 'child_process';
 
 import { setTimeout, clearTimeout, setInterval, clearInterval } from 'timers';
 
@@ -35,7 +35,7 @@ import * as os from 'os';
 import * as util from 'util';
 
 import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, isOpenSourceFile, fromRtagsPosition, showContribution,
-         hideContribution, parseJson, getRcExecutable, runRc } from './rtagsUtil';
+         hideContribution, parseJson, safeSpawn, getRcExecutable, runRc } from './rtagsUtil';
 
 const ExtensionId             = "jomiller.rtags-client";
 const RtagsRepository         = "Andersbakken/rtags";
@@ -190,20 +190,20 @@ function isExtensionUpgraded(globalState: Memento) : boolean
             ((extMajor === prevExtMajor) && (extMinor === prevExtMinor) && (extPatch > prevExtPatch)));
 }
 
-function spawnRc(args: string[], ignoreStdio: boolean = false) : ChildProcess
+function spawnRc(args: string[], ignoreStdio: boolean = false) : Nullable<ChildProcess>
 {
     const options: SpawnOptions =
     {
         stdio: (ignoreStdio ? "ignore" : "pipe")
     };
 
-    return spawn(getRcExecutable(), args, options);
+    return safeSpawn(getRcExecutable(), args, options);
 }
 
 function testRcProcess() : boolean
 {
     const rc = spawnRc(["--current-project"], true);
-    return (rc.pid !== undefined);
+    return ((rc !== null) && (rc.pid !== undefined));
 }
 
 async function testRcConnection() : Promise<boolean>
@@ -341,11 +341,19 @@ async function startRdm() : Promise<boolean>
         stdio: "ignore"
     };
 
-    let rdm = spawn(rdmExecutable, rdmArguments, options);
+    let rdm = safeSpawn(rdmExecutable, rdmArguments, options);
 
-    if (rdm.pid)
+    if (rdm && rdm.pid)
     {
         rdm.unref();
+
+        const errorCallback =
+            (error: Error) : void =>
+            {
+                window.showErrorMessage("[RTags] Server error: " + error.message);
+            };
+
+        rdm.on("error", errorCallback);
 
         // Wait for rc to connect to rdm
         const sleep = util.promisify(setTimeout);
@@ -366,15 +374,18 @@ async function startRdm() : Promise<boolean>
     {
         window.showInformationMessage("[RTags] Started server successfully");
 
-        const exitCallback =
-            (_code: number, _signal: string) : void =>
-            {
-                // Restart the server if it was killed unexpectedly
-                window.showErrorMessage("[RTags] Server stopped running. Restarting it.");
-                setTimeout(() => { startRdm(); }, 5000);
-            };
+        if (rdm)
+        {
+            const exitCallback =
+                (_code: number, _signal: string) : void =>
+                {
+                    // Restart the server if it was killed unexpectedly
+                    window.showErrorMessage("[RTags] Server stopped running. Restarting it.");
+                    setTimeout(() => { startRdm(); }, 5000);
+                };
 
-        rdm.on("exit", exitCallback);
+            rdm.on("exit", exitCallback);
+        }
     }
     else
     {
@@ -1202,7 +1213,7 @@ export class RtagsManager implements Disposable
 
         // Start a separate process for receiving asynchronous diagnostics
         this.diagnosticProcess = spawnRc(["--diagnostics", "--json"]);
-        if (!this.diagnosticProcess.pid)
+        if (!this.diagnosticProcess || !this.diagnosticProcess.pid)
         {
             window.showErrorMessage("[RTags] Could not start diagnostics");
             this.diagnosticProcess = null;
@@ -1216,6 +1227,14 @@ export class RtagsManager implements Disposable
             };
 
         this.diagnosticProcess.stdout.on("data", dataCallback);
+
+        const errorCallback =
+            (error: Error) : void =>
+            {
+                window.showErrorMessage("[RTags] Diagnostics process error: " + error.message);
+            };
+
+        this.diagnosticProcess.on("error", errorCallback);
 
         const exitCallback =
             (_code: number, _signal: string) : void =>
