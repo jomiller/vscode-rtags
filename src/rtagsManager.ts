@@ -1191,7 +1191,7 @@ export class RtagsManager implements Disposable
                     }
 
                     window.showInformationMessage("[RTags] Finished " + task.typeToString() + " project: " +
-                                                    task.uri.fsPath);
+                                                  task.uri.fsPath);
                 };
 
             task.start(stopCallback);
