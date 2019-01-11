@@ -42,6 +42,7 @@ const RtagsRepository         = "Andersbakken/rtags";
 const RtagsMinimumVersion     = "2.18";
 const RtagsRecommendedVersion = "2.21";
 const RtagsRecommendedCommit  = "5f887b6f58be6150bd51f240ad4a7433fa552676";
+const RtagsCommitAbbrevLength = 7;
 
 interface RtagsVersionInfo
 {
@@ -246,23 +247,23 @@ function getRtagsVersion() : Promise<Optional<string>>
 function getRtagsRecommendedVersionInfo() : RtagsVersionInfo
 {
     let version: string;
-    let url: string;
+    let url = "https://github.com/" + RtagsRepository;
     if (RtagsRecommendedCommit.length !== 0)
     {
-        version = RtagsRecommendedCommit.slice(0, 7);
-        url = "https://github.com/" + RtagsRepository + "/commit/" + RtagsRecommendedCommit;
+        version = RtagsRecommendedCommit.slice(0, RtagsCommitAbbrevLength);
+        url += "/commit/" + RtagsRecommendedCommit;
     }
     else
     {
         version = 'v' + RtagsRecommendedVersion;
-        url = "https://github.com/" + RtagsRepository + "/releases/tag/" + version;
+        url += "/releases/tag/" + version;
     }
 
     const versionInfo: RtagsVersionInfo =
     {
         version: version,
         linkUrl: url,
-        linkText: RtagsRepository + "@" + version
+        linkText: RtagsRepository + '@' + version
     };
 
     return versionInfo;
