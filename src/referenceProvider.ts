@@ -378,7 +378,7 @@ export class RtagsReferenceProvider implements
                     const followDefs = await followLocation(symbolInfo.location);
                     if (followDefs)
                     {
-                        definitions.push(...followDefs);
+                        definitions = followDefs;
                     }
                 }
 
