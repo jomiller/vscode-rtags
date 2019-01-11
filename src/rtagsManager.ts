@@ -599,8 +599,9 @@ export class RtagsManager implements Disposable
                     new Set<Uri>(workspace.workspaceFolders.map((f) => { return f.uri; })) :
                     new Set<Uri>();
 
-                // FIXME: onDidChangeConfiguration event fires before workspace.workspaceFolders has been updated
-                //        Allow workspace.workspaceFolders to be updated before continuing
+                // FIXME: See https://github.com/Microsoft/vscode/issues/66246
+                // The onDidChangeConfiguration event fires before workspace.workspaceFolders has been updated
+                // Allow workspace.workspaceFolders to be updated before continuing
                 await Promise.resolve();
 
                 // Remove workspace paths corresponding to folders that were just closed
@@ -1055,6 +1056,7 @@ export class RtagsManager implements Disposable
 
         if (!event.document.isDirty)
         {
+            // FIXME: See https://github.com/Microsoft/vscode/issues/66338
             // The onDidSaveTextDocument event will not fire for clean files
             // Delay until the file has been saved, and then manually resume the file watch
             const timeoutCallback =

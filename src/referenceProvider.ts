@@ -581,7 +581,7 @@ export class RtagsReferenceProvider implements
                     return undefined;
                 }
 
-                // FIXME: Hover text is not formatted properly unless a tab or 4 spaces are prepended
+                // Format hover text as code using Markdown syntax
                 return new Hover('\t' + context);
             };
 
