@@ -324,7 +324,7 @@ function showRtagsRecommendedVersion(currentVersion: string, globalState: Mement
     }
     else
     {
-        message += "Newer version of RTags is recommended" +
+        message += "A newer version of RTags is recommended" +
                    ". Installed version: v" + currentVersion +
                    ". Recommended version: " + recommendedVersionInfo.version + " or later.";
     }
@@ -345,8 +345,8 @@ async function startRdm() : Promise<boolean>
     const rdmAutoLaunch = config.get<boolean>("rdm.autoLaunch", true);
     if (!rdmAutoLaunch)
     {
-        window.showErrorMessage("[RTags] Server is not running and auto-launch is disabled. " +
-                                "Launch server manually or enable \"rtags.rdm.autoLaunch\" setting.");
+        window.showErrorMessage("[RTags] The server is not running and auto-launch is disabled. " +
+                                "Launch the server manually or enable the \"rtags.rdm.autoLaunch\" setting.");
         return false;
     }
 
@@ -398,7 +398,7 @@ async function startRdm() : Promise<boolean>
 
     if (rcStatus)
     {
-        window.showInformationMessage("[RTags] Started server successfully");
+        window.showInformationMessage("[RTags] Started the server successfully.");
 
         if (rdm)
         {
@@ -406,7 +406,7 @@ async function startRdm() : Promise<boolean>
                 (_code: number, _signal: string) : void =>
                 {
                     // Restart the server if it was killed unexpectedly
-                    window.showErrorMessage("[RTags] Server stopped running. Restarting it.");
+                    window.showErrorMessage("[RTags] The server stopped running. Restarting it.");
                     setTimeout(() => { startRdm(); }, 5000);
                 };
 
@@ -415,8 +415,8 @@ async function startRdm() : Promise<boolean>
     }
     else
     {
-        window.showErrorMessage("[RTags] Could not start server. " +
-                                "Check \"rtags.rdm.executable\" and \"rtags.rdm.arguments\" settings.");
+        window.showErrorMessage("[RTags] Could not start the server. " +
+                                "Check the \"rtags.rdm.executable\" and \"rtags.rdm.arguments\" settings.");
     }
 
     return rcStatus;
@@ -426,7 +426,7 @@ async function initializeRtags(globalState: Memento) : Promise<boolean>
 {
     if (!testRcProcess())
     {
-        window.showErrorMessage("[RTags] Could not run client. Check \"rtags.rc.executable\" setting.");
+        window.showErrorMessage("[RTags] Could not run the client. Check the \"rtags.rc.executable\" setting.");
         return false;
     }
 
@@ -440,7 +440,7 @@ async function initializeRtags(globalState: Memento) : Promise<boolean>
     {
         const recommendedVersionInfo = getRtagsRecommendedVersionInfo();
 
-        const message = "[RTags] Newer version of RTags is required" +
+        const message = "[RTags] A newer version of RTags is required" +
                         ". Installed version: v" + rtagsVersion +
                         ". Minimum version: v" + RtagsMinimumVersion +
                         ". Recommended version: " + recommendedVersionInfo.version + " or later.";
@@ -647,7 +647,7 @@ export class RtagsManager implements Disposable
 
                 const reloadAction = "Reload Now";
                 const selectedAction =
-                    await window.showInformationMessage("Reload to apply the configuration change", reloadAction);
+                    await window.showInformationMessage("Reload to apply the configuration change.", reloadAction);
 
                 if (selectedAction === reloadAction)
                 {
@@ -1180,8 +1180,8 @@ export class RtagsManager implements Disposable
             }
             else if ((task.type === TaskType.Reload) || compilationDatabaseDir)
             {
-                window.showErrorMessage("[RTags] Could not load project: " + projectPath.fsPath +
-                                        ". Compilation database not found: " + compileCommands);
+                window.showErrorMessage("[RTags] Could not load the project: " + projectPath.fsPath +
+                                        ". Unable to find the compilation database: " + compileCommands);
             }
         }
         else
@@ -1234,7 +1234,7 @@ export class RtagsManager implements Disposable
         this.diagnosticProcess = spawnRc(["--diagnostics", "--json"]);
         if (!this.diagnosticProcess || !this.diagnosticProcess.pid)
         {
-            window.showErrorMessage("[RTags] Could not start diagnostics");
+            window.showErrorMessage("[RTags] Could not start the diagnostics process.");
             this.diagnosticProcess = null;
             return;
         }
@@ -1262,7 +1262,7 @@ export class RtagsManager implements Disposable
                 if (this.diagnosticsEnabled)
                 {
                     // Restart the diagnostics process if it was killed unexpectedly
-                    window.showErrorMessage("[RTags] Diagnostics process stopped running. Restarting it.");
+                    window.showErrorMessage("[RTags] The diagnostics process stopped running. Restarting it.");
                     setTimeout(() => { this.startDiagnostics(); }, 5000);
                 }
                 else if (this.diagnosticCollection)
