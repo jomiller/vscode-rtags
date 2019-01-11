@@ -319,13 +319,13 @@ function showRtagsRecommendedVersion(currentVersion: string, globalState: Mement
     let message = "[RTags] ";
     if (currentVersion === RtagsRecommendedVersion)
     {
-        message += "Recommended RTags version: >= " + recommendedVersionInfo.version;
+        message += "Recommended RTags version: " + recommendedVersionInfo.version + " or later.";
     }
     else
     {
         message += "Newer version of RTags is recommended" +
                    ". Installed version: v" + currentVersion +
-                   ". Recommended version: >= " + recommendedVersionInfo.version;
+                   ". Recommended version: " + recommendedVersionInfo.version + " or later.";
     }
 
     showRtagsVersionMessage(message, recommendedVersionInfo);
@@ -442,7 +442,7 @@ async function initializeRtags(globalState: Memento) : Promise<boolean>
         const message = "[RTags] Newer version of RTags is required" +
                         ". Installed version: v" + rtagsVersion +
                         ". Minimum version: v" + RtagsMinimumVersion +
-                        ". Recommended version: >= " + recommendedVersionInfo.version;
+                        ". Recommended version: " + recommendedVersionInfo.version + " or later.";
 
         showRtagsVersionMessage(message, recommendedVersionInfo, true);
 
