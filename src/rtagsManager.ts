@@ -43,6 +43,13 @@ const RtagsMinimumVersion     = "2.18";
 const RtagsRecommendedVersion = "2.21";
 const RtagsRecommendedCommit  = "5f887b6f58be6150bd51f240ad4a7433fa552676";
 
+interface RtagsVersionInfo
+{
+    version: string;
+    linkUrl: string;
+    linkText: string;
+}
+
 enum TaskType
 {
     Load,
@@ -236,7 +243,7 @@ function getRtagsVersion() : Promise<Optional<string>>
     return runRc(["--version"], processCallback);
 }
 
-function getRtagsRecommendedVersionInfo() : {version: string, linkUrl: string, linkText: string}
+function getRtagsRecommendedVersionInfo() : RtagsVersionInfo
 {
     let version: string;
     let url: string;
@@ -251,7 +258,14 @@ function getRtagsRecommendedVersionInfo() : {version: string, linkUrl: string, l
         url = "https://github.com/" + RtagsRepository + "/releases/tag/" + version;
     }
 
-    return {version: version, linkUrl: url, linkText: RtagsRepository + "@" + version};
+    const versionInfo: RtagsVersionInfo =
+    {
+        version: version,
+        linkUrl: url,
+        linkText: RtagsRepository + "@" + version
+    };
+
+    return versionInfo;
 }
 
 function isRtagsVersionGreater(version: string, referenceVersion: string, orEqual: boolean = false) : boolean
@@ -267,7 +281,23 @@ function isRtagsVersionGreater(version: string, referenceVersion: string, orEqua
     return ((major > refMajor) || ((major === refMajor) && (minor > refMinor)));
 }
 
-async function showRtagsRecommendedVersion(currentVersion: string, globalState: Memento) : Promise<void>
+function showRtagsVersionMessage(message: string, versionInfo: RtagsVersionInfo, error: boolean = false) : void
+{
+    const resolveCallback =
+        (selectedAction?: string) : void =>
+        {
+            if (selectedAction === versionInfo.linkText)
+            {
+                commands.executeCommand("vscode.open", Uri.parse(versionInfo.linkUrl));
+            }
+        };
+
+    const showMessage = error ? window.showErrorMessage : window.showInformationMessage;
+
+    showMessage(message, versionInfo.linkText).then(resolveCallback);
+}
+
+function showRtagsRecommendedVersion(currentVersion: string, globalState: Memento) : void
 {
     if (!isExtensionUpgraded(globalState))
     {
@@ -298,12 +328,7 @@ async function showRtagsRecommendedVersion(currentVersion: string, globalState: 
                    ". Recommended version: >= " + recommendedVersionInfo.version;
     }
 
-    const selectedAction = await window.showInformationMessage(message, recommendedVersionInfo.linkText);
-
-    if (selectedAction === recommendedVersionInfo.linkText)
-    {
-        commands.executeCommand("vscode.open", Uri.parse(recommendedVersionInfo.linkUrl));
-    }
+    showRtagsVersionMessage(message, recommendedVersionInfo);
 }
 
 async function startRdm() : Promise<boolean>
@@ -419,16 +444,7 @@ async function initializeRtags(globalState: Memento) : Promise<boolean>
                         ". Minimum version: v" + RtagsMinimumVersion +
                         ". Recommended version: >= " + recommendedVersionInfo.version;
 
-        const resolveCallback =
-            (selectedAction?: string) : void =>
-            {
-                if (selectedAction === recommendedVersionInfo.linkText)
-                {
-                    commands.executeCommand("vscode.open", Uri.parse(recommendedVersionInfo.linkUrl));
-                }
-            };
-
-        window.showErrorMessage(message, recommendedVersionInfo.linkText).then(resolveCallback);
+        showRtagsVersionMessage(message, recommendedVersionInfo, true);
 
         return false;
     }
