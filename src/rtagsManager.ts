@@ -564,8 +564,8 @@ function findProjectRoot(compileCommandsDirectory: Uri) : Promise<Optional<Uri>>
     const processCallback =
         (output: string) : Optional<Uri> =>
     {
-        const projectRoot = output.match(/=> \[(.*)\/\]/);
-        return (projectRoot ? Uri.file(projectRoot[1]) : undefined);
+        const projectRoot = output.match(/=> \[(.*)\]/);
+        return (projectRoot ? Uri.file(projectRoot[1].replace(/\/$/, "")) : undefined);
     };
 
     return runRc(["--find-project-root", compileCommandsDirectory.fsPath], processCallback);
