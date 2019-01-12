@@ -38,6 +38,7 @@ import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, isOpenSourceFile
          hideContribution, parseJson, safeSpawn, getRcExecutable, runRc } from './rtagsUtil';
 
 const ExtensionId             = "jomiller.rtags-client";
+const CompileCommandsFilename = "compile_commands.json";
 const RtagsRepository         = "Andersbakken/rtags";
 const RtagsMinimumVersion     = "2.18";
 const RtagsRecommendedVersion = "2.21";
@@ -502,7 +503,7 @@ async function getLoadedCompileCommandsInfo(knownProjectPaths?: Uri[]) : Promise
             (output: string) : string[] =>
             {
                 let dirs: string[] = [];
-                const regex = /File: (.*)\/compile_commands\.json/g;
+                const regex = new RegExp("File: (.*)/" + CompileCommandsFilename.replace('.', "\\."), 'g');
                 let dir: Nullable<RegExpExecArray>;
                 while ((dir = regex.exec(output)) !== null)
                 {
@@ -583,8 +584,9 @@ async function loadCompileCommands(compileCommandsDirectory: Uri, projectPath: U
 
     if (!(projectPath.fsPath + '/').startsWith(projectRoot.fsPath + '/'))
     {
+        const compileCommandsFile = compileCommandsDirectory.fsPath + '/' + CompileCommandsFilename;
         showProjectLoadErrorMessage(
-            projectPath, "The project path is outside of the root path given by " + compileCommandsDirectory.fsPath);
+            projectPath, "The project path is outside of the root path given by " + compileCommandsFile);
 
         return false;
     }
@@ -1245,7 +1247,7 @@ export class RtagsManager implements Disposable
         if (task.isLoadType())
         {
             const compileCommandsInfo = getCompileCommandsInfo(projectPath);
-            const compileCommandsFile = compileCommandsInfo.directory.fsPath + "/compile_commands.json";
+            const compileCommandsFile = compileCommandsInfo.directory.fsPath + '/' + CompileCommandsFilename;
 
             status = await fileExists(compileCommandsFile);
             if (status)
