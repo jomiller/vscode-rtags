@@ -181,30 +181,6 @@ function fileExists(file: string) : Promise<boolean>
         });
 }
 
-function isExtensionUpgraded(globalState: Memento) : boolean
-{
-    const extension = extensions.getExtension(ExtensionId);
-    if (!extension)
-    {
-        return false;
-    }
-
-    const extVersion: string = extension.packageJSON.version;
-    const [extMajor, extMinor, extPatch] = extVersion.split('.');
-
-    const prevExtVersion = globalState.get<string>("rtags.extensionVersion", "0.0.0");
-    const [prevExtMajor, prevExtMinor, prevExtPatch] = prevExtVersion.split('.');
-
-    if (prevExtVersion !== extVersion)
-    {
-        globalState.update("rtags.extensionVersion", extVersion);
-    }
-
-    return ((extMajor > prevExtMajor) ||
-            ((extMajor === prevExtMajor) && (extMinor > prevExtMinor)) ||
-            ((extMajor === prevExtMajor) && (extMinor === prevExtMinor) && (extPatch > prevExtPatch)));
-}
-
 function spawnRc(args: string[], ignoreStdio: boolean = false) : Nullable<ChildProcess>
 {
     const options: SpawnOptions =
@@ -236,6 +212,30 @@ async function testRcConnection() : Promise<boolean>
     }
 
     return status;
+}
+
+function isExtensionUpgraded(globalState: Memento) : boolean
+{
+    const extension = extensions.getExtension(ExtensionId);
+    if (!extension)
+    {
+        return false;
+    }
+
+    const extVersion: string = extension.packageJSON.version;
+    const [extMajor, extMinor, extPatch] = extVersion.split('.');
+
+    const prevExtVersion = globalState.get<string>("rtags.extensionVersion", "0.0.0");
+    const [prevExtMajor, prevExtMinor, prevExtPatch] = prevExtVersion.split('.');
+
+    if (prevExtVersion !== extVersion)
+    {
+        globalState.update("rtags.extensionVersion", extVersion);
+    }
+
+    return ((extMajor > prevExtMajor) ||
+            ((extMajor === prevExtMajor) && (extMinor > prevExtMinor)) ||
+            ((extMajor === prevExtMajor) && (extMinor === prevExtMinor) && (extPatch > prevExtPatch)));
 }
 
 function getRtagsVersion() : Promise<Optional<string>>
@@ -289,7 +289,7 @@ function isRtagsVersionGreater(version: string, referenceVersion: string, orEqua
     return ((major > refMajor) || ((major === refMajor) && (minor > refMinor)));
 }
 
-function showRtagsVersionMessage(message: string, versionInfo: RtagsVersionInfo, isError: boolean = false) : void
+function showRtagsVersionMessage(versionInfo: RtagsVersionInfo, message: string, isError: boolean = false) : void
 {
     const resolveCallback =
         (selectedAction?: string) : void =>
@@ -336,7 +336,7 @@ function showRtagsRecommendedVersion(currentVersion: string, globalState: Mement
                    ". Recommended version: " + recommendedVersionInfo.version + " or later.";
     }
 
-    showRtagsVersionMessage(message, recommendedVersionInfo);
+    showRtagsVersionMessage(recommendedVersionInfo, message);
 }
 
 async function startRdm() : Promise<boolean>
@@ -452,7 +452,7 @@ async function initializeRtags(globalState: Memento) : Promise<boolean>
                         ". Minimum version: v" + RtagsMinimumVersion +
                         ". Recommended version: " + recommendedVersionInfo.version + " or later.";
 
-        showRtagsVersionMessage(message, recommendedVersionInfo, true);
+        showRtagsVersionMessage(recommendedVersionInfo, message, true);
 
         return false;
     }
@@ -554,6 +554,11 @@ function getCompileCommandsInfo(projectPath: Uri) : CompileCommandsInfo
     return info;
 }
 
+function showProjectLoadErrorMessage(projectPath: Uri, message: string) : void
+{
+    window.showErrorMessage("[RTags] Could not load the project: " + projectPath.fsPath + ". " + message);
+}
+
 function findProjectRoot(compileCommandsDirectory: Uri) : Promise<Optional<Uri>>
 {
     const processCallback =
@@ -564,11 +569,6 @@ function findProjectRoot(compileCommandsDirectory: Uri) : Promise<Optional<Uri>>
     };
 
     return runRc(["--find-project-root", compileCommandsDirectory.fsPath], processCallback);
-}
-
-function showProjectLoadErrorMessage(projectPath: Uri, message: string) : void
-{
-    window.showErrorMessage("[RTags] Could not load the project: " + projectPath.fsPath + ". " + message);
 }
 
 async function loadCompileCommands(compileCommandsDirectory: Uri, projectPath: Uri) : Promise<Optional<boolean>>
