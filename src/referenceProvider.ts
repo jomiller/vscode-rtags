@@ -333,7 +333,7 @@ export class RtagsReferenceProvider implements
                     (symbolInfo: SymbolInfo) : boolean =>
                     {
                         return (isRtagsSymbolKind(symbolInfo.kind, SymbolSubCategory.Declaration) &&
-                                !symbolInfo.definition);
+                                !symbolInfo.isDefinition);
                     };
 
                 return getTargets(symbolInfo, isDeclarationCallback);
@@ -366,7 +366,7 @@ export class RtagsReferenceProvider implements
                 const isDefinitionCallback =
                     (symbolInfo: SymbolInfo) : boolean =>
                     {
-                        return (symbolInfo.definition || (symbolInfo.kind.length === 0) ||
+                        return (symbolInfo.isDefinition || (symbolInfo.kind.length === 0) ||
                                 isRtagsSymbolKind(symbolInfo.kind,
                                                   [SymbolSubCategory.MacroDef, SymbolSubCategory.NamespaceDef]));
                     };
@@ -453,7 +453,7 @@ export class RtagsReferenceProvider implements
                     return Promise.resolve(undefined);
                 }
 
-                if (symbolInfo.virtual || (symbolInfo.targets && symbolInfo.targets[0].virtual))
+                if (symbolInfo.isVirtual || (symbolInfo.targets && symbolInfo.targets[0].isVirtual))
                 {
                     return getReferences(document.uri, position, ReferenceType.Virtuals);
                 }

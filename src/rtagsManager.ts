@@ -47,8 +47,14 @@ const RtagsCommitAbbrevLength = 7;
 interface RtagsVersionInfo
 {
     version: string;
-    linkUrl: string;
+    linkUrl: Uri;
     linkText: string;
+}
+
+interface CompileCommandsInfo
+{
+    directory: Uri;
+    isConfig?: boolean;
 }
 
 enum TaskType
@@ -262,7 +268,7 @@ function getRtagsRecommendedVersionInfo() : RtagsVersionInfo
     const versionInfo: RtagsVersionInfo =
     {
         version: version,
-        linkUrl: url,
+        linkUrl: Uri.parse(url),
         linkText: RtagsRepository + '@' + version
     };
 
@@ -282,18 +288,18 @@ function isRtagsVersionGreater(version: string, referenceVersion: string, orEqua
     return ((major > refMajor) || ((major === refMajor) && (minor > refMinor)));
 }
 
-function showRtagsVersionMessage(message: string, versionInfo: RtagsVersionInfo, error: boolean = false) : void
+function showRtagsVersionMessage(message: string, versionInfo: RtagsVersionInfo, isError: boolean = false) : void
 {
     const resolveCallback =
         (selectedAction?: string) : void =>
         {
             if (selectedAction === versionInfo.linkText)
             {
-                commands.executeCommand("vscode.open", Uri.parse(versionInfo.linkUrl));
+                commands.executeCommand("vscode.open", versionInfo.linkUrl);
             }
         };
 
-    const showMessage = error ? window.showErrorMessage : window.showInformationMessage;
+    const showMessage = isError ? window.showErrorMessage : window.showInformationMessage;
 
     showMessage(message, versionInfo.linkText).then(resolveCallback);
 }
@@ -473,50 +479,117 @@ function getKnownProjectPaths() : Promise<Optional<Uri[]>>
     return runRc(["--project"], processCallback);
 }
 
-async function getLoadedProjectPaths(knownProjectPaths?: Uri[]) : Promise<Uri[]>
+async function getLoadedCompileCommandsInfo(knownProjectPaths?: Uri[]) : Promise<CompileCommandsInfo[]>
 {
     if (!knownProjectPaths)
     {
         return [];
     }
 
-    let loadedProjectPaths: Uri[] = [];
+    let loadedCompileInfo: CompileCommandsInfo[] = [];
 
     for (const path of knownProjectPaths)
     {
-        const statusHeaderLineCount = 3;
-
         const args =
         [
             "--project",
             path.fsPath,
             "--status",
-            "sources",
-            "--max",
-            (statusHeaderLineCount + 1).toString()
+            "project"
         ];
 
         const processStatusCallback =
-            (output: string) : boolean =>
+            (output: string) : string[] =>
             {
-                const trimmedOutput = output.trim();
-                if (trimmedOutput.length === 0)
+                let dirs: string[] = [];
+                const regex = /File: (.*)\/compile_commands\.json/g;
+                let dir: Nullable<RegExpExecArray>;
+                while ((dir = regex.exec(output)) !== null)
                 {
-                    return false;
+                    dirs.push(dir[1]);
                 }
-
-                const lines = trimmedOutput.split('\n');
-                return (lines.length > statusHeaderLineCount);
+                return dirs;
             };
 
-        const sourcesLoaded = await runRc(args, processStatusCallback);
-        if (sourcesLoaded)
+        const directories = await runRc(args, processStatusCallback);
+        if (directories)
         {
-            loadedProjectPaths.push(path);
+            for (const dir of directories)
+            {
+                const info: CompileCommandsInfo =
+                {
+                    directory: Uri.file(dir)
+                };
+                loadedCompileInfo.push(info);
+            }
         }
     }
 
-    return loadedProjectPaths;
+    return loadedCompileInfo;
+}
+
+function getCompileCommandsInfo(projectPath: Uri) : CompileCommandsInfo
+{
+    const config = workspace.getConfiguration("rtags", projectPath);
+    const compilationDatabaseDir = config.get<string>("misc.compilationDatabaseDirectory");
+    let directory: Uri;
+    let isConfig: boolean;
+    if (compilationDatabaseDir)
+    {
+        directory = Uri.file(compilationDatabaseDir.replace(/\/*$/, ""));
+        isConfig = true;
+    }
+    else
+    {
+        directory = projectPath;
+        isConfig = false;
+    }
+
+    const info: CompileCommandsInfo =
+    {
+        directory: directory,
+        isConfig: isConfig
+    };
+    return info;
+}
+
+function findProjectRoot(compileCommandsDirectory: Uri) : Promise<Optional<Uri>>
+{
+    const processCallback =
+        (output: string) : Optional<Uri> =>
+    {
+        const projectRoot = output.match(/=> \[(.*)\/\]/);
+        return (projectRoot ? Uri.file(projectRoot[1]) : undefined);
+    };
+
+    return runRc(["--find-project-root", compileCommandsDirectory.fsPath], processCallback);
+}
+
+function showProjectLoadErrorMessage(projectPath: Uri, message: string) : void
+{
+    window.showErrorMessage("[RTags] Could not load the project: " + projectPath.fsPath + ". " + message);
+}
+
+async function loadCompileCommands(compileCommandsDirectory: Uri, projectPath: Uri) : Promise<Optional<boolean>>
+{
+    const projectRoot = await findProjectRoot(compileCommandsDirectory);
+    if (!projectRoot)
+    {
+        showProjectLoadErrorMessage(
+            projectPath, "Unable to find the project root path in " + compileCommandsDirectory.fsPath);
+
+        return false;
+    }
+
+    if (!(projectPath.fsPath + '/').startsWith(projectRoot.fsPath + '/'))
+    {
+        showProjectLoadErrorMessage(
+            projectPath, "The project path is outside of the root path given by " + compileCommandsDirectory.fsPath);
+
+        return false;
+    }
+
+    return runRc(["--load-compile-commands", compileCommandsDirectory.fsPath], (_unused) => { return true; });
 }
 
 function getSuspendedFilePaths(projectPath: Uri, timeout: number = 0) : Promise<Optional<string[]>>
@@ -788,39 +861,44 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        // Delete projects that need to be reloaded
-
-        const projectPathsToReload = this.getProjectPathsToReload();
-
-        const origProjectPathCount = projectPathsToReload.size;
-
-        let args: string[] = [];
-        for (const path of projectPathsToReload)
         {
-            const folderAdded = folders.some((f) => { return (f.uri.fsPath === path); });
-            if (folderAdded)
+            // Delete projects that need to be reloaded
+
+            const projectPathsToReload = this.getProjectPathsToReload();
+
+            const origProjectPathCount = projectPathsToReload.size;
+
+            let args: string[] = [];
+            for (const path of projectPathsToReload)
             {
-                args.push("--delete-project", path + '/');
-                projectPathsToReload.delete(path);
+                const folderAdded = folders.some((f) => { return (f.uri.fsPath === path); });
+                if (folderAdded)
+                {
+                    args.push("--delete-project", path + '/');
+                    projectPathsToReload.delete(path);
+                }
             }
-        }
-        if (args.length !== 0)
-        {
-            await runRc(args);
-        }
+            if (args.length !== 0)
+            {
+                await runRc(args);
+            }
 
-        if (projectPathsToReload.size !== origProjectPathCount)
-        {
-            await this.setProjectPathsToReload(projectPathsToReload);
+            if (projectPathsToReload.size !== origProjectPathCount)
+            {
+                await this.setProjectPathsToReload(projectPathsToReload);
+            }
         }
 
         const knownProjectPaths = await getKnownProjectPaths();
-        const loadedProjectPaths = await getLoadedProjectPaths(knownProjectPaths);
+        const loadedCompileInfo = await getLoadedCompileCommandsInfo(knownProjectPaths);
 
         // Consider only VS Code workspace folders, and ignore RTags projects that are not known to VS Code
         for (const folder of folders)
         {
-            const projectLoaded = loadedProjectPaths.some((p) => { return (p.fsPath === folder.uri.fsPath); });
+            const folderCompileInfo = getCompileCommandsInfo(folder.uri);
+            const projectLoaded = loadedCompileInfo.some(
+                (info) => { return (info.directory.fsPath === folderCompileInfo.directory.fsPath); });
+
             if (projectLoaded)
             {
                 // The project is already loaded into RTags
@@ -1166,22 +1244,18 @@ export class RtagsManager implements Disposable
 
         if (task.isLoadType())
         {
-            const config = workspace.getConfiguration("rtags", projectPath);
-            const compilationDatabaseDir = config.get<string>("misc.compilationDatabaseDirectory");
-            const compileCommandsDir =
-                compilationDatabaseDir ? compilationDatabaseDir.replace(/\/*$/, "") : projectPath.fsPath;
-            const compileCommands = compileCommandsDir + "/compile_commands.json";
+            const compileCommandsInfo = getCompileCommandsInfo(projectPath);
+            const compileCommandsFile = compileCommandsInfo.directory.fsPath + "/compile_commands.json";
 
-            status = await fileExists(compileCommands);
+            status = await fileExists(compileCommandsFile);
             if (status)
             {
-                status = await runRc(["--load-compile-commands", compileCommandsDir],
-                                     (_unused) => { return true; });
+                status = await loadCompileCommands(compileCommandsInfo.directory, projectPath);
             }
-            else if ((task.type === TaskType.Reload) || compilationDatabaseDir)
+            else if ((task.type === TaskType.Reload) || compileCommandsInfo.isConfig)
             {
-                window.showErrorMessage("[RTags] Could not load the project: " + projectPath.fsPath +
-                                        ". Unable to find the compilation database: " + compileCommands);
+                showProjectLoadErrorMessage(
+                    projectPath, "Unable to find the compilation database: " + compileCommandsFile);
             }
         }
         else

@@ -38,8 +38,8 @@ interface SymbolInfoBase
     length: number;
     kind: string;
     type?: string;
-    definition?: boolean;
-    virtual?: boolean;
+    isDefinition?: boolean;
+    isVirtual?: boolean;
 }
 
 export interface SymbolInfo extends SymbolInfoBase
@@ -521,8 +521,8 @@ export function getSymbolInfo(uri: Uri, position: Position, includeTargets: bool
                 length: jsonObj.symbolLength,
                 kind: jsonObj.kind,
                 type: jsonObj.type,
-                definition: jsonObj.definition,
-                virtual: jsonObj.virtual
+                isDefinition: jsonObj.definition,
+                isVirtual: jsonObj.virtual
             };
 
             const targets = jsonObj.targets;
@@ -538,8 +538,8 @@ export function getSymbolInfo(uri: Uri, position: Position, includeTargets: bool
                         length: target.symbolLength ? target.symbolLength : 0,
                         kind: target.kind ? target.kind : "",
                         type: target.type,
-                        definition: target.definition,
-                        virtual: target.virtual
+                        isDefinition: target.definition,
+                        isVirtual: target.virtual
                     };
                     symbolInfo.targets.push(targetInfo);
                 }
