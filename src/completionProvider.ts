@@ -217,6 +217,22 @@ export class RtagsCompletionProvider implements
             return undefined;
         }
 
+        interface Completion
+        {
+            kind: string;
+        }
+
+        function isOverloadCandidate(completion: Completion) : boolean
+        {
+            return (completion.kind === "OverloadCandidate");
+        }
+
+        interface ParenthesizedRange
+        {
+            start: number;
+            end: number;
+        }
+
         const config = workspace.getConfiguration("rtags", document.uri);
         const maxCompletionResults = config.get<number>("completion.maxResults", 20);
         const location = toRtagsLocation(document.uri, position);
@@ -232,50 +248,6 @@ export class RtagsCompletionProvider implements
             "--json"
         ];
 
-        interface ParenthesizedRange
-        {
-            start: number;
-            end: number;
-        }
-
-        // Find the number of active parameters in the signature being completed that are not part of nested signatures
-
-        const text = document.getText(new Range(new Position(0, 0), position));
-        let commaPositions: number[] = [];
-        let closeParenPositions: number[] = [];
-        let parenRanges: ParenthesizedRange[] = [];
-        for (let pos = text.length - 1; pos >= 0; --pos)
-        {
-            if (text.charAt(pos) === ',')
-            {
-                commaPositions.push(pos);
-            }
-            else if (text.charAt(pos) === ')')
-            {
-                closeParenPositions.push(pos);
-            }
-            else if (text.charAt(pos) === '(')
-            {
-                const closeParenPos = closeParenPositions.pop();
-                if (closeParenPos !== undefined)
-                {
-                    // Add a parenthesized range for a nested signature
-                    parenRanges.push({start: pos, end: closeParenPos});
-                }
-                else
-                {
-                    // This is the opening parenthesis for the signature being completed
-                    break;
-                }
-            }
-        }
-
-        // Filter out the commas that are part of nested signatures
-        commaPositions = commaPositions.filter(
-            (pos) => { return !parenRanges.some((r) => { return ((pos > r.start) && (pos < r.end)); }); });
-
-        const activeParamCount = commaPositions.length + 1;
-
         const processCallback =
             (output: string) : Optional<SignatureHelp> =>
             {
@@ -285,6 +257,50 @@ export class RtagsCompletionProvider implements
                     return undefined;
                 }
 
+                if ((jsonObj.completions.length === 0) || !isOverloadCandidate(jsonObj.completions[0]))
+                {
+                    return undefined;
+                }
+
+                // Find the number of active parameters in the signature being completed that are not part of nested
+                // signatures
+
+                const text = document.getText(new Range(new Position(0, 0), position));
+                let commaPositions: number[] = [];
+                let closeParenPositions: number[] = [];
+                let parenRanges: ParenthesizedRange[] = [];
+                for (let pos = text.length - 1; pos >= 0; --pos)
+                {
+                    if (text.charAt(pos) === ',')
+                    {
+                        commaPositions.push(pos);
+                    }
+                    else if (text.charAt(pos) === ')')
+                    {
+                        closeParenPositions.push(pos);
+                    }
+                    else if (text.charAt(pos) === '(')
+                    {
+                        const closeParenPos = closeParenPositions.pop();
+                        if (closeParenPos !== undefined)
+                        {
+                            // Add a parenthesized range for a nested signature
+                            parenRanges.push({start: pos, end: closeParenPos});
+                        }
+                        else
+                        {
+                            // This is the opening parenthesis for the signature being completed
+                            break;
+                        }
+                    }
+                }
+
+                // Filter out the commas that are part of nested signatures
+                commaPositions = commaPositions.filter(
+                    (pos) => { return !parenRanges.some((r) => { return ((pos > r.start) && (pos < r.end)); }); });
+
+                const activeParamCount = commaPositions.length + 1;
+
                 let signatures: SignatureInformation[] = [];
                 let activeSigIndex = -1;
 
@@ -292,7 +308,7 @@ export class RtagsCompletionProvider implements
                 {
                     try
                     {
-                        if (c.kind !== "OverloadCandidate")
+                        if (!isOverloadCandidate(c))
                         {
                             break;
                         }
