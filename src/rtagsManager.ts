@@ -554,46 +554,6 @@ function getCompileCommandsInfo(projectPath: Uri) : CompileCommandsInfo
     return info;
 }
 
-function showProjectLoadErrorMessage(projectPath: Uri, message: string) : void
-{
-    window.showErrorMessage("[RTags] Could not load the project: " + projectPath.fsPath + ". " + message);
-}
-
-function findProjectRoot(compileCommandsDirectory: Uri) : Promise<Optional<Uri>>
-{
-    const processCallback =
-        (output: string) : Optional<Uri> =>
-    {
-        const projectRoot = output.match(/=> \[(.*)\]/);
-        return (projectRoot ? Uri.file(projectRoot[1].replace(/\/$/, "")) : undefined);
-    };
-
-    return runRc(["--find-project-root", compileCommandsDirectory.fsPath], processCallback);
-}
-
-async function loadCompileCommands(compileCommandsDirectory: Uri, projectPath: Uri) : Promise<Optional<boolean>>
-{
-    const projectRoot = await findProjectRoot(compileCommandsDirectory);
-    if (!projectRoot)
-    {
-        showProjectLoadErrorMessage(
-            projectPath, "Unable to find the project root path in " + compileCommandsDirectory.fsPath);
-
-        return false;
-    }
-
-    if (!(projectPath.fsPath + '/').startsWith(projectRoot.fsPath + '/'))
-    {
-        const compileCommandsFile = compileCommandsDirectory.fsPath + '/' + CompileCommandsFilename;
-        showProjectLoadErrorMessage(
-            projectPath, "The project path is outside of the root path given by " + compileCommandsFile);
-
-        return false;
-    }
-
-    return runRc(["--load-compile-commands", compileCommandsDirectory.fsPath], (_unused) => { return true; });
-}
-
 function getSuspendedFilePaths(projectPath: Uri, timeout: number = 0) : Promise<Optional<string[]>>
 {
     let args =
@@ -1252,12 +1212,13 @@ export class RtagsManager implements Disposable
             status = await fileExists(compileCommandsFile);
             if (status)
             {
-                status = await loadCompileCommands(compileCommandsInfo.directory, projectPath);
+                status = await runRc(["--load-compile-commands", compileCommandsInfo.directory.fsPath],
+                                     (_unused) => { return true; });
             }
             else if ((task.type === TaskType.Reload) || compileCommandsInfo.isConfig)
             {
-                showProjectLoadErrorMessage(
-                    projectPath, "Unable to find the compilation database: " + compileCommandsFile);
+                window.showErrorMessage("[RTags] Could not load the project: " + projectPath.fsPath +
+                                        ". Unable to find the compilation database: " + compileCommandsFile);
             }
         }
         else
