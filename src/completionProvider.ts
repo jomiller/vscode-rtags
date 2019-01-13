@@ -20,7 +20,7 @@
 
 import { languages, workspace, CancellationToken, CompletionContext, CompletionItemKind, CompletionItem,
          CompletionItemProvider, CompletionList, Disposable, ParameterInformation, Position, ProviderResult, Range,
-         SignatureHelp, SignatureHelpProvider, SignatureInformation, TextDocument } from 'vscode';
+         SignatureHelp, SignatureHelpContext, SignatureHelpProvider, SignatureInformation, TextDocument } from 'vscode';
 
 import { RtagsManager } from './rtagsManager';
 
@@ -205,7 +205,10 @@ export class RtagsCompletionProvider implements
         return runRc(args, processCallback, this.rtagsMgr.getUnsavedSourceFiles(projectPath));
     }
 
-    public provideSignatureHelp(document: TextDocument, position: Position, _token: CancellationToken) :
+    public provideSignatureHelp(document: TextDocument,
+                                position: Position,
+                                _token: CancellationToken,
+                                _context: SignatureHelpContext) :
         ProviderResult<SignatureHelp>
     {
         const projectPath = this.rtagsMgr.getProjectPath(document.uri);
