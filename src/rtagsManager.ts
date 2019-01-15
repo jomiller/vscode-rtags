@@ -188,6 +188,30 @@ function fileExists(file: string) : Promise<boolean>
         });
 }
 
+function getRealPath(path: string) : Promise<Optional<string>>
+{
+    const executorCallback =
+        (resolve: (value?: string) => void, _reject: (reason?: any) => void) : void =>
+        {
+            const callback =
+                (error: Nullable<Error>, resolvedPath: string) =>
+                {
+                    if (error)
+                    {
+                        resolve();
+                    }
+                    else
+                    {
+                        resolve(resolvedPath);
+                    }
+                };
+
+            fs.realpath(path, {encoding: "utf8"}, callback);
+        };
+
+    return new Promise<string>(executorCallback);
+}
+
 function spawnRc(args: string[], ignoreStdio: boolean = false) : Nullable<ChildProcess>
 {
     const options: SpawnOptions =
@@ -585,32 +609,136 @@ function showProjectLoadErrorMessage(projectPath: Uri, message: string) : void
     window.showErrorMessage("[RTags] Could not load the project: " + projectPath.fsPath + ". " + message);
 }
 
-function findProjectRoot(compileCommandsDirectory: Uri) : Promise<Optional<Uri>>
+function readFirstCompileCommand(compileCommandsFile: Uri) : Promise<Optional<string>>
 {
+    const executorCallback =
+        (resolve: (value?: string) => void, _reject: (reason?: any) => void) : void =>
+        {
+            let resolved = false;
+
+            try
+            {
+                const stream = fs.createReadStream(compileCommandsFile.fsPath,
+                                                   {encoding: "utf8", autoClose: true, highWaterMark: 512});
+
+                let compileCommand = "";
+
+                const dataCallback =
+                    (chunk: string) : void =>
+                    {
+                        compileCommand += chunk;
+                        const endIndex = compileCommand.indexOf('}');
+                        if (endIndex !== -1)
+                        {
+                            compileCommand = compileCommand.slice(0, endIndex + 1);
+                            compileCommand += "\n]";
+                            resolved = true;
+                            stream.close();
+                            resolve(compileCommand);
+                        }
+                    };
+
+                stream.on("data", dataCallback);
+
+                const endCallback =
+                    () : void =>
+                    {
+                        if (!resolved)
+                        {
+                            resolve();
+                        }
+                    };
+
+                stream.on("end", endCallback);
+                stream.on("error", endCallback);
+                stream.on("close", endCallback);
+            }
+            catch (err)
+            {
+                if (!resolved)
+                {
+                    resolve();
+                }
+            }
+        };
+
+    return new Promise<string>(executorCallback);
+}
+
+async function findProjectRoot(compileCommandsFile: Uri) : Promise<Optional<Uri>>
+{
+    const compileCommandString = await readFirstCompileCommand(compileCommandsFile);
+    if (!compileCommandString)
+    {
+        return undefined;
+    }
+
+    const compileCommandArray = parseJson(compileCommandString);
+    if (!compileCommandArray)
+    {
+        return undefined;
+    }
+
+    const compileCommand = compileCommandArray[0];
+    if (!compileCommand.hasOwnProperty("directory") || !compileCommand.hasOwnProperty("file"))
+    {
+        return undefined;
+    }
+
+    const compileDirectory: string = compileCommand.directory;
+    if (!path.isAbsolute(compileDirectory))
+    {
+        return undefined;
+    }
+
+    let compileFile: string = compileCommand.file;
+    if (!path.isAbsolute(compileFile))
+    {
+        compileFile = path.resolve(compileCommand.directory, compileFile);
+    }
+
     const processCallback =
-        (output: string) : Optional<Uri> =>
+        (output: string) : Optional<string> =>
     {
         const projectRoot = output.match(/=> \[(.*)\]/);
-        return (projectRoot ? Uri.file(projectRoot[1].replace(/\/$/, "")) : undefined);
+        return (projectRoot ? projectRoot[1].replace(/\/$/, "") : undefined);
     };
 
-    return runRc(["--find-project-root", compileCommandsDirectory.fsPath], processCallback);
+    let projectRoot = await runRc(["--find-project-root", compileFile], processCallback);
+    if (!projectRoot)
+    {
+        const compileFileReal = await getRealPath(compileFile);
+        if (compileFileReal)
+        {
+            projectRoot = await runRc(["--find-project-root", compileFileReal], processCallback);
+        }
+    }
+    if (projectRoot)
+    {
+        projectRoot = await getRealPath(projectRoot);
+    }
+    if (!projectRoot)
+    {
+        return undefined;
+    }
+
+    return Uri.file(projectRoot);
 }
 
 async function loadCompileCommands(compileCommandsDirectory: Uri, projectPath: Uri) : Promise<Optional<boolean>>
 {
-    const projectRoot = await findProjectRoot(compileCommandsDirectory);
+    const compileCommandsFile = Uri.file(compileCommandsDirectory.fsPath + '/' + CompileCommandsFilename);
+    const projectRoot = await findProjectRoot(compileCommandsFile);
     if (!projectRoot)
     {
         showProjectLoadErrorMessage(
-            projectPath, "Unable to find the project root path in " + compileCommandsDirectory.fsPath);
+            projectPath, "Unable to find the project root path in " + compileCommandsFile.fsPath);
 
         return false;
     }
 
     if (!(projectPath.fsPath + '/').startsWith(projectRoot.fsPath + '/'))
     {
-        const compileCommandsFile = compileCommandsDirectory.fsPath + '/' + CompileCommandsFilename;
         showProjectLoadErrorMessage(
             projectPath, "The project path is outside of the root path given by " + compileCommandsFile);
 
