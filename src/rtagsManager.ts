@@ -616,6 +616,16 @@ function readFirstCompileCommand(compileCommandsFile: Uri) : Promise<Optional<st
         {
             let resolved = false;
 
+            const resolveError =
+                () : void =>
+                {
+                    if (!resolved)
+                    {
+                        resolved = true;
+                        resolve();
+                    }
+                };
+
             try
             {
                 const stream = fs.createReadStream(compileCommandsFile.fsPath,
@@ -633,32 +643,19 @@ function readFirstCompileCommand(compileCommandsFile: Uri) : Promise<Optional<st
                             compileCommand = compileCommand.slice(0, endIndex + 1);
                             compileCommand += "\n]";
                             resolved = true;
-                            stream.close();
+                            stream.destroy();
                             resolve(compileCommand);
                         }
                     };
 
                 stream.on("data", dataCallback);
 
-                const endCallback =
-                    () : void =>
-                    {
-                        if (!resolved)
-                        {
-                            resolve();
-                        }
-                    };
-
-                stream.on("end", endCallback);
-                stream.on("error", endCallback);
-                stream.on("close", endCallback);
+                stream.on("end", resolveError);
+                stream.on("error", resolveError);
             }
-            catch (err)
+            catch (_err)
             {
-                if (!resolved)
-                {
-                    resolve();
-                }
+                resolveError();
             }
         };
 
@@ -736,7 +733,7 @@ async function loadCompileCommands(compileCommandsDirectory: Uri, projectPath: U
     if (!(projectPath.fsPath + '/').startsWith(projectRoot.fsPath + '/'))
     {
         showProjectLoadErrorMessage(
-            projectPath, "The project path is outside of the root path given by " + compileCommandsFile);
+            projectPath, "The project path is outside of the root path given by " + compileCommandsFile.fsPath);
 
         return false;
     }
