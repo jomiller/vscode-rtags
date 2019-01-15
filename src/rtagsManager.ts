@@ -636,11 +636,14 @@ function readFirstCompileCommand(compileCommandsFile: Uri) : Promise<Optional<st
                 const dataCallback =
                     (chunk: string) : void =>
                     {
-                        compileCommand += chunk;
-                        const endIndex = compileCommand.indexOf('}');
+                        const endIndex = chunk.indexOf('}');
                         if (endIndex !== -1)
                         {
-                            compileCommand = compileCommand.slice(0, endIndex + 1);
+                            chunk = chunk.slice(0, endIndex + 1);
+                        }
+                        compileCommand += chunk;
+                        if (endIndex !== -1)
+                        {
                             compileCommand += "\n]";
                             resolved = true;
                             stream.destroy();
