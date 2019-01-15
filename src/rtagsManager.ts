@@ -32,6 +32,8 @@ import * as fs from 'fs';
 
 import * as os from 'os';
 
+import * as path from 'path';
+
 import * as util from 'util';
 
 import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, isOpenSourceFile, fromRtagsPosition, showContribution,
@@ -170,6 +172,11 @@ function toDiagnosticSeverity(severity: string) : DiagnosticSeverity
         default:
             return DiagnosticSeverity.Information;
     }
+}
+
+function isAbsolutePathOrFilename(filePath: string) : boolean
+{
+    return (path.isAbsolute(filePath) || (path.dirname(filePath) === '.'));
 }
 
 function fileExists(file: string) : Promise<boolean>
@@ -358,6 +365,13 @@ async function startRdm() : Promise<boolean>
     }
 
     const rdmExecutable = config.get<string>("rdm.executable", "rdm");
+    if (!isAbsolutePathOrFilename(rdmExecutable))
+    {
+        window.showErrorMessage("[RTags] The \"rtags.rdm.executable\" setting must be an absolute path or an " +
+                                "executable name (in the PATH).");
+        return false;
+    }
+
     let rdmArguments = config.get<string[]>("rdm.arguments", []);
 
     const jobCountExists = rdmArguments.some((arg) => { return (/^(-j=?(\d+)?|--job-count(=(\d+)?)?)$/).test(arg); });
@@ -431,6 +445,13 @@ async function startRdm() : Promise<boolean>
 
 async function initializeRtags(globalState: Memento) : Promise<boolean>
 {
+    if (!isAbsolutePathOrFilename(getRcExecutable()))
+    {
+        window.showErrorMessage("[RTags] The \"rtags.rc.executable\" setting must be an absolute path or an " +
+                                "executable name (in the PATH).");
+        return false;
+    }
+
     if (!testRcProcess())
     {
         window.showErrorMessage("[RTags] Could not run the client. Check the \"rtags.rc.executable\" setting.");
@@ -537,6 +558,11 @@ function getCompileCommandsInfo(projectPath: Uri) : CompileCommandsInfo
     let isConfig: boolean;
     if (compilationDatabaseDir)
     {
+        if (!path.isAbsolute(compilationDatabaseDir))
+        {
+            throw new RangeError("The \"rtags.misc.compilationDatabaseDirectory\" setting for project " +
+                                 projectPath.fsPath + " must be an absolute path.");
+        }
         directory = Uri.file(compilationDatabaseDir.replace(/\/*$/, ""));
         isConfig = true;
     }
@@ -897,7 +923,17 @@ export class RtagsManager implements Disposable
         // Consider only VS Code workspace folders, and ignore RTags projects that are not known to VS Code
         for (const folder of folders)
         {
-            const folderCompileInfo = getCompileCommandsInfo(folder.uri);
+            let folderCompileInfo: CompileCommandsInfo;
+            try
+            {
+                folderCompileInfo = getCompileCommandsInfo(folder.uri);
+            }
+            catch (err)
+            {
+                window.showErrorMessage("[RTags] " + err.message);
+                continue;
+            }
+
             const projectLoaded = loadedCompileInfo.some(
                 (info) => { return (info.directory.fsPath === folderCompileInfo.directory.fsPath); });
 
