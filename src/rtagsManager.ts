@@ -704,14 +704,10 @@ async function findProjectRoot(compileCommandsFile: Uri) : Promise<Optional<Uri>
         return (projectRoot ? projectRoot[1].replace(/\/$/, "") : undefined);
     };
 
-    let projectRoot = await runRc(["--find-project-root", compileFile], processCallback);
+    let projectRoot = await runRc(["--no-realpath", "--find-project-root", compileFile], processCallback);
     if (!projectRoot)
     {
-        const compileFileReal = await getRealPath(compileFile);
-        if (compileFileReal)
-        {
-            projectRoot = await runRc(["--find-project-root", compileFileReal], processCallback);
-        }
+        projectRoot = await runRc(["--find-project-root", compileFile], processCallback);
     }
     if (projectRoot)
     {
