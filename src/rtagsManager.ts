@@ -66,13 +66,12 @@ enum TaskType
     Reindex
 }
 
-class ProjectTask implements Disposable
+abstract class ProjectTask implements Disposable
 {
-    constructor(uri: Uri, type: TaskType)
+    constructor(uri: Uri)
     {
         this.id = ProjectTask.getNextId();
         this.uri = uri;
-        this.type = type;
     }
 
     public dispose() : void
@@ -84,20 +83,9 @@ class ProjectTask implements Disposable
         }
     }
 
-    public typeToString(capitalize: boolean = false) : string
-    {
-        let str: string;
-        if (this.type === TaskType.Load)
-        {
-            str = "loading";
-        }
-        else
-        {
-            assert.ok(this.type === TaskType.Reindex);
-            str = "reindexing";
-        }
-        return (capitalize ? (str.charAt(0).toUpperCase() + str.slice(1)) : str);
-    }
+    public abstract getType() : TaskType;
+
+    public abstract getArguments() : string[];
 
     public start(stop: (task: ProjectTask) => void) : void
     {
@@ -133,7 +121,6 @@ class ProjectTask implements Disposable
 
     public readonly id: number;
     public readonly uri: Uri;
-    public readonly type: TaskType;
 
     private static getNextId() : number
     {
@@ -144,6 +131,60 @@ class ProjectTask implements Disposable
 
     private static nextId: number = 0;
     private timer: Nullable<NodeJS.Timer> = null;
+}
+
+class ProjectLoadTask extends ProjectTask
+{
+    constructor(projectPath: Uri, compileFile: Uri)
+    {
+        super(projectPath);
+        this.compileFile = compileFile;
+    }
+
+    public getType() : TaskType
+    {
+        return TaskType.Load;
+    }
+
+    public getArguments() : string[]
+    {
+        return [this.compileFile.fsPath];
+    }
+
+    private compileFile: Uri;
+}
+
+class ProjectReindexTask extends ProjectTask
+{
+    constructor(projectPath: Uri)
+    {
+        super(projectPath);
+    }
+
+    public getType() : TaskType
+    {
+        return TaskType.Reindex;
+    }
+
+    public getArguments() : string[]
+    {
+        return [];
+    }
+}
+
+function taskTypeToString(taskType: TaskType, capitalize: boolean = false) : string
+{
+    let str: string;
+    if (taskType === TaskType.Load)
+    {
+        str = "loading";
+    }
+    else
+    {
+        assert.ok(taskType === TaskType.Reindex);
+        str = "reindexing";
+    }
+    return (capitalize ? (str.charAt(0).toUpperCase() + str.slice(1)) : str);
 }
 
 interface ResumeTimerInfo
@@ -921,7 +962,7 @@ export class RtagsManager implements Disposable
         let candidateTasks: ProjectTask[] = [];
         for (const task of this.projectTasks.values())
         {
-            if ((task.type === TaskType.Load) && (uri.fsPath.startsWith(task.uri.fsPath + '/')))
+            if ((task.getType() === TaskType.Load) && (uri.fsPath.startsWith(task.uri.fsPath + '/')))
             {
                 candidateTasks.push(task);
             }
@@ -1109,7 +1150,7 @@ export class RtagsManager implements Disposable
             }
             else
             {
-                this.startProjectTask(folder.uri, TaskType.Load);
+                this.startProjectTask(new ProjectLoadTask(folder.uri, compileFile));
             }
         }
     }
@@ -1402,38 +1443,36 @@ export class RtagsManager implements Disposable
         }
 
         // Reindex the project to which the active document belongs
-        this.startProjectTask(projectPath, TaskType.Reindex);
+        this.startProjectTask(new ProjectReindexTask(projectPath));
     }
 
     private reindexProjects() : void
     {
-        this.projectPaths.forEach((p) => { this.startProjectTask(p, TaskType.Reindex); });
+        this.projectPaths.forEach((p) => { this.startProjectTask(new ProjectReindexTask(p)); });
     }
 
-    private async startProjectTask(projectPath: Uri, taskType: TaskType) : Promise<void>
+    private async startProjectTask(task: ProjectTask) : Promise<void>
     {
         let status: Optional<boolean> = false;
-        let task = new ProjectTask(projectPath, taskType);
 
-        if (task.type === TaskType.Load)
+        if (task.getType() === TaskType.Load)
         {
-            const compileCommandsInfo = getCompileCommandsInfo(projectPath);
-
-            status = await runRc(["--load-compile-commands", compileCommandsInfo.directory.fsPath],
+            status = await runRc(["--load-compile-commands"].concat(task.getArguments()),
                                  (_unused) => { return true; });
         }
         else
         {
-            assert.ok(task.type === TaskType.Reindex);
+            assert.ok(task.getType() === TaskType.Reindex);
 
-            status = await runRc(["--project", projectPath.fsPath, "--reindex"],
+            status = await runRc(["--project", task.uri.fsPath, "--reindex"],
                                  (_unused) => { return true; },
-                                 this.getUnsavedSourceFiles(projectPath));
+                                 this.getUnsavedSourceFiles(task.uri));
         }
 
         if (status)
         {
-            window.showInformationMessage("[RTags] " + task.typeToString(true) + " project: " + projectPath.fsPath);
+            window.showInformationMessage("[RTags] " + taskTypeToString(task.getType(), true) +
+                                          " project: " + task.uri.fsPath);
 
             this.projectTasks.set(task.id, task);
 
@@ -1442,13 +1481,13 @@ export class RtagsManager implements Disposable
                 {
                     this.stopProjectTask(task);
 
-                    if (task.type === TaskType.Load)
+                    if (task.getType() === TaskType.Load)
                     {
                         this.addProjectPath(task.uri);
                     }
 
-                    window.showInformationMessage("[RTags] Finished " + task.typeToString() + " project: " +
-                                                  task.uri.fsPath);
+                    window.showInformationMessage("[RTags] Finished " + taskTypeToString(task.getType()) +
+                                                  " project: " + task.uri.fsPath);
                 };
 
             task.start(stopCallback);
