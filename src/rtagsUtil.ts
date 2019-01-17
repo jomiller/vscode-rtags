@@ -23,6 +23,8 @@ import { commands, languages, window, workspace, DocumentFilter, Location, Posit
 
 import { ChildProcess, ExecFileOptionsWithStringEncoding, SpawnOptions, execFile, spawn } from 'child_process';
 
+import * as path from 'path';
+
 export type Nullable<T> = T | null;
 export type Optional<T> = T | undefined;
 
@@ -301,6 +303,24 @@ export function getRtagsSymbolKinds(symbolKindOrCategories?: string | SymbolCate
         return symbolKinds;
     }
     return getRtagsSymbolKindsImpl(symbolKindOrCategories);
+}
+
+export function addTrailingSlash(dir: string) : string
+{
+    if ((dir.length !== 0) && !dir.endsWith(path.sep))
+    {
+        return (dir + path.sep);
+    }
+    return dir;
+}
+
+export function removeTrailingSlash(dir: string) : string
+{
+    if ((dir.length !== 0) && dir.endsWith(path.sep))
+    {
+        return dir.slice(0, -1);
+    }
+    return dir;
 }
 
 export function fromRtagsPosition(line: string, column: string) : Position

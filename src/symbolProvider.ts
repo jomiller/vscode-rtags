@@ -23,7 +23,7 @@ import { languages, workspace, CancellationToken, Disposable, DocumentSymbolProv
 
 import { RtagsManager } from './rtagsManager';
 
-import { Optional, SourceFileSelector, fromRtagsLocation, runRc } from './rtagsUtil';
+import { Optional, SourceFileSelector, addTrailingSlash, fromRtagsLocation, runRc } from './rtagsUtil';
 
 function toSymbolKind(kind: string) : Optional<SymbolKind>
 {
@@ -227,7 +227,7 @@ export class RtagsSymbolProvider implements
             const args =
             [
                 "--project",
-                path.fsPath,
+                addTrailingSlash(path.fsPath),
                 "--path-filter",
                 path.fsPath,
                 "--max",

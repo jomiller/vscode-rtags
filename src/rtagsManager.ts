@@ -34,8 +34,9 @@ import * as path from 'path';
 
 import * as util from 'util';
 
-import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, isOpenSourceFile, fromRtagsPosition, showContribution,
-         hideContribution, parseJson, safeSpawn, getRcExecutable, runRc } from './rtagsUtil';
+import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, isOpenSourceFile, addTrailingSlash,
+         removeTrailingSlash, fromRtagsPosition, showContribution, hideContribution, parseJson, safeSpawn,
+         getRcExecutable, runRc } from './rtagsUtil';
 
 const ExtensionId             = "jomiller.rtags-client";
 const CompileCommandsFilename = "compile_commands.json";
@@ -194,7 +195,9 @@ class ProjectReindexTask extends ProjectTask
 
     protected execute() : Promise<Optional<boolean>>
     {
-        return runRc(["--project", this.uri.fsPath, "--reindex"], (_unused) => { return true; }, this.unsavedFiles);
+        return runRc(["--project", addTrailingSlash(this.uri.fsPath), "--reindex"],
+                     (_unused) => { return true; },
+                     this.unsavedFiles);
     }
 
     private unsavedFiles: TextDocument[];
@@ -220,24 +223,6 @@ function toDiagnosticSeverity(severity: string) : DiagnosticSeverity
         default:
             return DiagnosticSeverity.Information;
     }
-}
-
-function addTrailingSlash(dir: string) : string
-{
-    if ((dir.length !== 0) && !dir.endsWith(path.sep))
-    {
-        return (dir + path.sep);
-    }
-    return dir;
-}
-
-function removeTrailingSlash(dir: string) : string
-{
-    if ((dir.length !== 0) && dir.endsWith(path.sep))
-    {
-        return dir.slice(0, -1);
-    }
-    return dir;
 }
 
 function isAbsolutePathOrFilename(filePath: string) : boolean
@@ -605,7 +590,7 @@ async function getLoadedCompileCommandsInfo(knownProjectPaths?: Uri[]) : Promise
         const args =
         [
             "--project",
-            path.fsPath,
+            addTrailingSlash(path.fsPath),
             "--status",
             "project"
         ];
@@ -814,7 +799,7 @@ function getSuspendedFilePaths(projectPath: Uri, timeout: number = 0) : Promise<
     let args =
     [
         "--project",
-        projectPath.fsPath,
+        addTrailingSlash(projectPath.fsPath),
         "--suspend"
     ];
 
@@ -1655,7 +1640,7 @@ export class RtagsManager implements Disposable
         else
         {
             // Resend diagnostics for all files in the project
-            runRc(["--project", projectPath.fsPath, "--diagnose-all"]);
+            runRc(["--project", addTrailingSlash(projectPath.fsPath), "--diagnose-all"]);
         }
     }
 

@@ -30,8 +30,8 @@ import { RtagsManager } from './rtagsManager';
 import { getDerivedClasses } from './inheritanceHierarchy';
 
 import { Optional, SourceFileSelector, SymbolInfo, SymbolBaseCategory, SymbolSubCategory, getRtagsSymbolKinds,
-         isRtagsSymbolKind, fromRtagsLocation, toRtagsLocation, showReferences, runRc, getSymbolInfo }
-         from './rtagsUtil';
+         isRtagsSymbolKind, addTrailingSlash, fromRtagsLocation, toRtagsLocation, showReferences, runRc,
+         getSymbolInfo } from './rtagsUtil';
 
 enum ReferenceType
 {
@@ -161,7 +161,7 @@ function getReferencesByName(name: string, projectPath: Uri, queryType: Referenc
     let args =
     [
         "--project",
-        projectPath.fsPath,
+        addTrailingSlash(projectPath.fsPath),
         "--references-name",
         name,
         "--all-references",
