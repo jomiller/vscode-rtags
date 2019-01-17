@@ -63,7 +63,6 @@ interface CompileCommandsInfo
 enum TaskType
 {
     Load,
-    Reload,
     Reindex
 }
 
@@ -85,15 +84,10 @@ class ProjectTask implements Disposable
         }
     }
 
-    public isLoadType() : boolean
-    {
-        return ((this.type === TaskType.Load) || (this.type === TaskType.Reload));
-    }
-
     public typeToString(capitalize: boolean = false) : string
     {
         let str: string;
-        if (this.isLoadType())
+        if (this.type === TaskType.Load)
         {
             str = "loading";
         }
@@ -699,10 +693,10 @@ async function findProjectRoot(compileCommandsFile: Uri) : Promise<Optional<Uri>
 
     const processCallback =
         (output: string) : Optional<string> =>
-    {
-        const projectRoot = output.match(/=> \[(.*)\]/);
-        return (projectRoot ? projectRoot[1].replace(/\/$/, "") : undefined);
-    };
+        {
+            const projectRoot = output.match(/=> \[(.*)\]/);
+            return (projectRoot ? projectRoot[1].replace(/\/$/, "") : undefined);
+        };
 
     let projectRoot = await runRc(["--no-realpath", "--find-project-root", compileFile], processCallback);
     if (!projectRoot)
@@ -721,9 +715,8 @@ async function findProjectRoot(compileCommandsFile: Uri) : Promise<Optional<Uri>
     return Uri.file(projectRoot);
 }
 
-async function loadCompileCommands(compileCommandsDirectory: Uri, projectPath: Uri) : Promise<Optional<boolean>>
+async function validateCompileCommands(compileCommandsFile: Uri, projectPath: Uri) : Promise<boolean>
 {
-    const compileCommandsFile = Uri.file(compileCommandsDirectory.fsPath + '/' + CompileCommandsFilename);
     const projectRoot = await findProjectRoot(compileCommandsFile);
     if (!projectRoot)
     {
@@ -741,7 +734,7 @@ async function loadCompileCommands(compileCommandsDirectory: Uri, projectPath: U
         return false;
     }
 
-    return runRc(["--load-compile-commands", compileCommandsDirectory.fsPath], (_unused) => { return true; });
+    return true;
 }
 
 function getSuspendedFilePaths(projectPath: Uri, timeout: number = 0) : Promise<Optional<string[]>>
@@ -928,7 +921,7 @@ export class RtagsManager implements Disposable
         let candidateTasks: ProjectTask[] = [];
         for (const task of this.projectTasks.values())
         {
-            if (task.isLoadType() && (uri.fsPath.startsWith(task.uri.fsPath + '/')))
+            if ((task.type === TaskType.Load) && (uri.fsPath.startsWith(task.uri.fsPath + '/')))
             {
                 candidateTasks.push(task);
             }
@@ -1045,12 +1038,13 @@ export class RtagsManager implements Disposable
         const loadedCompileInfo = await getLoadedCompileCommandsInfo(knownProjectPaths);
 
         // Consider only VS Code workspace folders, and ignore RTags projects that are not known to VS Code
+
         for (const folder of folders)
         {
-            let folderCompileInfo: CompileCommandsInfo;
+            let compileInfo: CompileCommandsInfo;
             try
             {
-                folderCompileInfo = getCompileCommandsInfo(folder.uri);
+                compileInfo = getCompileCommandsInfo(folder.uri);
             }
             catch (err)
             {
@@ -1058,8 +1052,35 @@ export class RtagsManager implements Disposable
                 continue;
             }
 
+            let projectExists = false;
+            if (knownProjectPaths)
+            {
+                projectExists = knownProjectPaths.some((p) => { return (p.fsPath === folder.uri.fsPath); });
+            }
+
             const projectLoaded = loadedCompileInfo.some(
-                (info) => { return (info.directory.fsPath === folderCompileInfo.directory.fsPath); });
+                (info) => { return (info.directory.fsPath === compileInfo.directory.fsPath); });
+
+            const compileFile = Uri.file(compileInfo.directory.fsPath + '/' + CompileCommandsFilename);
+
+            const compileFileExists = await fileExists(compileFile.fsPath);
+            if (compileFileExists)
+            {
+                const compileFileValid = await validateCompileCommands(compileFile, folder.uri);
+                if (!compileFileValid)
+                {
+                    continue;
+                }
+            }
+            else if (!projectLoaded || compileInfo.isConfig)
+            {
+                if (projectExists || compileInfo.isConfig)
+                {
+                    showProjectLoadErrorMessage(
+                        folder.uri, "Unable to find the compilation database: " + compileFile.fsPath);
+                }
+                continue;
+            }
 
             if (projectLoaded)
             {
@@ -1088,17 +1109,7 @@ export class RtagsManager implements Disposable
             }
             else
             {
-                let taskType = TaskType.Load;
-                if (knownProjectPaths)
-                {
-                    const projectExists = knownProjectPaths.some((p) => { return (p.fsPath === folder.uri.fsPath); });
-                    if (projectExists)
-                    {
-                        taskType = TaskType.Reload;
-                    }
-                }
-
-                this.startProjectTask(folder.uri, taskType);
+                this.startProjectTask(folder.uri, TaskType.Load);
             }
         }
     }
@@ -1404,21 +1415,12 @@ export class RtagsManager implements Disposable
         let status: Optional<boolean> = false;
         let task = new ProjectTask(projectPath, taskType);
 
-        if (task.isLoadType())
+        if (task.type === TaskType.Load)
         {
             const compileCommandsInfo = getCompileCommandsInfo(projectPath);
-            const compileCommandsFile = compileCommandsInfo.directory.fsPath + '/' + CompileCommandsFilename;
 
-            status = await fileExists(compileCommandsFile);
-            if (status)
-            {
-                status = await loadCompileCommands(compileCommandsInfo.directory, projectPath);
-            }
-            else if ((task.type === TaskType.Reload) || compileCommandsInfo.isConfig)
-            {
-                showProjectLoadErrorMessage(
-                    projectPath, "Unable to find the compilation database: " + compileCommandsFile);
-            }
+            status = await runRc(["--load-compile-commands", compileCommandsInfo.directory.fsPath],
+                                 (_unused) => { return true; });
         }
         else
         {
@@ -1440,7 +1442,7 @@ export class RtagsManager implements Disposable
                 {
                     this.stopProjectTask(task);
 
-                    if (task.isLoadType())
+                    if (task.type === TaskType.Load)
                     {
                         this.addProjectPath(task.uri);
                     }
