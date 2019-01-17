@@ -612,17 +612,17 @@ async function getLoadedCompileCommandsInfo(knownProjectPaths?: Uri[]) : Promise
 function getCompileCommandsInfo(projectPath: Uri) : CompileCommandsInfo
 {
     const config = workspace.getConfiguration("rtags", projectPath);
-    const compilationDatabaseDir = config.get<string>("misc.compilationDatabaseDirectory");
+    const compilationDatabaseDir = config.get<string>("misc.compilationDatabaseDirectory", "").trim();
     let directory: Uri;
     let isConfig: boolean;
-    if (compilationDatabaseDir)
+    if (compilationDatabaseDir.length !== 0)
     {
         if (!path.isAbsolute(compilationDatabaseDir))
         {
             throw new RangeError("The \"rtags.misc.compilationDatabaseDirectory\" setting for project " +
                                  projectPath.fsPath + " must be an absolute path.");
         }
-        directory = Uri.file(compilationDatabaseDir.replace(/\/*$/, ""));
+        directory = Uri.file(path.normalize(compilationDatabaseDir).replace(/\/$/, ""));
         isConfig = true;
     }
     else
