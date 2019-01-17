@@ -209,6 +209,24 @@ function toDiagnosticSeverity(severity: string) : DiagnosticSeverity
     }
 }
 
+function addTrailingSlash(dir: string) : string
+{
+    if ((dir.length !== 0) && !dir.endsWith(path.sep))
+    {
+        return (dir + path.sep);
+    }
+    return dir;
+}
+
+function removeTrailingSlash(dir: string) : string
+{
+    if ((dir.length !== 0) && dir.endsWith(path.sep))
+    {
+        return dir.slice(0, -1);
+    }
+    return dir;
+}
+
 function isAbsolutePathOrFilename(filePath: string) : boolean
 {
     return (path.isAbsolute(filePath) || (path.dirname(filePath) === '.'));
@@ -554,7 +572,7 @@ function getKnownProjectPaths() : Promise<Optional<Uri[]>>
             }
 
             const paths = trimmedOutput.split('\n');
-            return paths.map((p) => { return Uri.file(p.replace(" <=", "").trim().replace(/\/$/, "")); });
+            return paths.map((p) => { return Uri.file(removeTrailingSlash(p.replace(" <=", "").trim())); });
         };
 
     return runRc(["--project"], processCallback);
@@ -622,7 +640,7 @@ function getCompileCommandsInfo(projectPath: Uri) : CompileCommandsInfo
             throw new RangeError("The \"rtags.misc.compilationDatabaseDirectory\" setting for project " +
                                  projectPath.fsPath + " must be an absolute path.");
         }
-        directory = Uri.file(path.normalize(compilationDatabaseDir).replace(/\/$/, ""));
+        directory = Uri.file(removeTrailingSlash(path.normalize(compilationDatabaseDir)));
         isConfig = true;
     }
     else
@@ -736,7 +754,7 @@ async function findProjectRoot(compileCommandsFile: Uri) : Promise<Optional<Uri>
         (output: string) : Optional<string> =>
         {
             const projectRoot = output.match(/=> \[(.*)\]/);
-            return (projectRoot ? projectRoot[1].replace(/\/$/, "") : undefined);
+            return (projectRoot ? removeTrailingSlash(projectRoot[1]) : undefined);
         };
 
     let projectRoot = await runRc(["--no-realpath", "--find-project-root", compileFile], processCallback);
@@ -767,7 +785,7 @@ async function validateCompileCommands(compileCommandsFile: Uri, projectPath: Ur
         return false;
     }
 
-    if (!(projectPath.fsPath + '/').startsWith(projectRoot.fsPath + '/'))
+    if (!(addTrailingSlash(projectPath.fsPath)).startsWith(addTrailingSlash(projectRoot.fsPath)))
     {
         showProjectLoadErrorMessage(
             projectPath, "The project path is outside of the root path given by " + compileCommandsFile.fsPath);
@@ -938,7 +956,9 @@ export class RtagsManager implements Disposable
 
     public getProjectPath(uri: Uri) : Optional<Uri>
     {
-        const candidatePaths = this.projectPaths.filter((p) => { return (uri.fsPath.startsWith(p.fsPath + '/')); });
+        const candidatePaths =
+            this.projectPaths.filter((p) => { return (uri.fsPath.startsWith(addTrailingSlash(p.fsPath))); });
+
         let projectPath = candidatePaths.pop();
         for (const path of candidatePaths)
         {
@@ -962,7 +982,7 @@ export class RtagsManager implements Disposable
         let candidateTasks: ProjectTask[] = [];
         for (const task of this.projectTasks.values())
         {
-            if ((task.getType() === TaskType.Load) && (uri.fsPath.startsWith(task.uri.fsPath + '/')))
+            if ((task.getType() === TaskType.Load) && (uri.fsPath.startsWith(addTrailingSlash(task.uri.fsPath))))
             {
                 candidateTasks.push(task);
             }
@@ -1060,7 +1080,7 @@ export class RtagsManager implements Disposable
                 const folderAdded = folders.some((f) => { return (f.uri.fsPath === path); });
                 if (folderAdded)
                 {
-                    args.push("--delete-project", path + '/');
+                    args.push("--delete-project", addTrailingSlash(path));
                     projectPathsToReload.delete(path);
                 }
             }
@@ -1102,7 +1122,7 @@ export class RtagsManager implements Disposable
             const projectLoaded = loadedCompileInfo.some(
                 (info) => { return (info.directory.fsPath === compileInfo.directory.fsPath); });
 
-            const compileFile = Uri.file(compileInfo.directory.fsPath + '/' + CompileCommandsFilename);
+            const compileFile = Uri.file(addTrailingSlash(compileInfo.directory.fsPath) + CompileCommandsFilename);
 
             const compileFileExists = await fileExists(compileFile.fsPath);
             if (compileFileExists)
