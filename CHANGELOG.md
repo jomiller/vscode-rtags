@@ -20,8 +20,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 - Support for highlighting all occurrences of a symbol within a document.
-- `rtags.highlighting.enabled` configuration setting for enabling symbol highlighting (set to `false` by default).
-- `rtags.codeActions.enabled` configuration setting for enabling code actions (set to `true` by default).
+- `rtags.highlighting.enabled` configuration setting for enabling symbol highlighting (default: `false`).
+- `rtags.codeActions.enabled` configuration setting for enabling code actions (default: `true`).
 
 ### Changed
 - Improve accuracy and speed of `Go to Type Definition` and `Show Variables` commands when invoked for type symbols.
@@ -37,7 +37,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ### Changed
 - `Go to Implementation` command (`Ctrl+F12`) shows derived classes when invoked for base classes, and virtual method definitions when invoked for virtual methods.
 - Rename `Show Virtuals` command to `Show Derived/Virtuals`, and make it invoke the `Go to Implementation` command.
-- Include the declaration and definition in the results for the `Find All References` and `List All References` commands.
+- Include the declaration and definition in the results for the `Find All References` command.
 - Support renaming symbols in workspace folders with unsaved files.
 - Clarify the title text for fix-it hints.
 - Reduce the debouncing timeout to 500 ms for reindexing changed files.
