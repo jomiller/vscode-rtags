@@ -1145,28 +1145,8 @@ export class RtagsManager implements Disposable
 
             if (projectLoaded)
             {
-                // The project is already loaded into RTags
                 this.addProjectPath(folder.uri);
-
-                if (this.diagnosticsEnabled)
-                {
-                    if (this.diagnosticsOpenFilesOnly)
-                    {
-                        // Resend diagnostics for open files in the project
-                        const openSourceFiles = this.getOpenSourceFiles(folder.uri);
-                        if (openSourceFiles.length !== 0)
-                        {
-                            let args: string[] = [];
-                            openSourceFiles.forEach((file) => { args.push("--diagnose", file.uri.fsPath); });
-                            runRc(args);
-                        }
-                    }
-                    else
-                    {
-                        // Resend diagnostics for all files in the project
-                        runRc(["--project", folder.uri.fsPath, "--diagnose-all"]);
-                    }
-                }
+                this.diagnoseProject(folder.uri);
             }
             else
             {
@@ -1658,6 +1638,31 @@ export class RtagsManager implements Disposable
             {
                 this.diagnosticCollection.set(uri, diagnostics);
             }
+        }
+    }
+
+    private diagnoseProject(projectPath: Uri) : void
+    {
+        if (!this.diagnosticsEnabled)
+        {
+            return;
+        }
+
+        if (this.diagnosticsOpenFilesOnly)
+        {
+            // Resend diagnostics for open files in the project
+            const openSourceFiles = this.getOpenSourceFiles(projectPath);
+            if (openSourceFiles.length !== 0)
+            {
+                let args: string[] = [];
+                openSourceFiles.forEach((file) => { args.push("--diagnose", file.uri.fsPath); });
+                runRc(args);
+            }
+        }
+        else
+        {
+            // Resend diagnostics for all files in the project
+            runRc(["--project", projectPath.fsPath, "--diagnose-all"]);
         }
     }
 
