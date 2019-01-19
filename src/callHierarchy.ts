@@ -23,6 +23,8 @@ import { commands, window, Disposable, Event, EventEmitter, Location, Position, 
 
 import * as path from 'path';
 
+import { Views, Commands } from './constants';
+
 import { RtagsManager } from './rtagsManager';
 
 import { Nullable, Optional, Locatable, SymbolInfo, SymbolBaseCategory, isRtagsSymbolKind, fromRtagsLocation,
@@ -93,14 +95,14 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
         const callHierarchyCallback =
             () : void =>
             {
-                showContribution("rtags.callHierarchy");
+                showContribution(Views.CallHierarchy);
                 this.refresh();
             };
 
         const closeCallHierarchyCallback =
             () : void =>
             {
-                hideContribution("rtags.callHierarchy");
+                hideContribution(Views.CallHierarchy);
                 this.refresh();
             };
 
@@ -132,10 +134,10 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
             };
 
         this.disposables.push(
-            window.registerTreeDataProvider("rtags.callHierarchy", this),
-            commands.registerCommand("rtags.callHierarchy", callHierarchyCallback),
-            commands.registerCommand("rtags.closeCallHierarchy", closeCallHierarchyCallback),
-            commands.registerTextEditorCommand("rtags.showCallers", showCallersCallback));
+            window.registerTreeDataProvider(Views.CallHierarchy, this),
+            commands.registerCommand(Commands.CallHierarchy, callHierarchyCallback),
+            commands.registerCommand(Commands.CloseCallHierarchy, closeCallHierarchyCallback),
+            commands.registerTextEditorCommand(Commands.ShowCallers, showCallersCallback));
     }
 
     public dispose() : void

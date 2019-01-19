@@ -34,11 +34,13 @@ import * as path from 'path';
 
 import * as util from 'util';
 
+import { ExtensionId, VsCodeCommands, Commands, ConfigurationId, WindowConfiguration, ResourceConfiguration,
+         makeConfigurationId } from './constants';
+
 import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, isOpenSourceFile, addTrailingSlash,
          removeTrailingSlash, fromRtagsPosition, showContribution, hideContribution, parseJson, safeSpawn,
          getRcExecutable, runRc } from './rtagsUtil';
 
-const ExtensionId             = "jomiller.rtags-client";
 const CompileCommandsFilename = "compile_commands.json";
 const RtagsRepository         = "Andersbakken/rtags";
 const RtagsMinimumVersion     = "2.18";
@@ -383,7 +385,7 @@ function showRtagsVersionMessage(versionInfo: RtagsVersionInfo, message: string,
         {
             if (selectedAction === versionInfo.linkText)
             {
-                commands.executeCommand("vscode.open", versionInfo.linkUrl);
+                commands.executeCommand(VsCodeCommands.Open, versionInfo.linkUrl);
             }
         };
 
@@ -435,24 +437,26 @@ async function startRdm() : Promise<boolean>
         return true;
     }
 
-    const config = workspace.getConfiguration("rtags");
-    const rdmAutoLaunch = config.get<boolean>("rdm.autoLaunch", true);
+    const config = workspace.getConfiguration(ConfigurationId);
+    const rdmAutoLaunch = config.get<boolean>(WindowConfiguration.RdmAutoLaunch, true);
     if (!rdmAutoLaunch)
     {
+        const rdmAutoLaunchId = makeConfigurationId(WindowConfiguration.RdmAutoLaunch);
         window.showErrorMessage("[RTags] The server is not running and auto-launch is disabled. " +
-                                "Launch the server manually or enable the \"rtags.rdm.autoLaunch\" setting.");
+                                "Launch the server manually or enable the \"" + rdmAutoLaunchId + "\" setting.");
         return false;
     }
 
-    const rdmExecutable = config.get<string>("rdm.executable", "rdm");
+    const rdmExecutableId = makeConfigurationId(WindowConfiguration.RdmExecutable);
+    const rdmExecutable = config.get<string>(WindowConfiguration.RdmExecutable, "rdm");
     if (!isAbsolutePathOrFilename(rdmExecutable))
     {
-        window.showErrorMessage("[RTags] The \"rtags.rdm.executable\" setting must be an absolute path or an " +
+        window.showErrorMessage("[RTags] The \"" + rdmExecutableId + "\" setting must be an absolute path or an " +
                                 "executable name (in the PATH).");
         return false;
     }
 
-    let rdmArguments = config.get<string[]>("rdm.arguments", []);
+    let rdmArguments = config.get<string[]>(WindowConfiguration.RdmArguments, []);
 
     const jobCountExists = rdmArguments.some((arg) => { return (/^(-j=?(\d+)?|--job-count(=(\d+)?)?)$/).test(arg); });
     if (!jobCountExists)
@@ -516,8 +520,9 @@ async function startRdm() : Promise<boolean>
     }
     else
     {
+        const rdmArgumentsId = makeConfigurationId(WindowConfiguration.RdmArguments);
         window.showErrorMessage("[RTags] Could not start the server. " +
-                                "Check the \"rtags.rdm.executable\" and \"rtags.rdm.arguments\" settings.");
+                                "Check the \"" + rdmExecutableId + "\" and \"" + rdmArgumentsId + "\" settings.");
     }
 
     return rcStatus;
@@ -525,16 +530,18 @@ async function startRdm() : Promise<boolean>
 
 async function initializeRtags(globalState: Memento) : Promise<boolean>
 {
+    const rcExecutableId = makeConfigurationId(WindowConfiguration.RcExecutable);
+
     if (!isAbsolutePathOrFilename(getRcExecutable()))
     {
-        window.showErrorMessage("[RTags] The \"rtags.rc.executable\" setting must be an absolute path or an " +
+        window.showErrorMessage("[RTags] The \"" + rcExecutableId + "\" setting must be an absolute path or an " +
                                 "executable name (in the PATH).");
         return false;
     }
 
     if (!testRcProcess())
     {
-        window.showErrorMessage("[RTags] Could not run the client. Check the \"rtags.rc.executable\" setting.");
+        window.showErrorMessage("[RTags] Could not run the client. Check the \"" + rcExecutableId + "\" setting.");
         return false;
     }
 
@@ -632,15 +639,20 @@ async function getLoadedCompileCommandsInfo(knownProjectPaths?: Uri[]) : Promise
 
 function getCompileCommandsInfo(projectPath: Uri) : CompileCommandsInfo
 {
-    const config = workspace.getConfiguration("rtags", projectPath);
-    const compilationDatabaseDir = config.get<string>("misc.compilationDatabaseDirectory", "").trim();
+    const config = workspace.getConfiguration(ConfigurationId, projectPath);
+    const compilationDatabaseDir =
+        config.get<string>(ResourceConfiguration.MiscCompilationDatabaseDirectory, "").trim();
+
     let directory: Uri;
     let isConfig: boolean;
     if (compilationDatabaseDir.length !== 0)
     {
         if (!path.isAbsolute(compilationDatabaseDir))
         {
-            throw new RangeError("The \"rtags.misc.compilationDatabaseDirectory\" setting for project " +
+            const compilationDatabaseDirectoryId =
+                makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
+
+            throw new RangeError("The \"" + compilationDatabaseDirectoryId + "\" setting for project " +
                                  projectPath.fsPath + " must be an absolute path.");
         }
         directory = Uri.file(removeTrailingSlash(path.normalize(compilationDatabaseDir)));
@@ -843,14 +855,14 @@ export class RtagsManager implements Disposable
     {
         this.workspaceState = workspaceState;
 
-        const config = workspace.getConfiguration("rtags");
-        this.diagnosticsEnabled = config.get<boolean>("diagnostics.enabled", true);
+        const config = workspace.getConfiguration(ConfigurationId);
+        this.diagnosticsEnabled = config.get<boolean>(WindowConfiguration.DiagnosticsEnabled, true);
         if (this.diagnosticsEnabled)
         {
-            this.diagnosticCollection = languages.createDiagnosticCollection("rtags");
+            this.diagnosticCollection = languages.createDiagnosticCollection(ConfigurationId);
             this.disposables.push(this.diagnosticCollection);
 
-            this.diagnosticsOpenFilesOnly = config.get<boolean>("diagnostics.openFilesOnly", true);
+            this.diagnosticsOpenFilesOnly = config.get<boolean>(WindowConfiguration.DiagnosticsOpenFilesOnly, true);
             if (this.diagnosticsOpenFilesOnly)
             {
                 this.disposables.push(
@@ -900,8 +912,8 @@ export class RtagsManager implements Disposable
 
                 const affectsConfig =
                     (workspacePaths.size !== 0) ?
-                    [...workspacePaths].some((p) => { return event.affectsConfiguration("rtags", p); }) :
-                    event.affectsConfiguration("rtags");
+                    [...workspacePaths].some((p) => { return event.affectsConfiguration(ConfigurationId, p); }) :
+                    event.affectsConfiguration(ConfigurationId);
 
                 if (!affectsConfig)
                 {
@@ -912,9 +924,12 @@ export class RtagsManager implements Disposable
 
                 const origProjectPathCount = projectPathsToReload.size;
 
+                const compilationDatabaseDirectoryId =
+                    makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
+
                 for (const path of this.projectPaths)
                 {
-                    if (event.affectsConfiguration("rtags.misc.compilationDatabaseDirectory", path))
+                    if (event.affectsConfiguration(compilationDatabaseDirectoryId, path))
                     {
                         projectPathsToReload.add(path.fsPath);
                     }
@@ -931,13 +946,13 @@ export class RtagsManager implements Disposable
 
                 if (selectedAction === reloadAction)
                 {
-                    commands.executeCommand("workbench.action.reloadWindow");
+                    commands.executeCommand(VsCodeCommands.ReloadWindow);
                 }
             };
 
         this.disposables.push(
-            commands.registerCommand("rtags.reindexActiveFolder", this.reindexActiveProject, this),
-            commands.registerCommand("rtags.reindexWorkspace", this.reindexProjects, this),
+            commands.registerCommand(Commands.ReindexActiveFolder, this.reindexActiveProject, this),
+            commands.registerCommand(Commands.ReindexWorkspace, this.reindexProjects, this),
             workspace.onDidChangeTextDocument(this.reindexChangedFile, this),
             workspace.onDidSaveTextDocument(this.reindexSavedFile, this),
             workspace.onWillSaveTextDocument(this.suspendFileWatch, this),
@@ -1035,7 +1050,7 @@ export class RtagsManager implements Disposable
 
         if (this.projectPaths.length > 1)
         {
-            showContribution("rtags.reindexActiveFolder");
+            showContribution(Commands.ReindexActiveFolder);
         }
     }
 
@@ -1049,7 +1064,7 @@ export class RtagsManager implements Disposable
 
         if (this.projectPaths.length <= 1)
         {
-            hideContribution("rtags.reindexActiveFolder");
+            hideContribution(Commands.ReindexActiveFolder);
         }
     }
 

@@ -21,6 +21,8 @@
 import { languages, workspace, CancellationToken, CodeAction, CodeActionContext, CodeActionKind, CodeActionProvider,
          CodeActionProviderMetadata, Disposable, ProviderResult, Range, TextDocument, WorkspaceEdit } from 'vscode';
 
+import { ConfigurationId, WindowConfiguration } from './constants';
+
 import { RtagsManager } from './rtagsManager';
 
 import { SourceFileSelector, fromRtagsPosition, runRc } from './rtagsUtil';
@@ -33,8 +35,8 @@ export class RtagsCodeActionProvider implements
     {
         this.rtagsMgr = rtagsMgr;
 
-        const config = workspace.getConfiguration("rtags");
-        const codeActionsEnabled = config.get<boolean>("codeActions.enabled", true);
+        const config = workspace.getConfiguration(ConfigurationId);
+        const codeActionsEnabled = config.get<boolean>(WindowConfiguration.CodeActionsEnabled, true);
         if (codeActionsEnabled)
         {
             const metadata: CodeActionProviderMetadata =

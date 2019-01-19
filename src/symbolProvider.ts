@@ -21,6 +21,8 @@
 import { languages, workspace, CancellationToken, Disposable, DocumentSymbolProvider, ProviderResult,
          SymbolInformation, SymbolKind, TextDocument, WorkspaceSymbolProvider } from 'vscode';
 
+import { ConfigurationId, ResourceConfiguration } from './constants';
+
 import { RtagsManager } from './rtagsManager';
 
 import { Optional, SourceFileSelector, addTrailingSlash, fromRtagsLocation, runRc } from './rtagsUtil';
@@ -221,8 +223,8 @@ export class RtagsSymbolProvider implements
 
         for (const path of this.rtagsMgr.getProjectPaths())
         {
-            const config = workspace.getConfiguration("rtags", path);
-            const maxSearchResults = config.get<number>("misc.maxWorkspaceSearchResults", 50);
+            const config = workspace.getConfiguration(ConfigurationId, path);
+            const maxSearchResults = config.get<number>(ResourceConfiguration.MiscMaxWorkspaceSearchResults, 50);
 
             const args =
             [

@@ -2,11 +2,13 @@ import { extensions } from 'vscode';
 
 import * as assert from 'assert';
 
+import { ExtensionId } from '../constants';
+
 suite("Extension Tests", function()
 {
     suiteSetup(async function()
     { 
-        let extension = extensions.getExtension("jomiller.rtags-client"); 
+        let extension = extensions.getExtension(ExtensionId); 
         assert.ok(extension);
         if (extension && !extension.isActive)
         { 
@@ -16,7 +18,7 @@ suite("Extension Tests", function()
 
     test("Verify extension is active", function()
     {
-        const extension = extensions.getExtension("jomiller.rtags-client");
+        const extension = extensions.getExtension(ExtensionId);
         assert.ok(extension);
         if (extension)
         {

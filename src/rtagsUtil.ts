@@ -25,6 +25,8 @@ import { ChildProcess, ExecFileOptionsWithStringEncoding, SpawnOptions, execFile
 
 import * as path from 'path';
 
+import { VsCodeCommands, ConfigurationId, WindowConfiguration } from './constants';
+
 export type Nullable<T> = T | null;
 export type Optional<T> = T | undefined;
 
@@ -352,7 +354,7 @@ export function jumpToLocation(uri: Uri, range: Range) : void
 
 export function setContext<T>(name: string, value: T) : void
 {
-    commands.executeCommand("setContext", name, value);
+    commands.executeCommand(VsCodeCommands.SetContext, name, value);
 }
 
 export function showContribution(name: string) : void
@@ -367,7 +369,7 @@ export function hideContribution(name: string) : void
 
 export function showReferences(uri: Uri, position: Position, locations: Location[]) : void
 {
-    commands.executeCommand("editor.action.showReferences", uri, position, locations);
+    commands.executeCommand(VsCodeCommands.ShowReferences, uri, position, locations);
 }
 
 export function parseJson(input: string) : any
@@ -416,8 +418,8 @@ function safeExecFile(file: string,
 
 export function getRcExecutable() : string
 {
-    const config = workspace.getConfiguration("rtags");
-    return config.get<string>("rc.executable", "rc");
+    const config = workspace.getConfiguration(ConfigurationId);
+    return config.get<string>(WindowConfiguration.RcExecutable, "rc");
 }
 
 export function runRc<T = void>(args: string[], process?: (stdout: string) => T, unsavedFiles: TextDocument[] = []) :

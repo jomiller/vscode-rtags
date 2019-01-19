@@ -23,6 +23,8 @@ import { commands, window, Disposable, Event, EventEmitter, Location, Position, 
 
 import * as path from 'path';
 
+import { Views, Commands } from './constants';
+
 import { RtagsManager } from './rtagsManager';
 
 import { Nullable, Optional, Locatable, fromRtagsLocation, toRtagsLocation, jumpToLocation, showContribution,
@@ -149,14 +151,14 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
         const inheritanceHierarchyCallback =
             () : void =>
             {
-                showContribution("rtags.inheritanceHierarchy");
+                showContribution(Views.InheritanceHierarchy);
                 this.refresh();
             };
 
         const closeInheritanceHierarchyCallback =
             () : void =>
             {
-                hideContribution("rtags.inheritanceHierarchy");
+                hideContribution(Views.InheritanceHierarchy);
                 this.refresh();
             };
 
@@ -189,10 +191,10 @@ export class InheritanceHierarchyProvider implements TreeDataProvider<Inheritanc
             };
 
         this.disposables.push(
-            window.registerTreeDataProvider("rtags.inheritanceHierarchy", this),
-            commands.registerCommand("rtags.inheritanceHierarchy", inheritanceHierarchyCallback),
-            commands.registerCommand("rtags.closeInheritanceHierarchy", closeInheritanceHierarchyCallback),
-            commands.registerTextEditorCommand("rtags.showBase", showBaseCallback));
+            window.registerTreeDataProvider(Views.InheritanceHierarchy, this),
+            commands.registerCommand(Commands.InheritanceHierarchy, inheritanceHierarchyCallback),
+            commands.registerCommand(Commands.CloseInheritanceHierarchy, closeInheritanceHierarchyCallback),
+            commands.registerTextEditorCommand(Commands.ShowBase, showBaseCallback));
     }
 
     public dispose() : void

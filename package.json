@@ -92,7 +92,7 @@
             ],
             "view/item/context": [
                 {
-                    "command": "rtags.gotoLocation",
+                    "command": "rtags.goToLocation",
                     "when": "viewItem == rtagsLocation"
                 }
             ],
@@ -134,7 +134,7 @@
                     "when": "false"
                 },
                 {
-                    "command": "rtags.gotoLocation",
+                    "command": "rtags.goToLocation",
                     "when": "false"
                 }
             ]
@@ -189,7 +189,7 @@
                 "title": "Close"
             },
             {
-                "command": "rtags.gotoLocation",
+                "command": "rtags.goToLocation",
                 "title": "Go to Location"
             }
         ],

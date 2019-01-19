@@ -25,6 +25,8 @@ import { commands, languages, workspace, CancellationToken, Declaration, Declara
 
 import * as assert from 'assert';
 
+import { VsCodeCommands, Commands, ConfigurationId, WindowConfiguration } from './constants';
+
 import { RtagsManager } from './rtagsManager';
 
 import { getDerivedClasses } from './inheritanceHierarchy';
@@ -286,11 +288,11 @@ export class RtagsReferenceProvider implements
                 const document = textEditor.document;
                 const position = textEditor.selection.active;
 
-                commands.executeCommand("editor.action.goToImplementation", document.uri, position);
+                commands.executeCommand(VsCodeCommands.GoToImplementation, document.uri, position);
             };
 
-        const config = workspace.getConfiguration("rtags");
-        const highlightingEnabled = config.get<boolean>("highlighting.enabled", false);
+        const config = workspace.getConfiguration(ConfigurationId);
+        const highlightingEnabled = config.get<boolean>(WindowConfiguration.HighlightingEnabled, false);
         if (highlightingEnabled)
         {
             this.disposables.push(languages.registerDocumentHighlightProvider(SourceFileSelector, this));
@@ -304,8 +306,8 @@ export class RtagsReferenceProvider implements
             languages.registerImplementationProvider(SourceFileSelector, this),
             languages.registerRenameProvider(SourceFileSelector, this),
             languages.registerHoverProvider(SourceFileSelector, this),
-            commands.registerTextEditorCommand("rtags.showVariables", showVariablesCallback),
-            commands.registerTextEditorCommand("rtags.showDerivedVirtuals", showDerivedVirtualsCallback));
+            commands.registerTextEditorCommand(Commands.ShowVariables, showVariablesCallback),
+            commands.registerTextEditorCommand(Commands.ShowDerivedVirtuals, showDerivedVirtualsCallback));
     }
 
     public dispose() : void

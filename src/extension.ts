@@ -20,6 +20,8 @@
 
 import { commands, ExtensionContext } from 'vscode';
 
+import { Commands } from './constants';
+
 import { RtagsCodeActionProvider } from './codeActionProvider';
 
 import { RtagsCompletionProvider } from './completionProvider';
@@ -46,7 +48,7 @@ export function activate(context: ExtensionContext) : void
     let callHierarchyProvider = new CallHierarchyProvider(rtagsManager);
     let inheritanceHierarchyProvider = new InheritanceHierarchyProvider(rtagsManager);
 
-    const gotoLocationCallback =
+    const goToLocationCallback =
         (element: Locatable) : void =>
         {
             jumpToLocation(element.location.uri, element.location.range);
@@ -60,5 +62,5 @@ export function activate(context: ExtensionContext) : void
         symbolProvider,
         callHierarchyProvider,
         inheritanceHierarchyProvider,
-        commands.registerCommand("rtags.gotoLocation", gotoLocationCallback));
+        commands.registerCommand(Commands.GoToLocation, goToLocationCallback));
 }

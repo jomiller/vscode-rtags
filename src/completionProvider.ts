@@ -22,6 +22,8 @@ import { languages, workspace, CancellationToken, CompletionContext, CompletionI
          CompletionItemProvider, CompletionList, Disposable, ParameterInformation, Position, ProviderResult, Range,
          SignatureHelp, SignatureHelpContext, SignatureHelpProvider, SignatureInformation, TextDocument } from 'vscode';
 
+import { ConfigurationId, WindowConfiguration, ResourceConfiguration } from './constants';
+
 import { RtagsManager } from './rtagsManager';
 
 import { Optional, SourceFileSelector, toRtagsLocation, parseJson, runRc } from './rtagsUtil';
@@ -88,8 +90,8 @@ export class RtagsCompletionProvider implements
     {
         this.rtagsMgr = rtagsMgr;
 
-        const config = workspace.getConfiguration("rtags");
-        const completionEnabled = config.get<boolean>("completion.enabled", true);
+        const config = workspace.getConfiguration(ConfigurationId);
+        const completionEnabled = config.get<boolean>(WindowConfiguration.CompletionEnabled, true);
         if (!completionEnabled)
         {
             return;
@@ -133,8 +135,8 @@ export class RtagsCompletionProvider implements
             }
         }
 
-        const config = workspace.getConfiguration("rtags", document.uri);
-        const maxCompletionResults = config.get<number>("completion.maxResults", 20);
+        const config = workspace.getConfiguration(ConfigurationId, document.uri);
+        const maxCompletionResults = config.get<number>(ResourceConfiguration.CompletionMaxResults, 20);
         const location = toRtagsLocation(document.uri, position);
 
         let args =
@@ -233,8 +235,8 @@ export class RtagsCompletionProvider implements
             end: number;
         }
 
-        const config = workspace.getConfiguration("rtags", document.uri);
-        const maxCompletionResults = config.get<number>("completion.maxResults", 20);
+        const config = workspace.getConfiguration(ConfigurationId, document.uri);
+        const maxCompletionResults = config.get<number>(ResourceConfiguration.CompletionMaxResults, 20);
         const location = toRtagsLocation(document.uri, position);
 
         const args =
