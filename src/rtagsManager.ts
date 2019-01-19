@@ -852,7 +852,7 @@ export class RtagsManager implements Disposable
                 for (const key in WindowConfiguration)
                 {
                     const val = WindowConfiguration[key];
-                    if (event.affectsConfiguration(val))
+                    if (event.affectsConfiguration(makeConfigurationId(val)))
                     {
                         reloadWindow = true;
                         break;
