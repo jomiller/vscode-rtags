@@ -40,8 +40,8 @@ import { ExtensionId, VsCodeCommand, RtagsCommand, ConfigurationId, WindowConfig
 import { Nullable, Optional, addTrailingSlash, removeTrailingSlash, isAbsolutePathOrFilename, fileExists, getRealPath,
          parseJson, safeSpawn } from './nodeUtil';
 
-import { ConfigurationCache, getConfiguration, isConfigurationEqual, isSourceFile, isUnsavedSourceFile,
-         isOpenSourceFile, showContribution, hideContribution } from './vscodeUtil';
+import { ConfigurationMap, getWorkspaceConfiguration, isSourceFile, isUnsavedSourceFile, isOpenSourceFile,
+         showContribution, hideContribution } from './vscodeUtil';
 
 import { fromRtagsPosition, getRcExecutable, runRc } from './rtagsUtil';
 
@@ -816,7 +816,7 @@ export class RtagsManager implements Disposable
     {
         this.workspaceState = workspaceState;
 
-        this.cachedConfig = getConfiguration();
+        this.cachedWorkspaceConfig = getWorkspaceConfiguration();
 
         const config = workspace.getConfiguration(ConfigurationId);
         this.diagnosticsEnabled = config.get<boolean>(WindowConfiguration.DiagnosticsEnabled, true);
@@ -845,16 +845,21 @@ export class RtagsManager implements Disposable
         })();
 
         const changeConfigCallback =
-            async (_event: ConfigurationChangeEvent) : Promise<void> =>
+            async (event: ConfigurationChangeEvent) : Promise<void> =>
             {
                 let reloadWindow = false;
 
-                const newConfig = getConfiguration();
-
-                if (!isConfigurationEqual(this.cachedConfig.windowConfig, newConfig.windowConfig))
+                for (const key in WindowConfiguration)
                 {
-                    reloadWindow = true;
+                    const val = WindowConfiguration[key];
+                    if (event.affectsConfiguration(val))
+                    {
+                        reloadWindow = true;
+                        break;
+                    }
                 }
+
+                const newWorkspaceConfig = getWorkspaceConfiguration();
 
                 const compilationDatabaseDirId =
                     makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
@@ -867,10 +872,10 @@ export class RtagsManager implements Disposable
                 {
                     for (const folder of workspace.workspaceFolders)
                     {
-                        const cachedFolderConfig = this.cachedConfig.folderConfig.get(folder.uri.fsPath);
-                        const newFolderConfig = newConfig.folderConfig.get(folder.uri.fsPath);
-                        if (cachedFolderConfig && newFolderConfig &&
-                            (cachedFolderConfig[compilationDatabaseDirId] !== newFolderConfig[compilationDatabaseDirId]))
+                        const cachedConfig = this.cachedWorkspaceConfig.get(folder.uri.fsPath);
+                        const newConfig = newWorkspaceConfig.get(folder.uri.fsPath);
+                        if (cachedConfig && newConfig &&
+                            (cachedConfig[compilationDatabaseDirId] !== newConfig[compilationDatabaseDirId]))
                         {
                             reloadWindow = true;
 
@@ -885,7 +890,7 @@ export class RtagsManager implements Disposable
                     }
                 }
 
-                this.cachedConfig = newConfig;
+                this.cachedWorkspaceConfig = newWorkspaceConfig;
 
                 if (!reloadWindow)
                 {
@@ -1646,7 +1651,7 @@ export class RtagsManager implements Disposable
 
     private workspaceState: Memento;
     private rtagsInitialized: Promise<boolean> = Promise.resolve(false);
-    private cachedConfig: ConfigurationCache;
+    private cachedWorkspaceConfig: Map<string, ConfigurationMap>;
     private projectTasks = new Map<number, ProjectTask>();
     private projectPaths: Uri[] = [];
     private diagnosticsEnabled: boolean = true;

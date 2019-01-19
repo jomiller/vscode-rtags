@@ -21,7 +21,7 @@
 import { commands, languages, window, workspace, DocumentFilter, Location, Position, Range, TextDocument,
          TextDocumentShowOptions, Uri } from 'vscode';
 
-import { ConfigurationId, VsCodeCommand, WindowConfiguration, ResourceConfiguration } from './constants';
+import { ConfigurationId, VsCodeCommand, ResourceConfiguration } from './constants';
 
 export interface Locatable
 {
@@ -33,22 +33,9 @@ export interface ConfigurationMap
     [key: string] : any;
 }
 
-export class ConfigurationCache
+export function getWorkspaceConfiguration() : Map<string, ConfigurationMap>
 {
-    windowConfig: ConfigurationMap = {};
-    folderConfig = new Map<string, ConfigurationMap>();
-}
-
-export function getConfiguration() : ConfigurationCache
-{
-    let configCache = new ConfigurationCache();
-
-    const windowConfig = workspace.getConfiguration(ConfigurationId);
-    for (const key in WindowConfiguration)
-    {
-        const val = WindowConfiguration[key];
-        configCache.windowConfig[val] = windowConfig.get(val);
-    }
+    let configCache = new Map<string, ConfigurationMap>();
 
     if (workspace.workspaceFolders)
     {
@@ -61,16 +48,11 @@ export function getConfiguration() : ConfigurationCache
                 const val = ResourceConfiguration[key];
                 folderCache[val] = folderConfig.get(val);
             }
-            configCache.folderConfig.set(folder.uri.fsPath, folderCache);
+            configCache.set(folder.uri.fsPath, folderCache);
         }
     }
 
     return configCache;
-}
-
-export function isConfigurationEqual(lhs: ConfigurationMap, rhs: ConfigurationMap) : boolean
-{
-    return (JSON.stringify(lhs) === JSON.stringify(rhs));
 }
 
 export const SourceFileSelector: DocumentFilter[] =
