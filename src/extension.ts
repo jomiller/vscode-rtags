@@ -36,7 +36,7 @@ import { InheritanceHierarchyProvider } from './inheritanceHierarchy';
 
 import { RtagsManager } from './rtagsManager';
 
-import { Locatable, jumpToLocation } from './rtagsUtil';
+import { Locatable, jumpToLocation } from './vscodeUtil';
 
 export function activate(context: ExtensionContext) : void
 {

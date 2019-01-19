@@ -37,9 +37,12 @@ import * as util from 'util';
 import { ExtensionId, VsCodeCommands, Commands, ConfigurationId, WindowConfiguration, ResourceConfiguration,
          makeConfigurationId } from './constants';
 
-import { Nullable, Optional, isSourceFile, isUnsavedSourceFile, isOpenSourceFile, addTrailingSlash,
-         removeTrailingSlash, fromRtagsPosition, showContribution, hideContribution, parseJson, safeSpawn,
-         getRcExecutable, runRc } from './rtagsUtil';
+import { Nullable, Optional, addTrailingSlash, removeTrailingSlash, isAbsolutePathOrFilename, fileExists, getRealPath,
+         parseJson, safeSpawn } from './nodeUtil';
+
+import { isSourceFile, isUnsavedSourceFile, isOpenSourceFile, showContribution, hideContribution } from './vscodeUtil';
+
+import { fromRtagsPosition, getRcExecutable, runRc } from './rtagsUtil';
 
 const CompileCommandsFilename = "compile_commands.json";
 const RtagsRepository         = "Andersbakken/rtags";
@@ -225,49 +228,6 @@ function toDiagnosticSeverity(severity: string) : DiagnosticSeverity
         default:
             return DiagnosticSeverity.Information;
     }
-}
-
-function isAbsolutePathOrFilename(filePath: string) : boolean
-{
-    if (path.isAbsolute(filePath))
-    {
-        return true;
-    }
-    const parsedPath = path.parse(filePath);
-    return ((parsedPath.dir.length === 0) && (parsedPath.base !== '.') && (parsedPath.base !== ".."));
-}
-
-function fileExists(file: string) : Promise<boolean>
-{
-    return new Promise<boolean>(
-        (resolve, _reject) =>
-        {
-            fs.access(file, fs.constants.F_OK, (err) => { resolve(!err); });
-        });
-}
-
-function getRealPath(path: string) : Promise<Optional<string>>
-{
-    const executorCallback =
-        (resolve: (value?: string) => void, _reject: (reason?: any) => void) : void =>
-        {
-            const callback =
-                (error: Nullable<Error>, resolvedPath: string) =>
-                {
-                    if (error)
-                    {
-                        resolve();
-                    }
-                    else
-                    {
-                        resolve(resolvedPath);
-                    }
-                };
-
-            fs.realpath(path, {encoding: "utf8"}, callback);
-        };
-
-    return new Promise<string>(executorCallback);
 }
 
 function spawnRc(args: string[], ignoreStdio: boolean = false) : Nullable<ChildProcess>

@@ -27,8 +27,11 @@ import { Views, Commands } from './constants';
 
 import { RtagsManager } from './rtagsManager';
 
-import { Nullable, Optional, Locatable, SymbolInfo, SymbolBaseCategory, isRtagsSymbolKind, fromRtagsLocation,
-         toRtagsLocation, showContribution, hideContribution, showReferences, parseJson, runRc, getSymbolInfo }
+import { Nullable, Optional, parseJson } from './nodeUtil';
+
+import { Locatable, showContribution, hideContribution, showReferences } from './vscodeUtil';
+
+import { SymbolInfo, SymbolBaseCategory, isRtagsSymbolKind, fromRtagsLocation, toRtagsLocation, runRc, getSymbolInfo }
          from './rtagsUtil';
 
 interface Caller extends Locatable

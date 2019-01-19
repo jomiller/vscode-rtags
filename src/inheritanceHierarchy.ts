@@ -27,8 +27,11 @@ import { Views, Commands } from './constants';
 
 import { RtagsManager } from './rtagsManager';
 
-import { Nullable, Optional, Locatable, fromRtagsLocation, toRtagsLocation, jumpToLocation, showContribution,
-         hideContribution, showReferences, runRc } from './rtagsUtil';
+import { Nullable, Optional } from './nodeUtil';
+
+import { Locatable, jumpToLocation, showContribution, hideContribution, showReferences } from './vscodeUtil';
+
+import { fromRtagsLocation, toRtagsLocation, runRc } from './rtagsUtil';
 
 enum NodeType
 {

@@ -25,7 +25,11 @@ import { ConfigurationId, ResourceConfiguration } from './constants';
 
 import { RtagsManager } from './rtagsManager';
 
-import { Optional, SourceFileSelector, addTrailingSlash, fromRtagsLocation, runRc } from './rtagsUtil';
+import { Optional, addTrailingSlash } from './nodeUtil';
+
+import { SourceFileSelector } from './vscodeUtil';
+
+import { fromRtagsLocation, runRc } from './rtagsUtil';
 
 function toSymbolKind(kind: string) : Optional<SymbolKind>
 {

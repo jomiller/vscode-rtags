@@ -26,7 +26,11 @@ import { ConfigurationId, WindowConfiguration, ResourceConfiguration } from './c
 
 import { RtagsManager } from './rtagsManager';
 
-import { Optional, SourceFileSelector, toRtagsLocation, parseJson, runRc } from './rtagsUtil';
+import { Optional, parseJson } from './nodeUtil';
+
+import { SourceFileSelector } from './vscodeUtil';
+
+import { toRtagsLocation, runRc } from './rtagsUtil';
 
 function toCompletionItemKind(kind: string) : CompletionItemKind
 {

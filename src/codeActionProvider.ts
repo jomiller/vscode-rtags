@@ -25,7 +25,9 @@ import { ConfigurationId, WindowConfiguration } from './constants';
 
 import { RtagsManager } from './rtagsManager';
 
-import { SourceFileSelector, fromRtagsPosition, runRc } from './rtagsUtil';
+import { SourceFileSelector } from './vscodeUtil';
+
+import { fromRtagsPosition, runRc } from './rtagsUtil';
 
 export class RtagsCodeActionProvider implements
     CodeActionProvider,

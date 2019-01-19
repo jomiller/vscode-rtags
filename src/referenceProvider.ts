@@ -31,9 +31,12 @@ import { RtagsManager } from './rtagsManager';
 
 import { getDerivedClasses } from './inheritanceHierarchy';
 
-import { Optional, SourceFileSelector, SymbolInfo, SymbolBaseCategory, SymbolSubCategory, getRtagsSymbolKinds,
-         isRtagsSymbolKind, addTrailingSlash, fromRtagsLocation, toRtagsLocation, showReferences, runRc,
-         getSymbolInfo } from './rtagsUtil';
+import { Optional, addTrailingSlash } from './nodeUtil';
+
+import { SourceFileSelector, showReferences } from './vscodeUtil';
+
+import { SymbolInfo, SymbolBaseCategory, SymbolSubCategory, getRtagsSymbolKinds, isRtagsSymbolKind, fromRtagsLocation,
+         toRtagsLocation, runRc, getSymbolInfo } from './rtagsUtil';
 
 enum ReferenceType
 {

@@ -18,22 +18,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { commands, languages, window, workspace, DocumentFilter, Location, Position, Range, TextDocument,
-         TextDocumentShowOptions, Uri } from 'vscode';
+import { window, workspace, Location, Position, TextDocument, Uri } from 'vscode';
 
-import { ChildProcess, ExecFileOptionsWithStringEncoding, SpawnOptions, execFile, spawn } from 'child_process';
+import { ExecFileOptionsWithStringEncoding } from 'child_process';
 
-import * as path from 'path';
+import { ConfigurationId, WindowConfiguration } from './constants';
 
-import { VsCodeCommands, ConfigurationId, WindowConfiguration } from './constants';
-
-export type Nullable<T> = T | null;
-export type Optional<T> = T | undefined;
-
-export interface Locatable
-{
-    location: Location;
-}
+import { Nullable, Optional, parseJson, safeExecFile } from './nodeUtil';
 
 interface SymbolInfoBase
 {
@@ -69,12 +60,6 @@ export enum SymbolSubCategory
 }
 
 export type SymbolCategory = SymbolBaseCategory | SymbolSubCategory;
-
-export const SourceFileSelector: DocumentFilter[] =
-[
-    { language: "c",   scheme: "file" },
-    { language: "cpp", scheme: "file" }
-];
 
 const RtagsMacroDefKinds = new Set<string>(
 [
@@ -189,30 +174,6 @@ const RtagsSymbolKinds = new Set<string>(
     ...RtagsVariableKinds
 ]);
 
-export function isSourceFile(file: TextDocument) : boolean
-{
-    return (languages.match(SourceFileSelector, file) > 0);
-}
-
-export function isUnsavedSourceFile(file: TextDocument) : boolean
-{
-    if (!file.isDirty)
-    {
-        return false;
-    }
-    return isSourceFile(file);
-}
-
-export function isOpenSourceFile(uri: Uri) : boolean
-{
-    const file = workspace.textDocuments.find((file) => { return (file.uri.fsPath === uri.fsPath); });
-    if (!file)
-    {
-        return false;
-    }
-    return isSourceFile(file);
-}
-
 function getRtagsSymbolKindsImpl(category?: SymbolCategory) : Set<string>
 {
     let symbolKinds: Set<string>;
@@ -307,24 +268,6 @@ export function getRtagsSymbolKinds(symbolKindOrCategories?: string | SymbolCate
     return getRtagsSymbolKindsImpl(symbolKindOrCategories);
 }
 
-export function addTrailingSlash(dir: string) : string
-{
-    if ((dir.length !== 0) && !dir.endsWith(path.sep))
-    {
-        return (dir + path.sep);
-    }
-    return dir;
-}
-
-export function removeTrailingSlash(dir: string) : string
-{
-    if ((dir.length !== 0) && dir.endsWith(path.sep))
-    {
-        return dir.slice(0, -1);
-    }
-    return dir;
-}
-
 export function fromRtagsPosition(line: string, column: string) : Position
 {
     return new Position(parseInt(line) - 1, parseInt(column) - 1);
@@ -344,76 +287,6 @@ export function toRtagsLocation(uri: Uri, position: Position) : string
     const colNumber = position.character + 1;
     const location = uri.fsPath + ':' + lineNumber.toString() + ':' + colNumber.toString();
     return location;
-}
-
-export function jumpToLocation(uri: Uri, range: Range) : void
-{
-    const options: TextDocumentShowOptions = {selection: range};
-    window.showTextDocument(uri, options);
-}
-
-export function setContext<T>(name: string, value: T) : void
-{
-    commands.executeCommand(VsCodeCommands.SetContext, name, value);
-}
-
-export function showContribution(name: string) : void
-{
-    setContext(name + ".visible", true);
-}
-
-export function hideContribution(name: string) : void
-{
-    setContext(name + ".visible", false);
-}
-
-export function showReferences(uri: Uri, position: Position, locations: Location[]) : void
-{
-    commands.executeCommand(VsCodeCommands.ShowReferences, uri, position, locations);
-}
-
-export function parseJson(input: string) : any
-{
-    let jsonObj: any = undefined;
-    try
-    {
-        jsonObj = JSON.parse(input);
-    }
-    catch (_err)
-    {
-    }
-    return jsonObj;
-}
-
-export function safeSpawn(command: string, args: ReadonlyArray<string>, options: SpawnOptions) :
-    Nullable<ChildProcess>
-{
-    let process: Nullable<ChildProcess> = null;
-    try
-    {
-        process = spawn(command, args, options);
-    }
-    catch (_err)
-    {
-    }
-    return process;
-}
-
-function safeExecFile(file: string,
-                      args: ReadonlyArray<string>,
-                      options: ExecFileOptionsWithStringEncoding,
-                      callback: (error: Nullable<Error>, stdout: string, stderr: string) => void) :
-    Nullable<ChildProcess>
-{
-    let process: Nullable<ChildProcess> = null;
-    try
-    {
-        process = execFile(file, args, options, callback);
-    }
-    catch (_err)
-    {
-    }
-    return process;
 }
 
 export function getRcExecutable() : string
