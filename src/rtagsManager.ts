@@ -227,7 +227,12 @@ function toDiagnosticSeverity(severity: string) : DiagnosticSeverity
 
 function isAbsolutePathOrFilename(filePath: string) : boolean
 {
-    return (path.isAbsolute(filePath) || (path.dirname(filePath) === '.'));
+    if (path.isAbsolute(filePath))
+    {
+        return true;
+    }
+    const parsedPath = path.parse(filePath);
+    return ((parsedPath.dir.length === 0) && (parsedPath.base !== '.') && (parsedPath.base !== ".."));
 }
 
 function fileExists(file: string) : Promise<boolean>
