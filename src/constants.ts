@@ -21,7 +21,7 @@
 export const ExtensionId     = "jomiller.rtags-client";
 export const ConfigurationId = "rtags";
 
-export enum VsCodeCommands
+export enum VsCodeCommand
 {
     Open               = "vscode.open",
     ReloadWindow       = "workbench.action.reloadWindow",
@@ -30,13 +30,13 @@ export enum VsCodeCommands
     SetContext         = "setContext"
 }
 
-export enum Views
+export enum RtagsView
 {
     CallHierarchy        = "rtags.callHierarchy",
     InheritanceHierarchy = "rtags.inheritanceHierarchy"
 }
 
-export enum Commands
+export enum RtagsCommand
 {
     ReindexActiveFolder       = "rtags.reindexActiveFolder",
     ReindexWorkspace          = "rtags.reindexWorkspace",

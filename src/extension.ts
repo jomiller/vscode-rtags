@@ -20,7 +20,7 @@
 
 import { commands, ExtensionContext } from 'vscode';
 
-import { Commands } from './constants';
+import { RtagsCommand } from './constants';
 
 import { RtagsCodeActionProvider } from './codeActionProvider';
 
@@ -62,5 +62,5 @@ export function activate(context: ExtensionContext) : void
         symbolProvider,
         callHierarchyProvider,
         inheritanceHierarchyProvider,
-        commands.registerCommand(Commands.GoToLocation, goToLocationCallback));
+        commands.registerCommand(RtagsCommand.GoToLocation, goToLocationCallback));
 }

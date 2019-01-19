@@ -34,13 +34,14 @@ import * as path from 'path';
 
 import * as util from 'util';
 
-import { ExtensionId, VsCodeCommands, Commands, ConfigurationId, WindowConfiguration, ResourceConfiguration,
+import { ExtensionId, VsCodeCommand, RtagsCommand, ConfigurationId, WindowConfiguration, ResourceConfiguration,
          makeConfigurationId } from './constants';
 
 import { Nullable, Optional, addTrailingSlash, removeTrailingSlash, isAbsolutePathOrFilename, fileExists, getRealPath,
          parseJson, safeSpawn } from './nodeUtil';
 
-import { isSourceFile, isUnsavedSourceFile, isOpenSourceFile, showContribution, hideContribution } from './vscodeUtil';
+import { ConfigurationCache, getConfiguration, isConfigurationEqual, isSourceFile, isUnsavedSourceFile,
+         isOpenSourceFile, showContribution, hideContribution } from './vscodeUtil';
 
 import { fromRtagsPosition, getRcExecutable, runRc } from './rtagsUtil';
 
@@ -345,7 +346,7 @@ function showRtagsVersionMessage(versionInfo: RtagsVersionInfo, message: string,
         {
             if (selectedAction === versionInfo.linkText)
             {
-                commands.executeCommand(VsCodeCommands.Open, versionInfo.linkUrl);
+                commands.executeCommand(VsCodeCommand.Open, versionInfo.linkUrl);
             }
         };
 
@@ -609,10 +610,10 @@ function getCompileCommandsInfo(projectPath: Uri) : CompileCommandsInfo
     {
         if (!path.isAbsolute(compilationDatabaseDir))
         {
-            const compilationDatabaseDirectoryId =
+            const compilationDatabaseDirId =
                 makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
 
-            throw new RangeError("The \"" + compilationDatabaseDirectoryId + "\" setting for project " +
+            throw new RangeError("The \"" + compilationDatabaseDirId + "\" setting for project " +
                                  projectPath.fsPath + " must be an absolute path.");
         }
         directory = Uri.file(removeTrailingSlash(path.normalize(compilationDatabaseDir)));
@@ -815,6 +816,8 @@ export class RtagsManager implements Disposable
     {
         this.workspaceState = workspaceState;
 
+        this.cachedConfig = getConfiguration();
+
         const config = workspace.getConfiguration(ConfigurationId);
         this.diagnosticsEnabled = config.get<boolean>(WindowConfiguration.DiagnosticsEnabled, true);
         if (this.diagnosticsEnabled)
@@ -842,57 +845,51 @@ export class RtagsManager implements Disposable
         })();
 
         const changeConfigCallback =
-            async (event: ConfigurationChangeEvent) : Promise<void> =>
+            async (_event: ConfigurationChangeEvent) : Promise<void> =>
             {
-                // Consider only workspace folders that have not just been opened or closed
+                let reloadWindow = false;
 
-                // Copy current list of workspace paths
-                const workspacePaths =
-                    workspace.workspaceFolders ?
-                    new Set<Uri>(workspace.workspaceFolders.map((f) => { return f.uri; })) :
-                    new Set<Uri>();
+                const newConfig = getConfiguration();
 
-                // FIXME: See https://github.com/Microsoft/vscode/issues/66246
-                // The onDidChangeConfiguration event fires before workspace.workspaceFolders has been updated
-                // Allow workspace.workspaceFolders to be updated before continuing
-                await Promise.resolve();
-
-                // Remove workspace paths corresponding to folders that were just closed
-                for (const path of workspacePaths)
+                if (!isConfigurationEqual(this.cachedConfig.windowConfig, newConfig.windowConfig))
                 {
-                    const folderExists =
-                        workspace.workspaceFolders &&
-                        workspace.workspaceFolders.some((f) => { return (f.uri.fsPath === path.fsPath); });
-
-                    if (!folderExists)
-                    {
-                        workspacePaths.delete(path);
-                    }
+                    reloadWindow = true;
                 }
 
-                const affectsConfig =
-                    (workspacePaths.size !== 0) ?
-                    [...workspacePaths].some((p) => { return event.affectsConfiguration(ConfigurationId, p); }) :
-                    event.affectsConfiguration(ConfigurationId);
-
-                if (!affectsConfig)
-                {
-                    return;
-                }
+                const compilationDatabaseDirId =
+                    makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
 
                 let projectPathsToReload = this.getProjectPathsToReload();
 
                 const origProjectPathCount = projectPathsToReload.size;
 
-                const compilationDatabaseDirectoryId =
-                    makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
-
-                for (const path of this.projectPaths)
+                if (workspace.workspaceFolders)
                 {
-                    if (event.affectsConfiguration(compilationDatabaseDirectoryId, path))
+                    for (const folder of workspace.workspaceFolders)
                     {
-                        projectPathsToReload.add(path.fsPath);
+                        const cachedFolderConfig = this.cachedConfig.folderConfig.get(folder.uri.fsPath);
+                        const newFolderConfig = newConfig.folderConfig.get(folder.uri.fsPath);
+                        if (cachedFolderConfig && newFolderConfig &&
+                            (cachedFolderConfig[compilationDatabaseDirId] !== newFolderConfig[compilationDatabaseDirId]))
+                        {
+                            reloadWindow = true;
+
+                            const projectExists =
+                                this.projectPaths.some((p) => { return (p.fsPath === folder.uri.fsPath); });
+
+                            if (projectExists)
+                            {
+                                projectPathsToReload.add(folder.uri.fsPath);
+                            }
+                        }
                     }
+                }
+
+                this.cachedConfig = newConfig;
+
+                if (!reloadWindow)
+                {
+                    return;
                 }
 
                 if (projectPathsToReload.size !== origProjectPathCount)
@@ -906,13 +903,13 @@ export class RtagsManager implements Disposable
 
                 if (selectedAction === reloadAction)
                 {
-                    commands.executeCommand(VsCodeCommands.ReloadWindow);
+                    commands.executeCommand(VsCodeCommand.ReloadWindow);
                 }
             };
 
         this.disposables.push(
-            commands.registerCommand(Commands.ReindexActiveFolder, this.reindexActiveProject, this),
-            commands.registerCommand(Commands.ReindexWorkspace, this.reindexProjects, this),
+            commands.registerCommand(RtagsCommand.ReindexActiveFolder, this.reindexActiveProject, this),
+            commands.registerCommand(RtagsCommand.ReindexWorkspace, this.reindexProjects, this),
             workspace.onDidChangeTextDocument(this.reindexChangedFile, this),
             workspace.onDidSaveTextDocument(this.reindexSavedFile, this),
             workspace.onWillSaveTextDocument(this.suspendFileWatch, this),
@@ -1010,7 +1007,7 @@ export class RtagsManager implements Disposable
 
         if (this.projectPaths.length > 1)
         {
-            showContribution(Commands.ReindexActiveFolder);
+            showContribution(RtagsCommand.ReindexActiveFolder);
         }
     }
 
@@ -1024,7 +1021,7 @@ export class RtagsManager implements Disposable
 
         if (this.projectPaths.length <= 1)
         {
-            hideContribution(Commands.ReindexActiveFolder);
+            hideContribution(RtagsCommand.ReindexActiveFolder);
         }
     }
 
@@ -1649,6 +1646,7 @@ export class RtagsManager implements Disposable
 
     private workspaceState: Memento;
     private rtagsInitialized: Promise<boolean> = Promise.resolve(false);
+    private cachedConfig: ConfigurationCache;
     private projectTasks = new Map<number, ProjectTask>();
     private projectPaths: Uri[] = [];
     private diagnosticsEnabled: boolean = true;

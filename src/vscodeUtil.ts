@@ -21,11 +21,56 @@
 import { commands, languages, window, workspace, DocumentFilter, Location, Position, Range, TextDocument,
          TextDocumentShowOptions, Uri } from 'vscode';
 
-import { VsCodeCommands } from './constants';
+import { ConfigurationId, VsCodeCommand, WindowConfiguration, ResourceConfiguration } from './constants';
 
 export interface Locatable
 {
     location: Location;
+}
+
+export interface ConfigurationMap
+{
+    [key: string] : any;
+}
+
+export class ConfigurationCache
+{
+    windowConfig: ConfigurationMap = {};
+    folderConfig = new Map<string, ConfigurationMap>();
+}
+
+export function getConfiguration() : ConfigurationCache
+{
+    let configCache = new ConfigurationCache();
+
+    const windowConfig = workspace.getConfiguration(ConfigurationId);
+    for (const key in WindowConfiguration)
+    {
+        const val = WindowConfiguration[key];
+        configCache.windowConfig[val] = windowConfig.get(val);
+    }
+
+    if (workspace.workspaceFolders)
+    {
+        for (const folder of workspace.workspaceFolders)
+        {
+            const folderConfig = workspace.getConfiguration(ConfigurationId, folder.uri);
+            let folderCache: ConfigurationMap = {};
+            for (const key in ResourceConfiguration)
+            {
+                const val = ResourceConfiguration[key];
+                folderCache[val] = folderConfig.get(val);
+            }
+            configCache.folderConfig.set(folder.uri.fsPath, folderCache);
+        }
+    }
+
+    return configCache;
+}
+
+export function isConfigurationEqual(lhs: ConfigurationMap, rhs: ConfigurationMap) : boolean
+{
+    return (JSON.stringify(lhs) === JSON.stringify(rhs));
 }
 
 export const SourceFileSelector: DocumentFilter[] =
@@ -66,7 +111,7 @@ export function jumpToLocation(uri: Uri, range: Range) : void
 
 export function setContext<T>(name: string, value: T) : void
 {
-    commands.executeCommand(VsCodeCommands.SetContext, name, value);
+    commands.executeCommand(VsCodeCommand.SetContext, name, value);
 }
 
 export function showContribution(name: string) : void
@@ -81,5 +126,5 @@ export function hideContribution(name: string) : void
 
 export function showReferences(uri: Uri, position: Position, locations: Location[]) : void
 {
-    commands.executeCommand(VsCodeCommands.ShowReferences, uri, position, locations);
+    commands.executeCommand(VsCodeCommand.ShowReferences, uri, position, locations);
 }

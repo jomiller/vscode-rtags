@@ -23,7 +23,7 @@ import { commands, window, Disposable, Event, EventEmitter, Location, Position, 
 
 import * as path from 'path';
 
-import { Views, Commands } from './constants';
+import { RtagsView, RtagsCommand } from './constants';
 
 import { RtagsManager } from './rtagsManager';
 
@@ -98,14 +98,14 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
         const callHierarchyCallback =
             () : void =>
             {
-                showContribution(Views.CallHierarchy);
+                showContribution(RtagsView.CallHierarchy);
                 this.refresh();
             };
 
         const closeCallHierarchyCallback =
             () : void =>
             {
-                hideContribution(Views.CallHierarchy);
+                hideContribution(RtagsView.CallHierarchy);
                 this.refresh();
             };
 
@@ -137,10 +137,10 @@ export class CallHierarchyProvider implements TreeDataProvider<Caller>, Disposab
             };
 
         this.disposables.push(
-            window.registerTreeDataProvider(Views.CallHierarchy, this),
-            commands.registerCommand(Commands.CallHierarchy, callHierarchyCallback),
-            commands.registerCommand(Commands.CloseCallHierarchy, closeCallHierarchyCallback),
-            commands.registerTextEditorCommand(Commands.ShowCallers, showCallersCallback));
+            window.registerTreeDataProvider(RtagsView.CallHierarchy, this),
+            commands.registerCommand(RtagsCommand.CallHierarchy, callHierarchyCallback),
+            commands.registerCommand(RtagsCommand.CloseCallHierarchy, closeCallHierarchyCallback),
+            commands.registerTextEditorCommand(RtagsCommand.ShowCallers, showCallersCallback));
     }
 
     public dispose() : void

@@ -25,7 +25,7 @@ import { commands, languages, workspace, CancellationToken, Declaration, Declara
 
 import * as assert from 'assert';
 
-import { VsCodeCommands, Commands, ConfigurationId, WindowConfiguration } from './constants';
+import { VsCodeCommand, RtagsCommand, ConfigurationId, WindowConfiguration } from './constants';
 
 import { RtagsManager } from './rtagsManager';
 
@@ -291,7 +291,7 @@ export class RtagsReferenceProvider implements
                 const document = textEditor.document;
                 const position = textEditor.selection.active;
 
-                commands.executeCommand(VsCodeCommands.GoToImplementation, document.uri, position);
+                commands.executeCommand(VsCodeCommand.GoToImplementation, document.uri, position);
             };
 
         const config = workspace.getConfiguration(ConfigurationId);
@@ -309,8 +309,8 @@ export class RtagsReferenceProvider implements
             languages.registerImplementationProvider(SourceFileSelector, this),
             languages.registerRenameProvider(SourceFileSelector, this),
             languages.registerHoverProvider(SourceFileSelector, this),
-            commands.registerTextEditorCommand(Commands.ShowVariables, showVariablesCallback),
-            commands.registerTextEditorCommand(Commands.ShowDerivedVirtuals, showDerivedVirtualsCallback));
+            commands.registerTextEditorCommand(RtagsCommand.ShowVariables, showVariablesCallback),
+            commands.registerTextEditorCommand(RtagsCommand.ShowDerivedVirtuals, showDerivedVirtualsCallback));
     }
 
     public dispose() : void
