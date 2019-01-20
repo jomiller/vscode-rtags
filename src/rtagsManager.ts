@@ -1048,33 +1048,9 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        {
-            // Delete projects that need to be reloaded
+        const projectPathsToReload = this.getProjectPathsToReload();
 
-            const projectPathsToReload = this.getProjectPathsToReload();
-
-            const origProjectPathCount = projectPathsToReload.size;
-
-            let args: string[] = [];
-            for (const path of projectPathsToReload)
-            {
-                const folderAdded = folders.some((f) => { return (f.uri.fsPath === path); });
-                if (folderAdded)
-                {
-                    args.push("--delete-project", addTrailingSlash(path));
-                    projectPathsToReload.delete(path);
-                }
-            }
-            if (args.length !== 0)
-            {
-                await runRc(args);
-            }
-
-            if (projectPathsToReload.size !== origProjectPathCount)
-            {
-                await this.setProjectPathsToReload(projectPathsToReload);
-            }
-        }
+        const origProjectPathCount = projectPathsToReload.size;
 
         const knownProjectPaths = await getKnownProjectPaths();
         const loadedCompileInfo = await getLoadedCompileCommandsInfo(knownProjectPaths);
@@ -1103,6 +1079,8 @@ export class RtagsManager implements Disposable
             const projectLoaded = loadedCompileInfo.some(
                 (info) => { return (info.directory.fsPath === compileInfo.directory.fsPath); });
 
+            const projectNeedsReload = projectPathsToReload.has(folder.uri.fsPath);
+
             const compileFile = Uri.file(addTrailingSlash(compileInfo.directory.fsPath) + CompileCommandsFilename);
 
             const compileFileExists = await fileExists(compileFile.fsPath);
@@ -1114,9 +1092,9 @@ export class RtagsManager implements Disposable
                     continue;
                 }
             }
-            else if (!projectLoaded || compileInfo.isConfig)
+            else if (!projectLoaded || projectNeedsReload || compileInfo.isConfig)
             {
-                if (projectExists || compileInfo.isConfig)
+                if (projectExists || projectNeedsReload || compileInfo.isConfig)
                 {
                     showProjectLoadErrorMessage(
                         folder.uri, "Unable to find the compilation database: " + compileFile.fsPath);
@@ -1124,15 +1102,25 @@ export class RtagsManager implements Disposable
                 continue;
             }
 
-            if (projectLoaded)
+            if (projectLoaded && !projectNeedsReload)
             {
                 this.addProjectPath(folder.uri);
                 this.diagnoseProject(folder.uri);
             }
             else
             {
+                if (projectNeedsReload)
+                {
+                    await runRc(["--delete-project", addTrailingSlash(folder.uri.fsPath)]);
+                    projectPathsToReload.delete(folder.uri.fsPath);
+                }
                 this.startProjectTask(new ProjectLoadTask(folder.uri, compileFile));
             }
+        }
+
+        if (projectPathsToReload.size !== origProjectPathCount)
+        {
+            await this.setProjectPathsToReload(projectPathsToReload);
         }
     }
 
