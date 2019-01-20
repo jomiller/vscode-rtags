@@ -601,22 +601,21 @@ async function getLoadedCompileCommandsInfo(knownProjectPaths?: Uri[]) : Promise
 function getCompileCommandsInfo(projectPath: Uri) : CompileCommandsInfo
 {
     const config = workspace.getConfiguration(ConfigurationId, projectPath);
-    const compilationDatabaseDir =
-        config.get<string>(ResourceConfiguration.MiscCompilationDatabaseDirectory, "").trim();
+    const compileDirectory = config.get<string>(ResourceConfiguration.MiscCompilationDatabaseDirectory, "").trim();
 
     let directory: Uri;
     let isConfig: boolean;
-    if (compilationDatabaseDir.length !== 0)
+    if (compileDirectory.length !== 0)
     {
-        if (!path.isAbsolute(compilationDatabaseDir))
+        if (!path.isAbsolute(compileDirectory))
         {
-            const compilationDatabaseDirId =
+            const compileDirectoryId =
                 makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
 
-            throw new RangeError("The \"" + compilationDatabaseDirId + "\" setting for project " +
-                                 projectPath.fsPath + " must be an absolute path.");
+            throw new RangeError("The \"" + compileDirectoryId + "\" setting for project " + projectPath.fsPath +
+                                 " must be an absolute path.");
         }
-        directory = Uri.file(removeTrailingSlash(path.normalize(compilationDatabaseDir)));
+        directory = Uri.file(removeTrailingSlash(path.normalize(compileDirectory)));
         isConfig = true;
     }
     else
@@ -871,21 +870,24 @@ export class RtagsManager implements Disposable
                     {
                         const cachedConfig = this.cachedWorkspaceConfig.get(folder.uri.fsPath);
                         const newConfig = newWorkspaceConfig.get(folder.uri.fsPath);
-                        const cachedCompilationDatabaseDir =
-                            cachedConfig ? cachedConfig[ResourceConfiguration.MiscCompilationDatabaseDirectory].trim() : "";
-                        const newCompilationDatabaseDir =
-                            newConfig ? newConfig[ResourceConfiguration.MiscCompilationDatabaseDirectory].trim() : "";
-
-                        if (cachedConfig && newConfig && (cachedCompilationDatabaseDir !== newCompilationDatabaseDir))
+                        if (cachedConfig && newConfig)
                         {
-                            reloadWindow = true;
+                            const cachedCompileDirectory =
+                                cachedConfig[ResourceConfiguration.MiscCompilationDatabaseDirectory].trim();
+                            const newCompileDirectory =
+                                newConfig[ResourceConfiguration.MiscCompilationDatabaseDirectory].trim();
 
-                            const projectExists =
-                                this.projectPaths.some((p) => { return (p.fsPath === folder.uri.fsPath); });
-
-                            if (projectExists)
+                            if (cachedCompileDirectory !== newCompileDirectory)
                             {
-                                projectPathsToReload.add(folder.uri.fsPath);
+                                reloadWindow = true;
+
+                                const projectExists =
+                                    this.projectPaths.some((p) => { return (p.fsPath === folder.uri.fsPath); });
+
+                                if (projectExists)
+                                {
+                                    projectPathsToReload.add(folder.uri.fsPath);
+                                }
                             }
                         }
                     }
