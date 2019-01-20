@@ -227,15 +227,16 @@ export class RtagsSymbolProvider implements
 
         for (const path of this.rtagsMgr.getProjectPaths())
         {
+            const projectPath = addTrailingSlash(path.fsPath);
             const config = workspace.getConfiguration(ConfigurationId, path);
             const maxSearchResults = config.get<number>(ResourceConfiguration.MiscMaxWorkspaceSearchResults, 50);
 
             const args =
             [
                 "--project",
-                addTrailingSlash(path.fsPath),
+                projectPath,
                 "--path-filter",
-                path.fsPath,
+                projectPath,
                 "--max",
                 maxSearchResults.toString()
             ];

@@ -114,7 +114,7 @@ abstract class ProjectTask implements Disposable
                 const args =
                 [
                     // For backward compatibility with RTags before it supported the path argument
-                    "--is-indexing=" + this.uri.fsPath,
+                    "--is-indexing=" + addTrailingSlash(this.uri.fsPath),
                     "--timeout",
                     timeoutMs.toString()
                 ];
