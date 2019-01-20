@@ -861,9 +861,6 @@ export class RtagsManager implements Disposable
 
                 const newWorkspaceConfig = getWorkspaceConfiguration();
 
-                const compilationDatabaseDirId =
-                    makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
-
                 let projectPathsToReload = this.getProjectPathsToReload();
 
                 const origProjectPathCount = projectPathsToReload.size;
@@ -874,8 +871,12 @@ export class RtagsManager implements Disposable
                     {
                         const cachedConfig = this.cachedWorkspaceConfig.get(folder.uri.fsPath);
                         const newConfig = newWorkspaceConfig.get(folder.uri.fsPath);
-                        if (cachedConfig && newConfig &&
-                            (cachedConfig[compilationDatabaseDirId] !== newConfig[compilationDatabaseDirId]))
+                        const cachedCompilationDatabaseDir =
+                            cachedConfig ? cachedConfig[ResourceConfiguration.MiscCompilationDatabaseDirectory].trim() : "";
+                        const newCompilationDatabaseDir =
+                            newConfig ? newConfig[ResourceConfiguration.MiscCompilationDatabaseDirectory].trim() : "";
+
+                        if (cachedConfig && newConfig && (cachedCompilationDatabaseDir !== newCompilationDatabaseDir))
                         {
                             reloadWindow = true;
 
@@ -1650,8 +1651,8 @@ export class RtagsManager implements Disposable
     }
 
     private workspaceState: Memento;
-    private rtagsInitialized: Promise<boolean> = Promise.resolve(false);
     private cachedWorkspaceConfig: Map<string, ConfigurationMap>;
+    private rtagsInitialized: Promise<boolean> = Promise.resolve(false);
     private projectTasks = new Map<number, ProjectTask>();
     private projectPaths: Uri[] = [];
     private diagnosticsEnabled: boolean = true;
