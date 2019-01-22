@@ -1108,7 +1108,7 @@ export class RtagsManager implements Disposable
             {
                 if (projectNeedsReload)
                 {
-                    await runRc(["--delete-project", addTrailingSlash(folder.uri.fsPath)]);
+                    await runRc(["--delete-project", addTrailingSlash(folder.uri.fsPath) + '$']);
                     projectPathsToReload.delete(folder.uri.fsPath);
                 }
                 this.startProjectTask(new ProjectLoadTask(folder.uri, compileFile));
