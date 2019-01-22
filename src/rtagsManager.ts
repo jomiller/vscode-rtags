@@ -771,19 +771,14 @@ async function validateCompileCommands(compileCommandsFile: Uri, projectPath: Ur
     return true;
 }
 
-function getSuspendedFilePaths(projectPath: Uri, timeout: number = 0) : Promise<Optional<string[]>>
+function getSuspendedFilePaths(projectPath: Uri) : Promise<Optional<string[]>>
 {
-    let args =
+    const args =
     [
         "--project",
         addTrailingSlash(projectPath.fsPath),
         "--suspend"
     ];
-
-    if (timeout > 0)
-    {
-        args.push("--timeout", timeout.toString());
-    }
 
     const processCallback =
         (output: string) : string[] =>
@@ -1277,46 +1272,29 @@ export class RtagsManager implements Disposable
 
         const timeoutMs = 100;
 
-        const resolveCallback =
-            (paths?: string[]) : Promise<Optional<void>> =>
+        const args =
+        [
+            "--suspend",
+            path,
+            "on",
+            "--timeout",
+            timeoutMs.toString()
+        ];
+
+        const processCallback =
+            (output: string) : void =>
             {
-                if (!paths)
+                const message = path + " is now suspended";
+                if (output.trim() === message)
                 {
-                    return Promise.resolve();
-                }
-
-                if (paths.includes(path))
-                {
-                    // The file is already suspended
+                    // The file was suspended successfully
                     this.suspendedFilePaths.add(path);
-                    return Promise.resolve();
                 }
-
-                const args =
-                [
-                    "--suspend",
-                    path,
-                    "--timeout",
-                    timeoutMs.toString()
-                ];
-
-                const processCallback =
-                    (output: string) : void =>
-                    {
-                        const message = path + " is now suspended";
-                        if (output.trim() === message)
-                        {
-                            // The file was suspended successfully
-                            this.suspendedFilePaths.add(path);
-                        }
-                    };
-
-                return runRc(args, processCallback);
             };
 
         // Block the event loop to ensure that the file is suspended before it is saved
         // Use a timeout because VS Code imposes a time budget on subscribers to the onWillSaveTextDocument event
-        event.waitUntil(getSuspendedFilePaths(projectPath, timeoutMs).then(resolveCallback));
+        event.waitUntil(runRc(args, processCallback));
 
         if (!event.document.isDirty)
         {
