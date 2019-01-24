@@ -549,14 +549,15 @@ function getKnownProjectPaths() : Promise<Optional<Uri[]>>
     return runRc(["--project"], processCallback);
 }
 
-async function getLoadedCompileCommandsInfo(knownProjectPaths?: Uri[]) : Promise<CompileCommandsInfo[]>
+async function getLoadedCompileCommandsInfo(knownProjectPaths?: Uri[]) :
+    Promise<Optional<Map<string, CompileCommandsInfo[]>>>
 {
     if (!knownProjectPaths)
     {
-        return [];
+        return undefined;
     }
 
-    let loadedCompileInfo: CompileCommandsInfo[] = [];
+    let loadedCompileInfo = new Map<string, CompileCommandsInfo[]>();
 
     for (const path of knownProjectPaths)
     {
@@ -584,23 +585,25 @@ async function getLoadedCompileCommandsInfo(knownProjectPaths?: Uri[]) : Promise
         const directories = await runRc(args, processStatusCallback);
         if (directories)
         {
+            let compileInfo: CompileCommandsInfo[] = [];
             for (const dir of directories)
             {
                 const info: CompileCommandsInfo =
                 {
                     directory: Uri.file(dir)
                 };
-                loadedCompileInfo.push(info);
+                compileInfo.push(info);
             }
+            loadedCompileInfo.set(path.fsPath, compileInfo);
         }
     }
 
     return loadedCompileInfo;
 }
 
-function getCompileCommandsInfo(projectPath: Uri) : CompileCommandsInfo
+function getCompileCommandsInfo(workspacePath: Uri) : CompileCommandsInfo
 {
-    const config = workspace.getConfiguration(ConfigurationId, projectPath);
+    const config = workspace.getConfiguration(ConfigurationId, workspacePath);
     const compileDirectory = config.get<string>(ResourceConfiguration.MiscCompilationDatabaseDirectory, "").trim();
 
     let directory: Uri;
@@ -612,15 +615,14 @@ function getCompileCommandsInfo(projectPath: Uri) : CompileCommandsInfo
             const compileDirectoryId =
                 makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
 
-            throw new RangeError("The \"" + compileDirectoryId + "\" setting for project " + projectPath.fsPath +
-                                 " must be an absolute path.");
+            throw new RangeError("The \"" + compileDirectoryId + "\" setting must be an absolute path.");
         }
         directory = Uri.file(removeTrailingSlash(path.normalize(compileDirectory)));
         isConfig = true;
     }
     else
     {
-        directory = projectPath;
+        directory = workspacePath;
         isConfig = false;
     }
 
@@ -635,6 +637,46 @@ function getCompileCommandsInfo(projectPath: Uri) : CompileCommandsInfo
 function showProjectLoadErrorMessage(projectPath: Uri, message: string) : void
 {
     window.showErrorMessage("[RTags] Could not load the project: " + projectPath.fsPath + ". " + message);
+}
+
+function validateLoadedProjects(workspacePath: Uri,
+                                workspaceCompileInfo: CompileCommandsInfo,
+                                loadedCompileInfo?: Map<string, CompileCommandsInfo[]>) :
+    boolean
+{
+    if (!loadedCompileInfo)
+    {
+        return false;
+    }
+
+    let projectLoaded = false;
+    let loadedProjectRoots: string[] = [];
+
+    for (const [projectRoot, compileInfo] of loadedCompileInfo)
+    {
+        const loaded = compileInfo.some(
+            (info) => { return (info.directory.fsPath === workspaceCompileInfo.directory.fsPath); });
+
+        if (loaded)
+        {
+            loadedProjectRoots.push(projectRoot);
+
+            if (addTrailingSlash(workspacePath.fsPath).startsWith(addTrailingSlash(projectRoot)))
+            {
+                projectLoaded = true;
+                break;
+            }
+        }
+    }
+
+    if ((loadedProjectRoots.length !== 0) && !projectLoaded)
+    {
+        const multipleRoots = (loadedProjectRoots.length > 1);
+        throw RangeError("The workspace folder must be inside " + (multipleRoots ? "one of " : "") +
+                         "the existing project root" + (multipleRoots ? "s" : "") + ": " + loadedProjectRoots.join());
+    }
+
+    return projectLoaded;
 }
 
 function readFirstCompileCommand(compileCommandsFile: Uri) : Promise<Optional<string>>
@@ -749,21 +791,21 @@ async function findProjectRoot(compileCommandsFile: Uri) : Promise<Optional<Uri>
     return Uri.file(projectRoot);
 }
 
-async function validateCompileCommands(compileCommandsFile: Uri, projectPath: Uri) : Promise<boolean>
+async function validateCompileCommands(compileCommandsFile: Uri, workspacePath: Uri) : Promise<boolean>
 {
     const projectRoot = await findProjectRoot(compileCommandsFile);
     if (!projectRoot)
     {
         showProjectLoadErrorMessage(
-            projectPath, "Unable to find the project root path in " + compileCommandsFile.fsPath);
+            workspacePath, "Unable to find the project root path in " + compileCommandsFile.fsPath);
 
         return false;
     }
 
-    if (!(addTrailingSlash(projectPath.fsPath)).startsWith(addTrailingSlash(projectRoot.fsPath)))
+    if (!addTrailingSlash(workspacePath.fsPath).startsWith(addTrailingSlash(projectRoot.fsPath)))
     {
         showProjectLoadErrorMessage(
-            projectPath, "The project path is outside of the root path given by " + compileCommandsFile.fsPath);
+            workspacePath, "The workspace folder must be inside the expected project root " + projectRoot.fsPath);
 
         return false;
     }
@@ -1056,14 +1098,14 @@ export class RtagsManager implements Disposable
 
         for (const folder of folders)
         {
-            let compileInfo: CompileCommandsInfo;
+            let folderCompileInfo: CompileCommandsInfo;
             try
             {
-                compileInfo = getCompileCommandsInfo(folder.uri);
+                folderCompileInfo = getCompileCommandsInfo(folder.uri);
             }
             catch (err)
             {
-                window.showErrorMessage("[RTags] " + err.message);
+                showProjectLoadErrorMessage(folder.uri, err.message);
                 continue;
             }
 
@@ -1073,12 +1115,21 @@ export class RtagsManager implements Disposable
                 projectExists = knownProjectPaths.some((p) => { return (p.fsPath === folder.uri.fsPath); });
             }
 
-            const projectLoaded = loadedCompileInfo.some(
-                (info) => { return (info.directory.fsPath === compileInfo.directory.fsPath); });
+            let projectLoaded = false;
+            try
+            {
+                projectLoaded = validateLoadedProjects(folder.uri, folderCompileInfo, loadedCompileInfo);
+            }
+            catch (err)
+            {
+                showProjectLoadErrorMessage(folder.uri, err.message);
+                continue;
+            }
 
             const projectNeedsReload = projectPathsToReload.has(folder.uri.fsPath);
 
-            const compileFile = Uri.file(addTrailingSlash(compileInfo.directory.fsPath) + CompileCommandsFilename);
+            const compileFile =
+                Uri.file(addTrailingSlash(folderCompileInfo.directory.fsPath) + CompileCommandsFilename);
 
             const compileFileExists = await fileExists(compileFile.fsPath);
             if (compileFileExists)
@@ -1089,9 +1140,9 @@ export class RtagsManager implements Disposable
                     continue;
                 }
             }
-            else if (!projectLoaded || projectNeedsReload || compileInfo.isConfig)
+            else if (!projectLoaded || projectNeedsReload || folderCompileInfo.isConfig)
             {
-                if (projectExists || projectNeedsReload || compileInfo.isConfig)
+                if (projectExists || projectNeedsReload || folderCompileInfo.isConfig)
                 {
                     showProjectLoadErrorMessage(
                         folder.uri, "Unable to find the compilation database: " + compileFile.fsPath);
