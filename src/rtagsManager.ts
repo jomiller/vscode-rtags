@@ -1144,7 +1144,7 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        const projectPathsToReload = this.getProjectPathsToReload();
+        let projectPathsToReload = this.getProjectPathsToReload();
 
         const origProjectPathCount = projectPathsToReload.size;
 
@@ -1183,7 +1183,7 @@ export class RtagsManager implements Disposable
 
             const compileDirectoryToReload = projectPathsToReload.get(workspacePath.fsPath);
 
-            const projectNeedsReload = projectRoot && compileDirectoryToReload;
+            const projectNeedsReload = (projectRoot && compileDirectoryToReload);
 
             const compileFile =
                 Uri.file(addTrailingSlash(workspaceCompileInfo.directory.fsPath) + CompileCommandsFilename);
@@ -1252,23 +1252,23 @@ export class RtagsManager implements Disposable
 
     private removeProjects(folders?: WorkspaceFolder[]) : void
     {
-        if (folders)
+        if (!folders)
         {
-            folders.forEach((f) => { this.removeProject(f.uri); });
+            return;
         }
-    }
 
-    private removeProject(uri: Uri) : void
-    {
-        for (const task of this.projectTasks.values())
+        for (const folder of folders)
         {
-            if (task.uri.fsPath === uri.fsPath)
+            for (const task of this.projectTasks.values())
             {
-                this.stopProjectTask(task);
+                if (task.uri.fsPath === folder.uri.fsPath)
+                {
+                    this.stopProjectTask(task);
+                }
             }
-        }
 
-        this.removeProjectPath(uri);
+            this.removeProjectPath(folder.uri);
+        }
     }
 
     private async updateProjects(event: WorkspaceFoldersChangeEvent) : Promise<void>
