@@ -38,7 +38,7 @@ export function addTrailingSlash(dir: string) : string
 
 export function removeTrailingSlash(dir: string) : string
 {
-    if ((dir.length !== 0) && dir.endsWith(path.sep))
+    if ((dir.length > 1) && dir.endsWith(path.sep))
     {
         return dir.slice(0, -1);
     }

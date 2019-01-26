@@ -21,7 +21,11 @@
 import { commands, languages, window, workspace, DocumentFilter, Location, Position, Range, TextDocument,
          TextDocumentShowOptions, Uri } from 'vscode';
 
+import * as path from 'path';
+
 import { ConfigurationId, VsCodeCommand, ResourceConfiguration } from './constants';
+
+import { removeTrailingSlash } from './nodeUtil';
 
 export interface Locatable
 {
@@ -53,6 +57,11 @@ export function getWorkspaceConfiguration() : Map<string, ConfigurationMap>
     }
 
     return configCache;
+}
+
+export function fromConfigurationPath(dir: string) : string
+{
+    return removeTrailingSlash(path.normalize(dir.trim()));
 }
 
 export const SourceFileSelector: DocumentFilter[] =

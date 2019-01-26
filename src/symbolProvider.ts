@@ -234,7 +234,7 @@ export class RtagsSymbolProvider implements
             const args =
             [
                 "--project",
-                projectPath,
+                projectPath + '$',
                 "--path-filter",
                 projectPath,
                 "--max",

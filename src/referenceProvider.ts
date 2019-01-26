@@ -31,12 +31,12 @@ import { RtagsManager } from './rtagsManager';
 
 import { getDerivedClasses } from './inheritanceHierarchy';
 
-import { Optional, addTrailingSlash } from './nodeUtil';
+import { Optional } from './nodeUtil';
 
 import { SourceFileSelector, showReferences } from './vscodeUtil';
 
-import { SymbolInfo, SymbolBaseCategory, SymbolSubCategory, getRtagsSymbolKinds, isRtagsSymbolKind, fromRtagsLocation,
-         toRtagsLocation, runRc, getSymbolInfo } from './rtagsUtil';
+import { SymbolInfo, SymbolBaseCategory, SymbolSubCategory, getRtagsSymbolKinds, isRtagsSymbolKind, toRtagsProjectPath,
+         fromRtagsLocation, toRtagsLocation, runRc, getSymbolInfo } from './rtagsUtil';
 
 enum ReferenceType
 {
@@ -166,7 +166,7 @@ function getReferencesByName(name: string, projectPath: Uri, queryType: Referenc
     let args =
     [
         "--project",
-        addTrailingSlash(projectPath.fsPath),
+        toRtagsProjectPath(projectPath),
         "--references-name",
         name,
         "--all-references",

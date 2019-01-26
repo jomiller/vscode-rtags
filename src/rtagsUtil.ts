@@ -24,7 +24,7 @@ import { ExecFileOptionsWithStringEncoding } from 'child_process';
 
 import { ConfigurationId, WindowConfiguration } from './constants';
 
-import { Nullable, Optional, parseJson, safeExecFile } from './nodeUtil';
+import { Nullable, Optional, addTrailingSlash, parseJson, safeExecFile } from './nodeUtil';
 
 interface SymbolInfoBase
 {
@@ -266,6 +266,11 @@ export function getRtagsSymbolKinds(symbolKindOrCategories?: string | SymbolCate
         return symbolKinds;
     }
     return getRtagsSymbolKindsImpl(symbolKindOrCategories);
+}
+
+export function toRtagsProjectPath(uri: Uri) : string
+{
+    return (addTrailingSlash(uri.fsPath) + '$');
 }
 
 export function fromRtagsPosition(line: string, column: string) : Position

@@ -40,10 +40,10 @@ import { ExtensionId, VsCodeCommand, RtagsCommand, ConfigurationId, WindowConfig
 import { Nullable, Optional, addTrailingSlash, removeTrailingSlash, isAbsolutePathOrFilename, fileExists, getRealPath,
          parseJson, safeSpawn } from './nodeUtil';
 
-import { ConfigurationMap, getWorkspaceConfiguration, isSourceFile, isUnsavedSourceFile, isOpenSourceFile,
-         showContribution, hideContribution } from './vscodeUtil';
+import { ConfigurationMap, getWorkspaceConfiguration, fromConfigurationPath, isSourceFile, isUnsavedSourceFile,
+         isOpenSourceFile, showContribution, hideContribution } from './vscodeUtil';
 
-import { fromRtagsPosition, getRcExecutable, runRc } from './rtagsUtil';
+import { toRtagsProjectPath, fromRtagsPosition, getRcExecutable, runRc } from './rtagsUtil';
 
 const CompileCommandsFilename = "compile_commands.json";
 const RtagsRepository         = "Andersbakken/rtags";
@@ -114,7 +114,7 @@ abstract class ProjectTask implements Disposable
                 const args =
                 [
                     // For backward compatibility with RTags before it supported the path argument
-                    "--is-indexing=" + addTrailingSlash(this.uri.fsPath),
+                    "--is-indexing=" + toRtagsProjectPath(this.uri),
                     "--timeout",
                     timeoutMs.toString()
                 ];
@@ -201,7 +201,7 @@ class ProjectReindexTask extends ProjectTask
 
     protected execute() : Promise<Optional<boolean>>
     {
-        return runRc(["--project", addTrailingSlash(this.uri.fsPath), "--reindex"],
+        return runRc(["--project", toRtagsProjectPath(this.uri), "--reindex"],
                      (_unused) => { return true; },
                      this.unsavedFiles);
     }
@@ -564,7 +564,7 @@ async function getLoadedCompileCommandsInfo(knownProjectPaths?: Uri[]) :
         const args =
         [
             "--project",
-            addTrailingSlash(path.fsPath),
+            toRtagsProjectPath(path),
             "--status",
             "project"
         ];
@@ -604,7 +604,8 @@ async function getLoadedCompileCommandsInfo(knownProjectPaths?: Uri[]) :
 function getCompileCommandsInfo(workspacePath: Uri) : CompileCommandsInfo
 {
     const config = workspace.getConfiguration(ConfigurationId, workspacePath);
-    const compileDirectory = config.get<string>(ResourceConfiguration.MiscCompilationDatabaseDirectory, "").trim();
+    const compileDirectory =
+        fromConfigurationPath(config.get<string>(ResourceConfiguration.MiscCompilationDatabaseDirectory, ""));
 
     let directory: Uri;
     let isConfig: boolean;
@@ -617,7 +618,7 @@ function getCompileCommandsInfo(workspacePath: Uri) : CompileCommandsInfo
 
             throw new RangeError("The \"" + compileDirectoryId + "\" setting must be an absolute path.");
         }
-        directory = Uri.file(removeTrailingSlash(path.normalize(compileDirectory)));
+        directory = Uri.file(compileDirectory);
         isConfig = true;
     }
     else
@@ -818,7 +819,7 @@ function getSuspendedFilePaths(projectPath: Uri) : Promise<Optional<string[]>>
     const args =
     [
         "--project",
-        addTrailingSlash(projectPath.fsPath),
+        toRtagsProjectPath(projectPath),
         "--suspend"
     ];
 
@@ -909,10 +910,10 @@ export class RtagsManager implements Disposable
                         const newConfig = newWorkspaceConfig.get(folder.uri.fsPath);
                         if (cachedConfig && newConfig)
                         {
-                            const cachedCompileDirectory =
-                                cachedConfig[ResourceConfiguration.MiscCompilationDatabaseDirectory].trim();
-                            const newCompileDirectory =
-                                newConfig[ResourceConfiguration.MiscCompilationDatabaseDirectory].trim();
+                            const cachedCompileDirectory = fromConfigurationPath(
+                                cachedConfig[ResourceConfiguration.MiscCompilationDatabaseDirectory]);
+                            const newCompileDirectory = fromConfigurationPath(
+                                newConfig[ResourceConfiguration.MiscCompilationDatabaseDirectory]);
 
                             if (cachedCompileDirectory !== newCompileDirectory)
                             {
@@ -1159,7 +1160,7 @@ export class RtagsManager implements Disposable
             {
                 if (projectNeedsReload)
                 {
-                    await runRc(["--delete-project", addTrailingSlash(folder.uri.fsPath) + '$']);
+                    await runRc(["--delete-project", toRtagsProjectPath(folder.uri)]);
                     projectPathsToReload.delete(folder.uri.fsPath);
                 }
                 this.startProjectTask(new ProjectLoadTask(folder.uri, compileFile));
@@ -1642,7 +1643,7 @@ export class RtagsManager implements Disposable
         else
         {
             // Resend diagnostics for all files in the project
-            runRc(["--project", addTrailingSlash(projectPath.fsPath), "--diagnose-all"]);
+            runRc(["--project", toRtagsProjectPath(projectPath), "--diagnose-all"]);
         }
     }
 
