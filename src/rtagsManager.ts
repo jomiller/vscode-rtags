@@ -531,7 +531,7 @@ async function initializeRtags(globalState: Memento) : Promise<boolean>
     return startRdm();
 }
 
-function getKnownProjectPaths() : Promise<Optional<Uri[]>>
+function getProjectRoots() : Promise<Optional<Uri[]>>
 {
     const processCallback =
         (output: string) : Uri[] =>
@@ -549,22 +549,37 @@ function getKnownProjectPaths() : Promise<Optional<Uri[]>>
     return runRc(["--project"], processCallback);
 }
 
-async function getLoadedCompileCommandsInfo(knownProjectPaths?: Uri[]) :
+function getProjectRoot(workspacePath: Uri) : Promise<Optional<Uri>>
+{
+    const processCallback =
+        (output: string) : Optional<Uri> =>
+        {
+            if (output.startsWith("No matches"))
+            {
+                return undefined;
+            }
+            return Uri.file(removeTrailingSlash(output.trim()));
+        };
+
+    return runRc(["--project", toRtagsProjectPath(workspacePath)], processCallback);
+}
+
+async function getLoadedCompileCommandsInfo(projectRoots?: Uri[]) :
     Promise<Optional<Map<string, CompileCommandsInfo[]>>>
 {
-    if (!knownProjectPaths)
+    if (!projectRoots)
     {
         return undefined;
     }
 
     let loadedCompileInfo = new Map<string, CompileCommandsInfo[]>();
 
-    for (const path of knownProjectPaths)
+    for (const root of projectRoots)
     {
         const args =
         [
             "--project",
-            toRtagsProjectPath(path),
+            toRtagsProjectPath(root),
             "--status",
             "project"
         ];
@@ -594,7 +609,7 @@ async function getLoadedCompileCommandsInfo(knownProjectPaths?: Uri[]) :
                 };
                 compileInfo.push(info);
             }
-            loadedCompileInfo.set(path.fsPath, compileInfo);
+            loadedCompileInfo.set(root.fsPath, compileInfo);
         }
     }
 
@@ -635,13 +650,13 @@ function getCompileCommandsInfo(workspacePath: Uri) : CompileCommandsInfo
     return info;
 }
 
-function showProjectLoadErrorMessage(projectPath: Uri, message: string) : void
+function showProjectLoadErrorMessage(workspacePath: Uri, message: string) : void
 {
-    window.showErrorMessage("[RTags] Could not load the project: " + projectPath.fsPath + ". " + message);
+    window.showErrorMessage("[RTags] Could not load the project: " + workspacePath.fsPath + ". " + message);
 }
 
-function validateLoadedProjects(workspacePath: Uri,
-                                workspaceCompileInfo: CompileCommandsInfo,
+function validateLoadedProjects(workspaceCompileInfo: CompileCommandsInfo,
+                                projectRoot?: Uri,
                                 loadedCompileInfo?: Map<string, CompileCommandsInfo[]>) :
     boolean
 {
@@ -651,30 +666,29 @@ function validateLoadedProjects(workspacePath: Uri,
     }
 
     let projectLoaded = false;
-    let loadedProjectRoots: string[] = [];
 
-    for (const [projectRoot, compileInfo] of loadedCompileInfo)
+    if (projectRoot)
     {
-        const loaded = compileInfo.some(
-            (info) => { return (info.directory.fsPath === workspaceCompileInfo.directory.fsPath); });
-
-        if (loaded)
+        const compileInfo = loadedCompileInfo.get(projectRoot.fsPath);
+        if (compileInfo)
         {
-            loadedProjectRoots.push(projectRoot);
-
-            if (addTrailingSlash(workspacePath.fsPath).startsWith(addTrailingSlash(projectRoot)))
-            {
-                projectLoaded = true;
-                break;
-            }
+            projectLoaded = compileInfo.some(
+                (info) => { return (info.directory.fsPath === workspaceCompileInfo.directory.fsPath); });
         }
     }
 
-    if ((loadedProjectRoots.length !== 0) && !projectLoaded)
+    if (!projectLoaded)
     {
-        const multipleRoots = (loadedProjectRoots.length > 1);
-        throw RangeError("The workspace folder must be inside " + (multipleRoots ? "one of " : "") +
-                         "the existing project root" + (multipleRoots ? "s" : "") + ": " + loadedProjectRoots.join());
+        for (const [root, compileInfo] of loadedCompileInfo)
+        {
+            const loaded = compileInfo.some(
+                (info) => { return (info.directory.fsPath === workspaceCompileInfo.directory.fsPath); });
+
+            if (loaded)
+            {
+                throw RangeError("The workspace folder is already loaded at a different project root: " + root);
+            }
+        }
     }
 
     return projectLoaded;
@@ -906,8 +920,10 @@ export class RtagsManager implements Disposable
                 {
                     for (const folder of workspace.workspaceFolders)
                     {
-                        const cachedConfig = this.cachedWorkspaceConfig.get(folder.uri.fsPath);
-                        const newConfig = newWorkspaceConfig.get(folder.uri.fsPath);
+                        const workspacePath = folder.uri.fsPath;
+
+                        const cachedConfig = this.cachedWorkspaceConfig.get(workspacePath);
+                        const newConfig = newWorkspaceConfig.get(workspacePath);
                         if (cachedConfig && newConfig)
                         {
                             const cachedCompileDirectory = fromConfigurationPath(
@@ -920,11 +936,11 @@ export class RtagsManager implements Disposable
                                 reloadWindow = true;
 
                                 const projectExists =
-                                    this.projectPaths.some((p) => { return (p.fsPath === folder.uri.fsPath); });
+                                    this.projectPaths.some((p) => { return (p.fsPath === workspacePath); });
 
                                 if (projectExists)
                                 {
-                                    projectPathsToReload.add(folder.uri.fsPath);
+                                    projectPathsToReload.add(workspacePath);
                                 }
                             }
                         }
@@ -1092,78 +1108,77 @@ export class RtagsManager implements Disposable
 
         const origProjectPathCount = projectPathsToReload.size;
 
-        const knownProjectPaths = await getKnownProjectPaths();
-        const loadedCompileInfo = await getLoadedCompileCommandsInfo(knownProjectPaths);
+        const projectRoots = await getProjectRoots();
+        const loadedCompileInfo = await getLoadedCompileCommandsInfo(projectRoots);
 
         // Consider only VS Code workspace folders, and ignore RTags projects that are not known to VS Code
 
         for (const folder of folders)
         {
-            let folderCompileInfo: CompileCommandsInfo;
+            const workspacePath = folder.uri;
+
+            let workspaceCompileInfo: CompileCommandsInfo;
             try
             {
-                folderCompileInfo = getCompileCommandsInfo(folder.uri);
+                workspaceCompileInfo = getCompileCommandsInfo(workspacePath);
             }
             catch (err)
             {
-                showProjectLoadErrorMessage(folder.uri, err.message);
+                showProjectLoadErrorMessage(workspacePath, err.message);
                 continue;
             }
 
-            let projectExists = false;
-            if (knownProjectPaths)
-            {
-                projectExists = knownProjectPaths.some((p) => { return (p.fsPath === folder.uri.fsPath); });
-            }
+            const projectRoot = await getProjectRoot(workspacePath);
 
             let projectLoaded = false;
             try
             {
-                projectLoaded = validateLoadedProjects(folder.uri, folderCompileInfo, loadedCompileInfo);
+                projectLoaded = validateLoadedProjects(workspaceCompileInfo, projectRoot, loadedCompileInfo);
             }
             catch (err)
             {
-                showProjectLoadErrorMessage(folder.uri, err.message);
+                showProjectLoadErrorMessage(workspacePath, err.message);
                 continue;
             }
 
-            const projectNeedsReload = projectPathsToReload.has(folder.uri.fsPath);
+            const projectNeedsReload = projectPathsToReload.has(workspacePath.fsPath);
 
             const compileFile =
-                Uri.file(addTrailingSlash(folderCompileInfo.directory.fsPath) + CompileCommandsFilename);
+                Uri.file(addTrailingSlash(workspaceCompileInfo.directory.fsPath) + CompileCommandsFilename);
 
             const compileFileExists = await fileExists(compileFile.fsPath);
             if (compileFileExists)
             {
-                const compileFileValid = await validateCompileCommands(compileFile, folder.uri);
+                const compileFileValid = await validateCompileCommands(compileFile, workspacePath);
                 if (!compileFileValid)
                 {
                     continue;
                 }
             }
-            else if (!projectLoaded || projectNeedsReload || folderCompileInfo.isConfig)
+            else if (!projectLoaded || projectNeedsReload || workspaceCompileInfo.isConfig)
             {
-                if (projectExists || projectNeedsReload || folderCompileInfo.isConfig)
+                if (projectRoot || projectNeedsReload || workspaceCompileInfo.isConfig)
                 {
                     showProjectLoadErrorMessage(
-                        folder.uri, "Unable to find the compilation database: " + compileFile.fsPath);
+                        workspacePath, "Unable to find the compilation database: " + compileFile.fsPath);
                 }
                 continue;
             }
 
             if (projectLoaded && !projectNeedsReload)
             {
-                this.addProjectPath(folder.uri);
-                this.diagnoseProject(folder.uri);
+                this.addProjectPath(workspacePath);
+                this.diagnoseProject(workspacePath);
             }
             else
             {
                 if (projectNeedsReload)
                 {
-                    await runRc(["--delete-project", toRtagsProjectPath(folder.uri)]);
-                    projectPathsToReload.delete(folder.uri.fsPath);
+                    await runRc(["--delete-project", toRtagsProjectPath(workspacePath)]);
+                    projectPathsToReload.delete(workspacePath.fsPath);
                 }
-                this.startProjectTask(new ProjectLoadTask(folder.uri, compileFile));
+
+                this.startProjectTask(new ProjectLoadTask(workspacePath, compileFile));
             }
         }
 

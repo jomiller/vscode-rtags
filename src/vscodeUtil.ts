@@ -61,7 +61,12 @@ export function getWorkspaceConfiguration() : Map<string, ConfigurationMap>
 
 export function fromConfigurationPath(dir: string) : string
 {
-    return removeTrailingSlash(path.normalize(dir.trim()));
+    let normalizedPath = dir.trim();
+    if (normalizedPath.length !== 0)
+    {
+        normalizedPath = path.normalize(normalizedPath);
+    }
+    return removeTrailingSlash(normalizedPath);
 }
 
 export const SourceFileSelector: DocumentFilter[] =
