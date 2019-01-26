@@ -828,6 +828,42 @@ async function validateCompileCommands(compileCommandsFile: Uri, workspacePath: 
     return true;
 }
 
+async function removeProject(workspacePath: Uri, canDeleteProject: boolean, compileDirectory?: string) :
+    Promise<Optional<boolean>>
+{
+    let projectRemoved: Optional<boolean> = false;
+
+    const projectPath = toRtagsProjectPath(workspacePath);
+
+    const processCallback =
+        (output: string) : boolean =>
+        {
+            return !output.startsWith("No");
+        };
+
+    if (compileDirectory)
+    {
+        const compileFile = addTrailingSlash(compileDirectory) + CompileCommandsFilename;
+
+        const args =
+        [
+            "--project",
+            projectPath,
+            "--remove",
+            compileFile
+        ];
+
+        projectRemoved = await runRc(args, processCallback);
+    }
+
+    if (!projectRemoved && canDeleteProject)
+    {
+        projectRemoved = await runRc(["--delete-project", projectPath], processCallback);
+    }
+
+    return projectRemoved;
+}
+
 function getSuspendedFilePaths(projectPath: Uri) : Promise<Optional<string[]>>
 {
     const args =
@@ -940,7 +976,10 @@ export class RtagsManager implements Disposable
 
                                 if (projectExists)
                                 {
-                                    projectPathsToReload.add(workspacePath);
+                                    if (!projectPathsToReload.has(workspacePath))
+                                    {
+                                        projectPathsToReload.set(workspacePath, cachedCompileDirectory);
+                                    }
                                 }
                             }
                         }
@@ -1087,12 +1126,13 @@ export class RtagsManager implements Disposable
         }
     }
 
-    private getProjectPathsToReload() : Set<string>
+    private getProjectPathsToReload() : Map<string, string>
     {
-        return new Set<string>(this.workspaceState.get<string[]>("rtags.projectPathsToReload", []));
+        return new Map<string, string>(
+            this.workspaceState.get<ReadonlyArray<[string, string]>>("rtags.projectPathsToReload", []));
     }
 
-    private setProjectPathsToReload(paths: Set<string>) : Thenable<void>
+    private setProjectPathsToReload(paths: Map<string, string>) : Thenable<void>
     {
         return this.workspaceState.update("rtags.projectPathsToReload", (paths.size !== 0) ? [...paths] : undefined);
     }
@@ -1141,7 +1181,9 @@ export class RtagsManager implements Disposable
                 continue;
             }
 
-            const projectNeedsReload = projectPathsToReload.has(workspacePath.fsPath);
+            const compileDirectoryToReload = projectPathsToReload.get(workspacePath.fsPath);
+
+            const projectNeedsReload = projectRoot && compileDirectoryToReload;
 
             const compileFile =
                 Uri.file(addTrailingSlash(workspaceCompileInfo.directory.fsPath) + CompileCommandsFilename);
@@ -1174,8 +1216,28 @@ export class RtagsManager implements Disposable
             {
                 if (projectNeedsReload)
                 {
-                    await runRc(["--delete-project", toRtagsProjectPath(workspacePath)]);
-                    projectPathsToReload.delete(workspacePath.fsPath);
+                    let canDeleteProject = false;
+                    if (projectRoot && loadedCompileInfo)
+                    {
+                        const compileInfo = loadedCompileInfo.get(projectRoot.fsPath);
+                        if (compileInfo)
+                        {
+                            canDeleteProject = (compileInfo.length <= 1);
+                        }
+                    }
+
+                    const projectRemoved =
+                        await removeProject(workspacePath, canDeleteProject, compileDirectoryToReload);
+
+                    if (projectRemoved)
+                    {
+                        projectPathsToReload.delete(workspacePath.fsPath);
+                    }
+                    else
+                    {
+                        showProjectLoadErrorMessage(workspacePath, "Could not delete the project before reloading it.");
+                        continue;
+                    }
                 }
 
                 this.startProjectTask(new ProjectLoadTask(workspacePath, compileFile));
