@@ -101,7 +101,8 @@ abstract class ProjectTask implements Disposable
         const action = this.getAction();
         const actionCapital = action.charAt(0).toUpperCase() + action.slice(1);
 
-        window.showInformationMessage("[RTags] " + actionCapital + " project: " + this.uri.fsPath);
+        window.showInformationMessage("[RTags] " + actionCapital + " the project for workspace folder: " +
+                                      this.uri.fsPath);
 
         onStart(this);
 
@@ -127,8 +128,8 @@ abstract class ProjectTask implements Disposable
                         {
                             onStop(this);
 
-                            window.showInformationMessage("[RTags] Finished " + action + " project: " +
-                                                          this.uri.fsPath);
+                            window.showInformationMessage("[RTags] Finished " + action +
+                                                          " the project for workspace folder: " + this.uri.fsPath);
                         }
                     };
 
@@ -652,7 +653,8 @@ function getCompileCommandsInfo(workspacePath: Uri) : CompileCommandsInfo
 
 function showProjectLoadErrorMessage(workspacePath: Uri, message: string) : void
 {
-    window.showErrorMessage("[RTags] Could not load the project: " + workspacePath.fsPath + ". " + message);
+    window.showErrorMessage("[RTags] Could not load the compilation database for workspace folder: " +
+                            workspacePath.fsPath + ". " + message);
 }
 
 function validateLoadedProjects(workspaceCompileInfo: CompileCommandsInfo,
@@ -686,7 +688,7 @@ function validateLoadedProjects(workspaceCompileInfo: CompileCommandsInfo,
 
             if (loaded)
             {
-                throw RangeError("The workspace folder is already loaded at a different project root: " + root);
+                throw RangeError("The compilation database is already loaded at another project root: " + root);
             }
         }
     }
@@ -812,7 +814,8 @@ async function validateCompileCommands(compileCommandsFile: Uri, workspacePath: 
     if (!projectRoot)
     {
         showProjectLoadErrorMessage(
-            workspacePath, "Unable to find the project root path in " + compileCommandsFile.fsPath);
+            workspacePath,
+            "Unable to find the project root path in the compilation database: " + compileCommandsFile.fsPath);
 
         return false;
     }
@@ -820,7 +823,7 @@ async function validateCompileCommands(compileCommandsFile: Uri, workspacePath: 
     if (!addTrailingSlash(workspacePath.fsPath).startsWith(addTrailingSlash(projectRoot.fsPath)))
     {
         showProjectLoadErrorMessage(
-            workspacePath, "The workspace folder must be inside the expected project root " + projectRoot.fsPath);
+            workspacePath, "The workspace folder must be inside the expected project root: " + projectRoot.fsPath);
 
         return false;
     }
@@ -1235,7 +1238,9 @@ export class RtagsManager implements Disposable
                     }
                     else
                     {
-                        showProjectLoadErrorMessage(workspacePath, "Could not delete the project before reloading it.");
+                        showProjectLoadErrorMessage(
+                            workspacePath, "Could not delete the project for the existing compilation database.");
+
                         continue;
                     }
                 }
