@@ -964,35 +964,29 @@ export class RtagsManager implements Disposable
 
                 const origProjectPathCount = projectPathsToReload.size;
 
-                if (workspace.workspaceFolders)
+                for (const [workspacePath, newConfig] of newWorkspaceConfig)
                 {
-                    for (const folder of workspace.workspaceFolders)
+                    const cachedConfig = this.cachedWorkspaceConfig.get(workspacePath);
+                    if (!cachedConfig)
                     {
-                        const workspacePath = folder.uri.fsPath;
+                        continue;
+                    }
 
-                        const cachedConfig = this.cachedWorkspaceConfig.get(workspacePath);
-                        const newConfig = newWorkspaceConfig.get(workspacePath);
-                        if (cachedConfig && newConfig)
+                    const cachedCompileDirectory = fromConfigurationPath(
+                        cachedConfig[ResourceConfiguration.MiscCompilationDatabaseDirectory]);
+                    const newCompileDirectory = fromConfigurationPath(
+                        newConfig[ResourceConfiguration.MiscCompilationDatabaseDirectory]);
+
+                    if (cachedCompileDirectory !== newCompileDirectory)
+                    {
+                        reloadWindow = true;
+
+                        const projectExists = this.projectPaths.some((p) => { return (p.fsPath === workspacePath); });
+                        if (projectExists)
                         {
-                            const cachedCompileDirectory = fromConfigurationPath(
-                                cachedConfig[ResourceConfiguration.MiscCompilationDatabaseDirectory]);
-                            const newCompileDirectory = fromConfigurationPath(
-                                newConfig[ResourceConfiguration.MiscCompilationDatabaseDirectory]);
-
-                            if (cachedCompileDirectory !== newCompileDirectory)
+                            if (!projectPathsToReload.has(workspacePath))
                             {
-                                reloadWindow = true;
-
-                                const projectExists =
-                                    this.projectPaths.some((p) => { return (p.fsPath === workspacePath); });
-
-                                if (projectExists)
-                                {
-                                    if (!projectPathsToReload.has(workspacePath))
-                                    {
-                                        projectPathsToReload.set(workspacePath, cachedCompileDirectory);
-                                    }
-                                }
+                                projectPathsToReload.set(workspacePath, cachedCompileDirectory);
                             }
                         }
                     }
