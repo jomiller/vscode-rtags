@@ -815,7 +815,7 @@ async function validateCompileCommands(compileCommandsFile: Uri, workspacePath: 
     {
         showProjectLoadErrorMessage(
             workspacePath,
-            "Unable to find the project root path in the compilation database: " + compileCommandsFile.fsPath);
+            "Unable to find the project root path from the compilation database: " + compileCommandsFile.fsPath);
 
         return false;
     }
@@ -844,8 +844,12 @@ async function removeProject(workspacePath: Uri, canDeleteProject: boolean, comp
             return !output.startsWith("No");
         };
 
-    if (compileDirectory)
+    if (compileDirectory !== undefined)
     {
+        if (compileDirectory.length === 0)
+        {
+            compileDirectory = workspacePath.fsPath;
+        }
         const compileFile = addTrailingSlash(compileDirectory) + CompileCommandsFilename;
 
         const args =
@@ -1184,9 +1188,14 @@ export class RtagsManager implements Disposable
                 continue;
             }
 
+            if (!projectRoot)
+            {
+                projectPathsToReload.delete(workspacePath.fsPath);
+            }
+
             const compileDirectoryToReload = projectPathsToReload.get(workspacePath.fsPath);
 
-            const projectNeedsReload = (projectRoot && compileDirectoryToReload);
+            const projectNeedsReload = (compileDirectoryToReload !== undefined);
 
             const compileFile =
                 Uri.file(addTrailingSlash(workspaceCompileInfo.directory.fsPath) + CompileCommandsFilename);
