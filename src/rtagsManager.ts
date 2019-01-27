@@ -1212,8 +1212,13 @@ export class RtagsManager implements Disposable
             {
                 if (projectRoot || projectNeedsReload || workspaceCompileInfo.isConfig)
                 {
+                    const compileDirectoryId =
+                        makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
+
                     showProjectLoadErrorMessage(
-                        workspacePath, "Unable to find the compilation database: " + compileFile.fsPath);
+                        workspacePath,
+                        "Unable to find the compilation database: " + compileFile.fsPath +
+                            ". Check the \"" + compileDirectoryId + "\" setting.");
                 }
                 continue;
             }
