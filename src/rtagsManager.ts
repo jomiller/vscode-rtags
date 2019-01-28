@@ -1257,7 +1257,7 @@ export class RtagsManager implements Disposable
                     }
                 }
 
-                this.startProjectTask(new ProjectLoadTask(workspacePath, compileFile));
+                await this.startProjectTask(new ProjectLoadTask(workspacePath, compileFile));
             }
         }
 
@@ -1552,7 +1552,7 @@ export class RtagsManager implements Disposable
         }
     }
 
-    private async startProjectTask(task: ProjectTask) : Promise<void>
+    private startProjectTask(task: ProjectTask) : Promise<void>
     {
         const startCallback =
             (task: ProjectTask) : void =>
@@ -1571,7 +1571,7 @@ export class RtagsManager implements Disposable
                 }
             };
 
-        await task.start(startCallback, stopCallback);
+        return task.start(startCallback, stopCallback);
     }
 
     private stopProjectTask(task: ProjectTask) : void
