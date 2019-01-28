@@ -813,9 +813,9 @@ async function validateCompileCommands(compileCommandsFile: Uri, workspacePath: 
     const projectRoot = await findProjectRoot(compileCommandsFile);
     if (!projectRoot)
     {
-        showProjectLoadErrorMessage(
-            workspacePath,
-            "Unable to find the project root path from the compilation database: " + compileCommandsFile.fsPath);
+        showProjectLoadErrorMessage(workspacePath,
+                                    "Unable to find the project root path from the compilation database: " +
+                                        compileCommandsFile.fsPath);
 
         return false;
     }
@@ -1215,10 +1215,9 @@ export class RtagsManager implements Disposable
                     const compileDirectoryId =
                         makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
 
-                    showProjectLoadErrorMessage(
-                        workspacePath,
-                        "Unable to find the compilation database: " + compileFile.fsPath +
-                            ". Check the \"" + compileDirectoryId + "\" setting.");
+                    showProjectLoadErrorMessage(workspacePath,
+                                                "Unable to find the compilation database: " + compileFile.fsPath +
+                                                    ". Check the \"" + compileDirectoryId + "\" setting.");
                 }
                 continue;
             }
@@ -1545,10 +1544,12 @@ export class RtagsManager implements Disposable
         this.startProjectTask(new ProjectReindexTask(projectPath, this.getUnsavedSourceFiles(projectPath)));
     }
 
-    private reindexProjects() : void
+    private async reindexProjects() : Promise<void>
     {
-        this.projectPaths.forEach(
-            (p) => { this.startProjectTask(new ProjectReindexTask(p, this.getUnsavedSourceFiles(p))); });
+        for (const path of this.projectPaths)
+        {
+            await this.startProjectTask(new ProjectReindexTask(path, this.getUnsavedSourceFiles(path)));
+        }
     }
 
     private async startProjectTask(task: ProjectTask) : Promise<void>
@@ -1570,7 +1571,7 @@ export class RtagsManager implements Disposable
                 }
             };
 
-        task.start(startCallback, stopCallback);
+        await task.start(startCallback, stopCallback);
     }
 
     private stopProjectTask(task: ProjectTask) : void
