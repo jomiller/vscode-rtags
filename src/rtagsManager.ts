@@ -1290,8 +1290,7 @@ export class RtagsManager implements Disposable
 
     private async updateProjects(event: WorkspaceFoldersChangeEvent) : Promise<void>
     {
-        // TODO: Remove when the onDidChangeWorkspaceFolders event fires before the onDidChangeConfiguration event
-        //this.cachedWorkspaceConfig = getWorkspaceConfiguration();
+        this.cachedWorkspaceConfig = getWorkspaceConfiguration();
 
         if (await this.rtagsInitialized)
         {
