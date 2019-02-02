@@ -33,10 +33,11 @@ import { getDerivedClasses } from './inheritanceHierarchy';
 
 import { Optional } from './nodeUtil';
 
-import { SourceFileSelector, isLocationEqual, showReferences } from './vscodeUtil';
+import { SourceFileSelector, showReferences } from './vscodeUtil';
 
-import { SymbolInfo, SymbolBaseCategory, SymbolSubCategory, getRtagsSymbolKinds, isRtagsSymbolKind, toRtagsProjectPath,
-         fromRtagsLocation, toRtagsLocation, runRc, getSymbolInfo } from './rtagsUtil';
+import { SymbolLocation, SymbolInfo, SymbolBaseCategory, SymbolSubCategory, getRtagsSymbolKinds, isRtagsSymbolKind,
+         toRtagsProjectPath, fromRtagsLocation, fromRtagsSymbolLocation, toRtagsLocation, runRc, getSymbolInfo }
+         from './rtagsUtil';
 
 enum ReferenceType
 {
@@ -55,17 +56,18 @@ function getBaseSymbolType(symbolType: string) : string
     return baseSymbolType.trim();
 }
 
-function getLocations(args: string[]) : Promise<Optional<Location[]>>
+function getLocations(args: string[]) : Promise<Optional<SymbolLocation[]>>
 {
     const processCallback =
-        (output: string) : Location[] =>
+        (output: string) : SymbolLocation[] =>
         {
-            let locations: Location[] = [];
-            for (const loc of output.split('\n'))
+            let locations: SymbolLocation[] = [];
+            for (const line of output.split('\n'))
             {
-                if (loc.trim().length !== 0)
+                if (line.trim().length !== 0)
                 {
-                    locations.push(fromRtagsLocation(loc));
+                    const [loc, kind] = line.split(/\t+/, 2).map((tok) => { return tok.trim(); });
+                    locations.push(fromRtagsSymbolLocation(loc, kind));
                 }
             }
             return locations;
@@ -109,7 +111,7 @@ function getTargets(symbolInfo: SymbolInfo, isTarget: (symbolInfo: SymbolInfo) =
 }
 
 function getReferences(uri: Uri, position: Position, queryType: ReferenceType, kindFilters?: Set<string>) :
-    Promise<Optional<Location[]>>
+    Promise<Optional<SymbolLocation[]>>
 {
     const location = toRtagsLocation(uri, position);
 
@@ -137,7 +139,7 @@ function getReferences(uri: Uri, position: Position, queryType: ReferenceType, k
             break;
 
         case ReferenceType.Rename:
-            args.push("--all-references", "--rename");
+            args.push("--all-references", "--rename", "--cursor-kind");
             break;
 
         case ReferenceType.Constructors:
@@ -534,33 +536,23 @@ export class RtagsReferenceProvider implements
         const charDelta = wordRange ? (wordRange.end.character - wordRange.start.character) : undefined;
 
         const resolveCallback =
-            async (locations?: Location[]) : Promise<WorkspaceEdit> =>
+            (locations?: SymbolLocation[]) : WorkspaceEdit =>
             {
                 let edit = new WorkspaceEdit();
-
                 if (locations)
                 {
-                    const destructorKind = new Set<string>(["CXXDestructor"]);
-                    const destructorLocations =
-                        await getReferences(document.uri, position, ReferenceType.Rename, destructorKind);
-
                     for (const loc of locations)
                     {
                         let start = loc.range.start;
-                        if (destructorLocations)
+                        if (loc.kind === "CXXDestructor")
                         {
-                            const isDestructor = destructorLocations.some((l) => { return isLocationEqual(l, loc); });
-                            if (isDestructor)
-                            {
-                                // Exclude the '~' character from destructor symbol names
-                                start = start.translate(0, 1);
-                            }
+                            // Exclude the '~' character from destructor symbol names
+                            start = start.translate(0, 1);
                         }
                         const end = start.translate(0, charDelta);
                         edit.replace(loc.uri, new Range(start, end), newName);
                     }
                 }
-
                 return edit;
             };
 

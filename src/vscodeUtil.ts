@@ -99,11 +99,6 @@ export function isOpenSourceFile(uri: Uri) : boolean
     return isSourceFile(file);
 }
 
-export function isLocationEqual(lhs: Location, rhs: Location) : boolean
-{
-    return ((lhs.uri.fsPath === rhs.uri.fsPath) && lhs.range.isEqual(rhs.range));
-}
-
 export function jumpToLocation(uri: Uri, range: Range) : void
 {
     const options: TextDocumentShowOptions = {selection: range};

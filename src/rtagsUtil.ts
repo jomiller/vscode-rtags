@@ -18,13 +18,24 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import { window, workspace, Location, Position, TextDocument, Uri } from 'vscode';
+import { window, workspace, Location, Position, Range, TextDocument, Uri } from 'vscode';
 
 import { ExecFileOptionsWithStringEncoding } from 'child_process';
 
 import { ConfigurationId, WindowConfiguration } from './constants';
 
 import { Nullable, Optional, addTrailingSlash, parseJson, safeExecFile } from './nodeUtil';
+
+export class SymbolLocation extends Location
+{
+    constructor(uri: Uri, rangeOrPosition: Range | Position, kind?: string)
+    {
+        super(uri, rangeOrPosition);
+        this.kind = kind;
+    }
+
+    public kind?: string;
+}
 
 interface SymbolInfoBase
 {
@@ -284,6 +295,14 @@ export function fromRtagsLocation(location: string) : Location
     const position = fromRtagsPosition(line, col);
     const uri = Uri.file(file);
     return new Location(uri, position);
+}
+
+export function fromRtagsSymbolLocation(location: string, kind?: string) : SymbolLocation
+{
+    const [file, line, col] = location.split(':');
+    const position = fromRtagsPosition(line, col);
+    const uri = Uri.file(file);
+    return new SymbolLocation(uri, position, kind);
 }
 
 export function toRtagsLocation(uri: Uri, position: Position) : string
