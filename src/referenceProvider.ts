@@ -33,7 +33,7 @@ import { getDerivedClasses } from './inheritanceHierarchy';
 
 import { Optional } from './nodeUtil';
 
-import { SourceFileSelector, showReferences } from './vscodeUtil';
+import { SourceFileSelector, isLocationEqual, showReferences } from './vscodeUtil';
 
 import { SymbolInfo, SymbolBaseCategory, SymbolSubCategory, getRtagsSymbolKinds, isRtagsSymbolKind, toRtagsProjectPath,
          fromRtagsLocation, toRtagsLocation, runRc, getSymbolInfo } from './rtagsUtil';
@@ -534,17 +534,33 @@ export class RtagsReferenceProvider implements
         const charDelta = wordRange ? (wordRange.end.character - wordRange.start.character) : undefined;
 
         const resolveCallback =
-            (locations?: Location[]) : WorkspaceEdit =>
+            async (locations?: Location[]) : Promise<WorkspaceEdit> =>
             {
                 let edit = new WorkspaceEdit();
+
                 if (locations)
                 {
+                    const destructorKind = new Set<string>(["CXXDestructor"]);
+                    const destructorLocations =
+                        await getReferences(document.uri, position, ReferenceType.Rename, destructorKind);
+
                     for (const loc of locations)
                     {
-                        const end = loc.range.end.translate(0, charDelta);
-                        edit.replace(loc.uri, new Range(loc.range.start, end), newName);
+                        let start = loc.range.start;
+                        if (destructorLocations)
+                        {
+                            const isDestructor = destructorLocations.some((l) => { return isLocationEqual(l, loc); });
+                            if (isDestructor)
+                            {
+                                // Exclude the '~' character from destructor symbol names
+                                start = start.translate(0, 1);
+                            }
+                        }
+                        const end = start.translate(0, charDelta);
+                        edit.replace(loc.uri, new Range(start, end), newName);
                     }
                 }
+
                 return edit;
             };
 
