@@ -798,12 +798,60 @@ async function findProjectRoot(compileCommandsFile: Uri) : Promise<Optional<Uri>
     return Uri.file(projectRoot);
 }
 
-async function removeProject(workspacePath: Uri, deleteRequired: boolean, compileInfo?: CompileCommandsInfo[], compileDirectory?: string) :
+function validateProjectRoot(workspacePath: Uri, compileCommandsFile: Uri, projectRoot?: Uri) : boolean
+{
+    if (!projectRoot)
+    {
+        showProjectLoadErrorMessage(workspacePath,
+                                    "Unable to find the project root path from the compilation database: " +
+                                        compileCommandsFile.fsPath);
+
+        return false;
+    }
+
+    if (!isParentPath(projectRoot.fsPath, addTrailingSlash(workspacePath.fsPath)))
+    {
+        showProjectLoadErrorMessage(
+            workspacePath, "The workspace folder must be inside the expected project root: " + projectRoot.fsPath);
+
+        return false;
+    }
+
+    return true;
+}
+
+function validateLoadedCompileCommandsInfo(workspacePath: Uri,
+                                           workspaceCompileDirectory: Uri,
+                                           loadedCompileInfo: Map<string, CompileCommandsInfo[]>) :
+    boolean
+{
+    for (const [root, compileInfo] of loadedCompileInfo)
+    {
+        const compileLoaded = compileInfo.some(
+            (info) => { return (info.directory.fsPath === workspaceCompileDirectory.fsPath); });
+
+        if (compileLoaded)
+        {
+            showProjectLoadErrorMessage(workspacePath,
+                                        "The compilation database is already loaded at another " +
+                                            "project root: " + root);
+
+            return false;
+        }
+    }
+
+    return true;
+}
+
+async function removeProject(workspacePath: Uri,
+                             deleteRequired: boolean,
+                             projectCompileInfo?: CompileCommandsInfo[],
+                             workspaceCompileDirectory?: string) :
     Promise<Optional<boolean>>
 {
     let projectRemoved: Optional<boolean> = false;
 
-    const deleteAllowed = compileInfo ? (compileInfo.length <= 1) : false;
+    const deleteAllowed = projectCompileInfo ? (projectCompileInfo.length <= 1) : false;
 
     const projectPath = toRtagsProjectPath(workspacePath);
 
@@ -818,13 +866,13 @@ async function removeProject(workspacePath: Uri, deleteRequired: boolean, compil
         projectRemoved = await runRc(["--delete-project", projectPath], processCallback);
     }
 
-    if (!projectRemoved && !deleteRequired && (compileDirectory !== undefined))
+    if (!projectRemoved && !deleteRequired && (workspaceCompileDirectory !== undefined))
     {
-        if (compileDirectory.length === 0)
+        if (workspaceCompileDirectory.length === 0)
         {
-            compileDirectory = workspacePath.fsPath;
+            workspaceCompileDirectory = workspacePath.fsPath;
         }
-        const compileFile = addTrailingSlash(compileDirectory) + CompileCommandsFilename;
+        const compileFile = addTrailingSlash(workspaceCompileDirectory) + CompileCommandsFilename;
 
         const args =
         [
@@ -1160,21 +1208,8 @@ export class RtagsManager implements Disposable
             if (compileFileExists)
             {
                 targetProjectRoot = await findProjectRoot(compileFile);
-                if (!targetProjectRoot)
+                if (!validateProjectRoot(workspacePath, compileFile, targetProjectRoot))
                 {
-                    showProjectLoadErrorMessage(workspacePath,
-                                                "Unable to find the project root path from the compilation database: " +
-                                                    compileFile.fsPath);
-
-                    continue;
-                }
-
-                if (!isParentPath(targetProjectRoot.fsPath, addTrailingSlash(workspacePath.fsPath)))
-                {
-                    showProjectLoadErrorMessage(workspacePath,
-                                                "The workspace folder must be inside the expected project root: " +
-                                                    targetProjectRoot.fsPath);
-
                     continue;
                 }
             }
@@ -1205,22 +1240,7 @@ export class RtagsManager implements Disposable
 
                 if (!targetCompileLoaded)
                 {
-                    let compileLoaded = false;
-                    for (const [root, compileInfo] of loadedCompileInfo)
-                    {
-                        compileLoaded = compileInfo.some(
-                            (info) => { return (info.directory.fsPath === targetCompileDirectory.fsPath); });
-
-                        if (compileLoaded)
-                        {
-                            showProjectLoadErrorMessage(workspacePath,
-                                                        "The compilation database is already loaded at another " +
-                                                            "project root: " + root);
-
-                            break;
-                        }
-                    }
-                    if (compileLoaded)
+                    if (!validateLoadedCompileCommandsInfo(workspacePath, targetCompileDirectory, loadedCompileInfo))
                     {
                         continue;
                     }
