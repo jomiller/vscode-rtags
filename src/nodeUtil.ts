@@ -55,6 +55,11 @@ export function isAbsolutePathOrFilename(filePath: string) : boolean
     return ((parsedPath.dir.length === 0) && (parsedPath.base !== '.') && (parsedPath.base !== ".."));
 }
 
+export function isParentPath(parent: string, sub: string) : boolean
+{
+    return sub.startsWith(addTrailingSlash(parent));
+}
+
 export function fileExists(file: string) : Promise<boolean>
 {
     return new Promise<boolean>(
