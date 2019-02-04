@@ -833,7 +833,7 @@ async function removeProject(workspacePath: Uri,
 async function validateProject(workspacePath: Uri,
                                workspaceCompileInfo: CompileCommandsInfo,
                                compileCommandsFile: Uri,
-                               projectPathsToReload: Map<string, string>,
+                               dirtyProjectPaths: Map<string, string>,
                                loadedCompileInfo?: Map<string, CompileCommandsInfo[]>) :
     Promise<boolean>
 {
@@ -902,11 +902,7 @@ async function validateProject(workspacePath: Uri,
 
         if (targetCompileLoaded)
         {
-            if (projectRootChanged)
-            {
-                projectPathsToReload.set(workspacePath.fsPath, targetCompileDirectory.fsPath);
-            }
-            else
+            if (!projectRootChanged)
             {
                 projectLoaded = true;
             }
@@ -930,10 +926,10 @@ async function validateProject(workspacePath: Uri,
 
     if (!currentProjectRoot)
     {
-        projectPathsToReload.delete(workspacePath.fsPath);
+        dirtyProjectPaths.delete(workspacePath.fsPath);
     }
 
-    let currentCompileDirectory = projectPathsToReload.get(workspacePath.fsPath);
+    let currentCompileDirectory = dirtyProjectPaths.get(workspacePath.fsPath);
 
     if (currentCompileDirectory !== undefined)
     {
@@ -950,7 +946,7 @@ async function validateProject(workspacePath: Uri,
             if (!compileLoaded)
             {
                 currentCompileDirectory = undefined;
-                projectPathsToReload.delete(workspacePath.fsPath);
+                dirtyProjectPaths.delete(workspacePath.fsPath);
             }
         }
     }
@@ -1017,7 +1013,7 @@ async function validateProject(workspacePath: Uri,
 
             if (projectRemoved)
             {
-                projectPathsToReload.delete(workspacePath.fsPath);
+                dirtyProjectPaths.delete(workspacePath.fsPath);
             }
             else
             {
@@ -1131,9 +1127,9 @@ export class RtagsManager implements Disposable
 
                 const newWorkspaceConfig = getWorkspaceConfiguration();
 
-                let projectPathsToReload = this.getProjectPathsToReload();
+                let dirtyProjectPaths = this.getDirtyProjectPaths();
 
-                const origProjectPathCount = projectPathsToReload.size;
+                const origProjectPathCount = dirtyProjectPaths.size;
 
                 for (const [workspacePath, newConfig] of newWorkspaceConfig)
                 {
@@ -1155,9 +1151,9 @@ export class RtagsManager implements Disposable
                         const projectExists = this.projectPaths.some((p) => { return (p.fsPath === workspacePath); });
                         if (projectExists)
                         {
-                            if (!projectPathsToReload.has(workspacePath))
+                            if (!dirtyProjectPaths.has(workspacePath))
                             {
-                                projectPathsToReload.set(workspacePath, cachedCompileDirectory);
+                                dirtyProjectPaths.set(workspacePath, cachedCompileDirectory);
                             }
                         }
                     }
@@ -1170,9 +1166,9 @@ export class RtagsManager implements Disposable
                     return;
                 }
 
-                if (projectPathsToReload.size !== origProjectPathCount)
+                if (dirtyProjectPaths.size !== origProjectPathCount)
                 {
-                    await this.setProjectPathsToReload(projectPathsToReload);
+                    await this.setDirtyProjectPaths(dirtyProjectPaths);
                 }
 
                 const reloadAction = "Reload Now";
@@ -1303,15 +1299,15 @@ export class RtagsManager implements Disposable
         }
     }
 
-    private getProjectPathsToReload() : Map<string, string>
+    private getDirtyProjectPaths() : Map<string, string>
     {
         return new Map<string, string>(
-            this.workspaceState.get<ReadonlyArray<[string, string]>>("rtags.projectPathsToReload", []));
+            this.workspaceState.get<ReadonlyArray<[string, string]>>("rtags.dirtyProjectPaths", []));
     }
 
-    private setProjectPathsToReload(paths: Map<string, string>) : Thenable<void>
+    private setDirtyProjectPaths(paths: Map<string, string>) : Thenable<void>
     {
-        return this.workspaceState.update("rtags.projectPathsToReload", (paths.size !== 0) ? [...paths] : undefined);
+        return this.workspaceState.update("rtags.dirtyProjectPaths", (paths.size !== 0) ? [...paths] : undefined);
     }
 
     private async addProjects(folders?: WorkspaceFolder[]) : Promise<void>
@@ -1321,9 +1317,9 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        let projectPathsToReload = this.getProjectPathsToReload();
+        let dirtyProjectPaths = this.getDirtyProjectPaths();
 
-        const origProjectPathCount = projectPathsToReload.size;
+        const origProjectPathCount = dirtyProjectPaths.size;
 
         const projectRoots = await getProjectRoots();
 
@@ -1359,7 +1355,7 @@ export class RtagsManager implements Disposable
                 const projectLoaded = await validateProject(workspacePath,
                                                             workspaceCompileInfo,
                                                             compileCommandsFile,
-                                                            projectPathsToReload,
+                                                            dirtyProjectPaths,
                                                             loadedCompileInfo);
 
                 if (projectLoaded)
@@ -1382,9 +1378,9 @@ export class RtagsManager implements Disposable
             }
         }
 
-        if (projectPathsToReload.size !== origProjectPathCount)
+        if (dirtyProjectPaths.size !== origProjectPathCount)
         {
-            await this.setProjectPathsToReload(projectPathsToReload);
+            await this.setDirtyProjectPaths(dirtyProjectPaths);
         }
     }
 
