@@ -812,12 +812,8 @@ async function removeProject(workspacePath: Uri,
         projectRemoved = await runRc(["--delete-project", projectPath], processCallback);
     }
 
-    if (!projectRemoved && !deleteRequired && (workspaceCompileDirectory !== undefined))
+    if (!projectRemoved && !deleteRequired && workspaceCompileDirectory)
     {
-        if (workspaceCompileDirectory.length === 0)
-        {
-            workspaceCompileDirectory = workspacePath.fsPath;
-        }
         const compileFile = addTrailingSlash(workspaceCompileDirectory) + CompileCommandsFilename;
 
         const args =
@@ -939,15 +935,23 @@ async function validateProject(workspacePath: Uri,
 
     let compileDirectoryToRemove = projectPathsToReload.get(workspacePath.fsPath);
 
-    if ((compileDirectoryToRemove !== undefined) && currentCompileInfo)
+    if (compileDirectoryToRemove !== undefined)
     {
-        const compileLoaded = currentCompileInfo.some(
-            (info) => { return (info.directory.fsPath === compileDirectoryToRemove); });
-
-        if (!compileLoaded)
+        if (compileDirectoryToRemove.length === 0)
         {
-            compileDirectoryToRemove = undefined;
-            projectPathsToReload.delete(workspacePath.fsPath);
+            compileDirectoryToRemove = workspacePath.fsPath;
+        }
+
+        if (currentCompileInfo)
+        {
+            const compileLoaded = currentCompileInfo.some(
+                (info) => { return (info.directory.fsPath === compileDirectoryToRemove); });
+
+            if (!compileLoaded)
+            {
+                compileDirectoryToRemove = undefined;
+                projectPathsToReload.delete(workspacePath.fsPath);
+            }
         }
     }
 
@@ -972,18 +976,10 @@ async function validateProject(workspacePath: Uri,
         }
     }
 
-    // Prompt the user to remove the current compilation database
-
-    let projectDeleteRequired = false;
-    let selectedAction: Optional<MessageItem> = undefined;
-
-    const removeAction: MessageItem =
-    {
-        title: "Remove"
-    };
-
     if (projectDirty)
     {
+        // Prompt the user to remove the current compilation database
+
         const message = "[RTags] The compilation database is changing for workspace folder: " +
                             workspacePath.fsPath + ". Do you want to remove the existing compilation " +
                             "database from RTags?";
@@ -993,45 +989,55 @@ async function validateProject(workspacePath: Uri,
             modal: true
         };
 
+        const removeAction: MessageItem =
+        {
+            title: "Remove"
+        };
+
         const keepAction: MessageItem =
         {
             title: "Keep",
             isCloseAffordance: true
         };
 
+        let projectDeleteRequired = false;
+        let selectedAction: Optional<MessageItem> = undefined;
+
         if (projectRootChanged || (targetCompileDirectory.fsPath !== compileDirectoryToRemove))
         {
             projectDeleteRequired = projectRootChanged;
             selectedAction = await window.showInformationMessage(message, options, removeAction, keepAction);
         }
-    }
 
-    if (selectedAction && (selectedAction.title === removeAction.title))
-    {
-        const projectRemoved =
-            await removeProject(workspacePath, projectDeleteRequired, currentCompileInfo, compileDirectoryToRemove);
+        if (selectedAction && (selectedAction.title === removeAction.title))
+        {
+            const projectRemoved = await removeProject(workspacePath,
+                                                       projectDeleteRequired,
+                                                       currentCompileInfo,
+                                                       compileDirectoryToRemove);
 
-        if (projectRemoved)
-        {
-            projectPathsToReload.delete(workspacePath.fsPath);
-        }
-        else
-        {
-            const message = "Could not remove the existing compilation database";
-            if (projectDeleteRequired)
+            if (projectRemoved)
             {
-                throw Error(message + '.');
+                projectPathsToReload.delete(workspacePath.fsPath);
             }
             else
             {
-                window.showWarningMessage(
-                    "[RTags] " + message + " for workspace folder: " + workspacePath.fsPath);
+                const message = "Could not remove the existing compilation database";
+                if (projectDeleteRequired)
+                {
+                    throw Error(message + '.');
+                }
+                else
+                {
+                    window.showWarningMessage(
+                        "[RTags] " + message + " for workspace folder: " + workspacePath.fsPath);
+                }
             }
         }
-    }
-    else if (projectDeleteRequired)
-    {
-        throw Error("The existing compilation database must first be removed.");
+        else if (projectDeleteRequired)
+        {
+            throw Error("The existing compilation database must first be removed.");
+        }
     }
 
     return projectLoaded;
