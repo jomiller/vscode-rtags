@@ -792,7 +792,7 @@ function getProjectRoot(workspacePath: Uri) : Promise<Optional<Uri>>
 async function removeProject(workspacePath: Uri,
                              deleteRequired: boolean,
                              projectCompileInfo?: CompileCommandsInfo[],
-                             workspaceCompileDirectory?: string) :
+                             projectCompileDirectory?: string) :
     Promise<Optional<boolean>>
 {
     let projectRemoved: Optional<boolean> = false;
@@ -812,9 +812,9 @@ async function removeProject(workspacePath: Uri,
         projectRemoved = await runRc(["--delete-project", projectPath], processCallback);
     }
 
-    if (!projectRemoved && !deleteRequired && workspaceCompileDirectory)
+    if (!projectRemoved && !deleteRequired && projectCompileDirectory)
     {
-        const compileFile = addTrailingSlash(workspaceCompileDirectory) + CompileCommandsFilename;
+        const compileFile = addTrailingSlash(projectCompileDirectory) + CompileCommandsFilename;
 
         const args =
         [
@@ -934,29 +934,35 @@ async function validateProject(workspacePath: Uri,
         projectPathsToReload.delete(workspacePath.fsPath);
     }
 
-    let compileDirectoryToRemove = projectPathsToReload.get(workspacePath.fsPath);
+    let currentCompileDirectory = projectPathsToReload.get(workspacePath.fsPath);
 
-    if (compileDirectoryToRemove !== undefined)
+    if (currentCompileDirectory !== undefined)
     {
-        if (compileDirectoryToRemove.length === 0)
+        if (currentCompileDirectory.length === 0)
         {
-            compileDirectoryToRemove = workspacePath.fsPath;
+            currentCompileDirectory = workspacePath.fsPath;
         }
 
         if (currentCompileInfo)
         {
             const compileLoaded = currentCompileInfo.some(
-                (info) => { return (info.directory.fsPath === compileDirectoryToRemove); });
+                (info) => { return (info.directory.fsPath === currentCompileDirectory); });
 
             if (!compileLoaded)
             {
-                compileDirectoryToRemove = undefined;
+                currentCompileDirectory = undefined;
                 projectPathsToReload.delete(workspacePath.fsPath);
             }
         }
     }
 
-    const projectDirty = (compileDirectoryToRemove !== undefined);
+    let compileDirectoryChanged = false;
+    if (currentCompileDirectory && (currentCompileDirectory !== targetCompileDirectory.fsPath))
+    {
+        compileDirectoryChanged = true;
+    }
+
+    const projectDirty = (projectRootChanged || compileDirectoryChanged);
 
     if (!targetProjectRoot)
     {
@@ -1001,21 +1007,14 @@ async function validateProject(workspacePath: Uri,
             isCloseAffordance: true
         };
 
-        let projectDeleteRequired = false;
-        let selectedAction: Optional<MessageItem> = undefined;
-
-        if (projectRootChanged || (targetCompileDirectory.fsPath !== compileDirectoryToRemove))
-        {
-            projectDeleteRequired = projectRootChanged;
-            selectedAction = await window.showInformationMessage(message, options, removeAction, keepAction);
-        }
+        const selectedAction = await window.showInformationMessage(message, options, removeAction, keepAction);
 
         if (selectedAction && (selectedAction.title === removeAction.title))
         {
             const projectRemoved = await removeProject(workspacePath,
-                                                       projectDeleteRequired,
+                                                       projectRootChanged,
                                                        currentCompileInfo,
-                                                       compileDirectoryToRemove);
+                                                       currentCompileDirectory);
 
             if (projectRemoved)
             {
@@ -1024,7 +1023,7 @@ async function validateProject(workspacePath: Uri,
             else
             {
                 const message = "Could not remove the existing compilation database";
-                if (projectDeleteRequired)
+                if (projectRootChanged)
                 {
                     throw new Error(message + '.');
                 }
@@ -1035,7 +1034,7 @@ async function validateProject(workspacePath: Uri,
                 }
             }
         }
-        else if (projectDeleteRequired)
+        else if (projectRootChanged)
         {
             throw new Error("The existing compilation database must first be removed.");
         }
