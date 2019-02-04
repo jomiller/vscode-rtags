@@ -884,10 +884,12 @@ async function validateProject(workspacePath: Uri,
 
     let currentCompileInfo: Optional<CompileCommandsInfo[]> = undefined;
 
-    let targetCompileLoaded = false;
+    let projectLoaded = false;
 
     if (loadedCompileInfo)
     {
+        let targetCompileLoaded = false;
+
         if (currentProjectRoot)
         {
             currentCompileInfo = loadedCompileInfo.get(currentProjectRoot.fsPath);
@@ -898,7 +900,18 @@ async function validateProject(workspacePath: Uri,
             }
         }
 
-        if (!targetCompileLoaded)
+        if (targetCompileLoaded)
+        {
+            if (projectRootChanged)
+            {
+                projectPathsToReload.set(workspacePath.fsPath, targetCompileDirectory.fsPath);
+            }
+            else
+            {
+                projectLoaded = true;
+            }
+        }
+        else
         {
             for (const [root, compileInfo] of loadedCompileInfo)
             {
@@ -910,20 +923,6 @@ async function validateProject(workspacePath: Uri,
                     throw new Error("The compilation database is already loaded at another project root: " + root);
                 }
             }
-        }
-    }
-
-    let projectLoaded = false;
-
-    if (targetCompileLoaded)
-    {
-        if (projectRootChanged)
-        {
-            projectPathsToReload.set(workspacePath.fsPath, targetCompileDirectory.fsPath);
-        }
-        else
-        {
-            projectLoaded = true;
         }
     }
 
