@@ -38,7 +38,7 @@ import * as util from 'util';
 import { ExtensionId, VsCodeCommand, RtagsCommand, ConfigurationId, WindowConfiguration, ResourceConfiguration,
          makeConfigurationId } from './constants';
 
-import { Nullable, Optional, addTrailingSlash, removeTrailingSlash, isAbsolutePathOrFilename, isParentPath,
+import { Nullable, Optional, addTrailingSlash, removeTrailingSlash, isAbsolutePathOrFilename, isParentDirectory,
          fileExists, getRealPath, parseJson, safeSpawn } from './nodeUtil';
 
 import { ConfigurationMap, getWorkspaceConfiguration, fromConfigurationPath, isSourceFile, isUnsavedSourceFile,
@@ -50,7 +50,7 @@ const CompileCommandsFilename = "compile_commands.json";
 const RtagsRepository         = "Andersbakken/rtags";
 const RtagsMinimumVersion     = "2.18";
 const RtagsRecommendedVersion = "2.21";
-const RtagsRecommendedCommit  = "5f887b6f58be6150bd51f240ad4a7433fa552676";
+const RtagsRecommendedCommit  = "f3c59dcb6fd066f2d5ce67ae350d38fe038e4049";
 const RtagsCommitAbbrevLength = 7;
 
 interface RtagsVersionInfo
@@ -551,47 +551,29 @@ function getProjectRoots() : Promise<Optional<Uri[]>>
     return runRc(["--project"], processCallback);
 }
 
-function validateProjectRoots(folders: WorkspaceFolder[], projectRoots?: Uri[]) : boolean
+function validateProjectRoot(parentRoot: string, subRoot: string) : void
+{
+    if ((parentRoot !== subRoot) && isParentDirectory(parentRoot, addTrailingSlash(subRoot)))
+    {
+        throw Error("Nested project roots are not supported. Project root " + subRoot +
+                        " is a subdirectory of project root " + parentRoot);
+    }
+}
+
+function validateProjectRoots(projectRoots?: Uri[]) : void
 {
     if (!projectRoots)
     {
-        return true;
+        return;
     }
 
     for (const parent of projectRoots)
     {
         for (const sub of projectRoots)
         {
-            if ((parent !== sub) && isParentPath(parent.fsPath, addTrailingSlash(sub.fsPath)))
-            {
-                const plural = (folders.length > 1) ? 's' : "";
-                window.showErrorMessage("[RTags] Could not load the compilation database" + plural +
-                                            " for the opened workspace folder" + plural +
-                                            ". Nested project roots are not supported. Project root " +
-                                            sub.fsPath + " is a subdirectory of project root " +
-                                            parent.fsPath);
-
-                return false;
-            }
+            validateProjectRoot(parent.fsPath, sub.fsPath);
         }
     }
-
-    return true;
-}
-
-function getProjectRoot(workspacePath: Uri) : Promise<Optional<Uri>>
-{
-    const processCallback =
-        (output: string) : Optional<Uri> =>
-        {
-            if (output.startsWith("No matches"))
-            {
-                return undefined;
-            }
-            return Uri.file(removeTrailingSlash(output.trim()));
-        };
-
-    return runRc(["--project", toRtagsProjectPath(workspacePath)], processCallback);
 }
 
 async function getLoadedCompileCommandsInfo(projectRoots?: Uri[]) :
@@ -646,12 +628,6 @@ async function getLoadedCompileCommandsInfo(projectRoots?: Uri[]) :
     return loadedCompileInfo;
 }
 
-function showProjectLoadErrorMessage(workspacePath: Uri, message: string) : void
-{
-    window.showErrorMessage("[RTags] Could not load the compilation database for workspace folder: " +
-                            workspacePath.fsPath + ". " + message);
-}
-
 function getCompileCommandsInfo(workspacePath: Uri) : CompileCommandsInfo
 {
     const config = workspace.getConfiguration(ConfigurationId, workspacePath);
@@ -667,7 +643,7 @@ function getCompileCommandsInfo(workspacePath: Uri) : CompileCommandsInfo
             const compileDirectoryId =
                 makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
 
-            throw new RangeError("The \"" + compileDirectoryId + "\" setting must be an absolute path.");
+            throw new Error("The \"" + compileDirectoryId + "\" setting must be an absolute path.");
         }
         directory = Uri.file(compileDirectory);
         isConfig = true;
@@ -798,49 +774,19 @@ async function findProjectRoot(compileCommandsFile: Uri) : Promise<Optional<Uri>
     return Uri.file(projectRoot);
 }
 
-function validateProjectRoot(workspacePath: Uri, compileCommandsFile: Uri, projectRoot?: Uri) : boolean
+function getProjectRoot(workspacePath: Uri) : Promise<Optional<Uri>>
 {
-    if (!projectRoot)
-    {
-        showProjectLoadErrorMessage(workspacePath,
-                                    "Unable to find the project root path from the compilation database: " +
-                                        compileCommandsFile.fsPath);
-
-        return false;
-    }
-
-    if (!isParentPath(projectRoot.fsPath, addTrailingSlash(workspacePath.fsPath)))
-    {
-        showProjectLoadErrorMessage(
-            workspacePath, "The workspace folder must be inside the expected project root: " + projectRoot.fsPath);
-
-        return false;
-    }
-
-    return true;
-}
-
-function validateLoadedCompileCommandsInfo(workspacePath: Uri,
-                                           workspaceCompileDirectory: Uri,
-                                           loadedCompileInfo: Map<string, CompileCommandsInfo[]>) :
-    boolean
-{
-    for (const [root, compileInfo] of loadedCompileInfo)
-    {
-        const compileLoaded = compileInfo.some(
-            (info) => { return (info.directory.fsPath === workspaceCompileDirectory.fsPath); });
-
-        if (compileLoaded)
+    const processCallback =
+        (output: string) : Optional<Uri> =>
         {
-            showProjectLoadErrorMessage(workspacePath,
-                                        "The compilation database is already loaded at another " +
-                                            "project root: " + root);
+            if (output.startsWith("No matches"))
+            {
+                return undefined;
+            }
+            return Uri.file(removeTrailingSlash(output.trim()));
+        };
 
-            return false;
-        }
-    }
-
-    return true;
+    return runRc(["--project", toRtagsProjectPath(workspacePath)], processCallback);
 }
 
 async function removeProject(workspacePath: Uri,
@@ -886,6 +832,209 @@ async function removeProject(workspacePath: Uri,
     }
 
     return projectRemoved;
+}
+
+async function validateProject(workspacePath: Uri,
+                               workspaceCompileInfo: CompileCommandsInfo,
+                               compileCommandsFile: Uri,
+                               projectPathsToReload: Map<string, string>,
+                               loadedCompileInfo?: Map<string, CompileCommandsInfo[]>) :
+    Promise<boolean>
+{
+    const currentProjectRoot = await getProjectRoot(workspacePath);
+
+    const targetCompileDirectory = workspaceCompileInfo.directory;
+
+    // Find and validate the project root path from the target compilation database
+
+    let targetProjectRoot: Optional<Uri> = undefined;
+
+    const compileFileExists = await fileExists(compileCommandsFile.fsPath);
+    if (compileFileExists)
+    {
+        targetProjectRoot = await findProjectRoot(compileCommandsFile);
+        if (!targetProjectRoot)
+        {
+            throw Error(
+                "Unable to find the project root path from the compilation database: " + compileCommandsFile.fsPath);
+        }
+
+        if (!isParentDirectory(targetProjectRoot.fsPath, addTrailingSlash(workspacePath.fsPath)))
+        {
+            throw Error("The workspace folder must be within the target project root: " + targetProjectRoot.fsPath);
+        }
+
+        if (loadedCompileInfo)
+        {
+            for (const root of loadedCompileInfo.keys())
+            {
+                if (!currentProjectRoot || (root !== currentProjectRoot.fsPath))
+                {
+                    validateProjectRoot(root, targetProjectRoot.fsPath);
+                    validateProjectRoot(targetProjectRoot.fsPath, root);
+                }
+            }
+        }
+    }
+
+    let projectRootChanged = false;
+    if (currentProjectRoot && targetProjectRoot && (currentProjectRoot.fsPath !== targetProjectRoot.fsPath))
+    {
+        projectRootChanged = true;
+    }
+
+    // Check whether the target compilation database is already loaded at the current or any other project root
+
+    let currentCompileInfo: Optional<CompileCommandsInfo[]> = undefined;
+
+    let targetCompileLoaded = false;
+
+    if (loadedCompileInfo)
+    {
+        if (currentProjectRoot)
+        {
+            currentCompileInfo = loadedCompileInfo.get(currentProjectRoot.fsPath);
+            if (currentCompileInfo)
+            {
+                targetCompileLoaded = currentCompileInfo.some(
+                    (info) => { return (info.directory.fsPath === targetCompileDirectory.fsPath); });
+            }
+        }
+
+        if (!targetCompileLoaded)
+        {
+            for (const [root, compileInfo] of loadedCompileInfo)
+            {
+                const compileLoaded = compileInfo.some(
+                    (info) => { return (info.directory.fsPath === targetCompileDirectory.fsPath); });
+
+                if (compileLoaded)
+                {
+                    throw Error("The compilation database is already loaded at another project root: " + root);
+                }
+            }
+        }
+    }
+
+    let projectLoaded = false;
+
+    if (targetCompileLoaded)
+    {
+        if (projectRootChanged)
+        {
+            projectPathsToReload.set(workspacePath.fsPath, targetCompileDirectory.fsPath);
+        }
+        else
+        {
+            projectLoaded = true;
+        }
+    }
+
+    // Check whether the current compilation database must be removed before loading the target one
+
+    if (!currentProjectRoot)
+    {
+        projectPathsToReload.delete(workspacePath.fsPath);
+    }
+
+    let compileDirectoryToRemove = projectPathsToReload.get(workspacePath.fsPath);
+
+    if ((compileDirectoryToRemove !== undefined) && currentCompileInfo)
+    {
+        const compileLoaded = currentCompileInfo.some(
+            (info) => { return (info.directory.fsPath === compileDirectoryToRemove); });
+
+        if (!compileLoaded)
+        {
+            compileDirectoryToRemove = undefined;
+            projectPathsToReload.delete(workspacePath.fsPath);
+        }
+    }
+
+    const projectDirty = (compileDirectoryToRemove !== undefined);
+
+    if (!targetProjectRoot)
+    {
+        if (!projectLoaded || projectDirty || workspaceCompileInfo.isConfig)
+        {
+            let message: Optional<string> = undefined;
+
+            if (currentProjectRoot || projectDirty || workspaceCompileInfo.isConfig)
+            {
+                const compileDirectoryId =
+                    makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
+
+                message = "Unable to find the compilation database: " + compileCommandsFile.fsPath +
+                              ". Check the \"" + compileDirectoryId + "\" setting.";
+            }
+
+            throw Error(message);
+        }
+    }
+
+    // Prompt the user to remove the current compilation database
+
+    let projectDeleteRequired = false;
+    let selectedAction: Optional<MessageItem> = undefined;
+
+    const removeAction: MessageItem =
+    {
+        title: "Remove"
+    };
+
+    if (projectDirty)
+    {
+        const message = "[RTags] The compilation database is changing for workspace folder: " +
+                            workspacePath.fsPath + ". Do you want to remove the existing compilation " +
+                            "database from RTags?";
+
+        const options: MessageOptions =
+        {
+            modal: true
+        };
+
+        const keepAction: MessageItem =
+        {
+            title: "Keep",
+            isCloseAffordance: true
+        };
+
+        if (projectRootChanged || (targetCompileDirectory.fsPath !== compileDirectoryToRemove))
+        {
+            projectDeleteRequired = projectRootChanged;
+            selectedAction = await window.showInformationMessage(message, options, removeAction, keepAction);
+        }
+    }
+
+    if (selectedAction && (selectedAction.title === removeAction.title))
+    {
+        const projectRemoved =
+            await removeProject(workspacePath, projectDeleteRequired, currentCompileInfo, compileDirectoryToRemove);
+
+        if (projectRemoved)
+        {
+            projectPathsToReload.delete(workspacePath.fsPath);
+        }
+        else
+        {
+            const message = "Could not remove the existing compilation database";
+            if (projectDeleteRequired)
+            {
+                throw Error(message + '.');
+            }
+            else
+            {
+                window.showWarningMessage(
+                    "[RTags] " + message + " for workspace folder: " + workspacePath.fsPath);
+            }
+        }
+    }
+    else if (projectDeleteRequired)
+    {
+        throw Error("The existing compilation database must first be removed.");
+    }
+
+    return projectLoaded;
 }
 
 function getSuspendedFilePaths(projectPath: Uri) : Promise<Optional<string[]>>
@@ -1056,7 +1205,7 @@ export class RtagsManager implements Disposable
     public getProjectPath(uri: Uri) : Optional<Uri>
     {
         const candidatePaths =
-            this.projectPaths.filter((p) => { return isParentPath(p.fsPath, uri.fsPath); });
+            this.projectPaths.filter((p) => { return isParentDirectory(p.fsPath, uri.fsPath); });
 
         let projectPath = candidatePaths.pop();
         for (const path of candidatePaths)
@@ -1081,7 +1230,7 @@ export class RtagsManager implements Disposable
         let candidateTasks: ProjectTask[] = [];
         for (const task of this.projectTasks.values())
         {
-            if ((task.getType() === TaskType.Load) && isParentPath(task.uri.fsPath, uri.fsPath))
+            if ((task.getType() === TaskType.Load) && isParentDirectory(task.uri.fsPath, uri.fsPath))
             {
                 candidateTasks.push(task);
             }
@@ -1173,8 +1322,17 @@ export class RtagsManager implements Disposable
 
         const projectRoots = await getProjectRoots();
 
-        if (!validateProjectRoots(folders, projectRoots))
+        try
         {
+            validateProjectRoots(projectRoots);
+        }
+        catch (err)
+        {
+            const plural = (folders.length > 1) ? 's' : "";
+            window.showErrorMessage("[RTags] Could not load the compilation database" + plural +
+                                        " for the opened workspace folder" + plural + '.' +
+                                        err.message);
+
             return;
         }
 
@@ -1186,194 +1344,36 @@ export class RtagsManager implements Disposable
         {
             const workspacePath = folder.uri;
 
-            let workspaceCompileInfo: CompileCommandsInfo;
             try
             {
-                workspaceCompileInfo = getCompileCommandsInfo(workspacePath);
+                const workspaceCompileInfo = getCompileCommandsInfo(workspacePath);
+
+                const compileCommandsFile =
+                    Uri.file(addTrailingSlash(workspaceCompileInfo.directory.fsPath) + CompileCommandsFilename);
+
+                const projectLoaded = await validateProject(workspacePath,
+                                                            workspaceCompileInfo,
+                                                            compileCommandsFile,
+                                                            projectPathsToReload,
+                                                            loadedCompileInfo);
+
+                if (projectLoaded)
+                {
+                    this.addProjectPath(workspacePath);
+                    this.diagnoseProject(workspacePath);
+                }
+                else
+                {
+                    await this.startProjectTask(new ProjectLoadTask(workspacePath, compileCommandsFile));
+                }
             }
             catch (err)
             {
-                showProjectLoadErrorMessage(workspacePath, err.message);
-                continue;
-            }
-
-            const targetCompileDirectory = workspaceCompileInfo.directory;
-
-            let targetProjectRoot: Optional<Uri> = undefined;
-
-            const compileFile =
-                Uri.file(addTrailingSlash(targetCompileDirectory.fsPath) + CompileCommandsFilename);
-
-            const compileFileExists = await fileExists(compileFile.fsPath);
-            if (compileFileExists)
-            {
-                targetProjectRoot = await findProjectRoot(compileFile);
-                if (!validateProjectRoot(workspacePath, compileFile, targetProjectRoot))
+                if (err.message)
                 {
-                    continue;
+                    window.showErrorMessage("[RTags] Could not load the compilation database for workspace folder: " +
+                                                workspacePath.fsPath + ". " + err.message);
                 }
-            }
-
-            const currentProjectRoot = await getProjectRoot(workspacePath);
-
-            let projectRootChanged = false;
-            if (currentProjectRoot && targetProjectRoot && (currentProjectRoot.fsPath !== targetProjectRoot.fsPath))
-            {
-                projectRootChanged = true;
-            }
-
-            let currentCompileInfo: Optional<CompileCommandsInfo[]> = undefined;
-
-            let targetCompileLoaded = false;
-
-            if (loadedCompileInfo)
-            {
-                if (currentProjectRoot)
-                {
-                    currentCompileInfo = loadedCompileInfo.get(currentProjectRoot.fsPath);
-                    if (currentCompileInfo)
-                    {
-                        targetCompileLoaded = currentCompileInfo.some(
-                            (info) => { return (info.directory.fsPath === targetCompileDirectory.fsPath); });
-                    }
-                }
-
-                if (!targetCompileLoaded)
-                {
-                    if (!validateLoadedCompileCommandsInfo(workspacePath, targetCompileDirectory, loadedCompileInfo))
-                    {
-                        continue;
-                    }
-                }
-            }
-
-            let projectLoaded = false;
-
-            if (targetCompileLoaded)
-            {
-                if (projectRootChanged)
-                {
-                    projectPathsToReload.set(workspacePath.fsPath, targetCompileDirectory.fsPath);
-                }
-                else
-                {
-                    projectLoaded = true;
-                }
-            }
-
-            if (!currentProjectRoot)
-            {
-                projectPathsToReload.delete(workspacePath.fsPath);
-            }
-
-            let compileDirectoryToRemove = projectPathsToReload.get(workspacePath.fsPath);
-
-            if ((compileDirectoryToRemove !== undefined) && currentCompileInfo)
-            {
-                const compileLoaded = currentCompileInfo.some(
-                    (info) => { return (info.directory.fsPath === compileDirectoryToRemove); });
-
-                if (!compileLoaded)
-                {
-                    compileDirectoryToRemove = undefined;
-                    projectPathsToReload.delete(workspacePath.fsPath);
-                }
-            }
-
-            const projectDirty = (compileDirectoryToRemove !== undefined);
-
-            if (!targetProjectRoot)
-            {
-                if (!projectLoaded || projectDirty || workspaceCompileInfo.isConfig)
-                {
-                    if (currentProjectRoot || projectDirty || workspaceCompileInfo.isConfig)
-                    {
-                        const compileDirectoryId =
-                            makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
-
-                        showProjectLoadErrorMessage(workspacePath,
-                                                    "Unable to find the compilation database: " + compileFile.fsPath +
-                                                        ". Check the \"" + compileDirectoryId + "\" setting.");
-                    }
-
-                    continue;
-                }
-            }
-
-            let projectDeleteRequired = false;
-            let selectedAction: Optional<MessageItem> = undefined;
-
-            const removeAction: MessageItem =
-            {
-                title: "Remove"
-            };
-
-            if (projectDirty)
-            {
-                const message = "[RTags] The compilation database has changed for workspace folder: " +
-                                    workspacePath.fsPath + ". Do you want to remove the previous compilation " +
-                                    "database from RTags?";
-
-                const options: MessageOptions =
-                {
-                    modal: true
-                };
-
-                const keepAction: MessageItem =
-                {
-                    title: "Keep",
-                    isCloseAffordance: true
-                };
-
-                if (projectRootChanged || (targetCompileDirectory.fsPath !== compileDirectoryToRemove))
-                {
-                    projectDeleteRequired = projectRootChanged;
-                    selectedAction = await window.showInformationMessage(message, options, removeAction, keepAction);
-                }
-            }
-
-            if (selectedAction && (selectedAction.title === removeAction.title))
-            {
-                const projectRemoved = await removeProject(workspacePath,
-                                                           projectDeleteRequired,
-                                                           currentCompileInfo,
-                                                           compileDirectoryToRemove);
-
-                if (projectRemoved)
-                {
-                    projectPathsToReload.delete(workspacePath.fsPath);
-                }
-                else
-                {
-                    const message = "Could not remove the existing compilation database";
-                    if (projectDeleteRequired)
-                    {
-                        showProjectLoadErrorMessage(workspacePath, message + '.');
-                        continue;
-                    }
-                    else
-                    {
-                        window.showWarningMessage(
-                            "[RTags] " + message + " for workspace folder: " + workspacePath.fsPath);
-                    }
-                }
-            }
-            else if (projectDeleteRequired)
-            {
-                showProjectLoadErrorMessage(workspacePath,
-                                            "The existing compilation database must first be removed.");
-
-                continue;
-            }
-
-            if (projectLoaded)
-            {
-                this.addProjectPath(workspacePath);
-                this.diagnoseProject(workspacePath);
-            }
-            else
-            {
-                await this.startProjectTask(new ProjectLoadTask(workspacePath, compileFile));
             }
         }
 
