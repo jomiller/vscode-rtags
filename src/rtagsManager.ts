@@ -555,8 +555,8 @@ function validateProjectRoot(parentRoot: string, subRoot: string) : void
 {
     if ((parentRoot !== subRoot) && isParentDirectory(parentRoot, addTrailingSlash(subRoot)))
     {
-        throw Error("Nested project roots are not supported. Project root " + subRoot +
-                        " is a subdirectory of project root " + parentRoot);
+        throw new Error("Nested project roots are not supported. Project root " + subRoot +
+                            " is a subdirectory of project root " + parentRoot);
     }
 }
 
@@ -851,13 +851,14 @@ async function validateProject(workspacePath: Uri,
         targetProjectRoot = await findProjectRoot(compileCommandsFile);
         if (!targetProjectRoot)
         {
-            throw Error(
+            throw new Error(
                 "Unable to find the project root path from the compilation database: " + compileCommandsFile.fsPath);
         }
 
         if (!isParentDirectory(targetProjectRoot.fsPath, addTrailingSlash(workspacePath.fsPath)))
         {
-            throw Error("The workspace folder must be within the target project root: " + targetProjectRoot.fsPath);
+            throw new Error(
+                "The workspace folder must be within the target project root: " + targetProjectRoot.fsPath);
         }
 
         if (loadedCompileInfo)
@@ -906,7 +907,7 @@ async function validateProject(workspacePath: Uri,
 
                 if (compileLoaded)
                 {
-                    throw Error("The compilation database is already loaded at another project root: " + root);
+                    throw new Error("The compilation database is already loaded at another project root: " + root);
                 }
             }
         }
@@ -972,7 +973,7 @@ async function validateProject(workspacePath: Uri,
                               ". Check the \"" + compileDirectoryId + "\" setting.";
             }
 
-            throw Error(message);
+            throw new Error(message);
         }
     }
 
@@ -1025,7 +1026,7 @@ async function validateProject(workspacePath: Uri,
                 const message = "Could not remove the existing compilation database";
                 if (projectDeleteRequired)
                 {
-                    throw Error(message + '.');
+                    throw new Error(message + '.');
                 }
                 else
                 {
@@ -1036,7 +1037,7 @@ async function validateProject(workspacePath: Uri,
         }
         else if (projectDeleteRequired)
         {
-            throw Error("The existing compilation database must first be removed.");
+            throw new Error("The existing compilation database must first be removed.");
         }
     }
 
