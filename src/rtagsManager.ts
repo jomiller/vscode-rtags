@@ -980,11 +980,26 @@ async function validateProject(workspacePath: Uri,
 
     if (projectDirty)
     {
-        // Prompt the user to remove the current compilation database
+        // Prompt the user to remove the current project root or compilation database
 
-        const message = "[RTags] The compilation database is changing for workspace folder: " +
-                            workspacePath.fsPath + ". Do you want to remove the existing compilation " +
-                            "database from RTags?";
+        let projectDesc = "compilation database";
+        let projectPath = "";
+        if (currentCompileDirectory)
+        {
+            projectPath = addTrailingSlash(currentCompileDirectory) + CompileCommandsFilename;
+        }
+        if (projectRootChanged)
+        {
+            projectDesc = "project root";
+            if (currentProjectRoot)
+            {
+                projectPath = currentProjectRoot.fsPath;
+            }
+        }
+
+        const message = "[RTags] The " + projectDesc + " is changing for workspace folder: " +
+                            workspacePath.fsPath + ". Do you want to remove the existing " + projectDesc +
+                            ": " + projectPath + '?';
 
         const options: MessageOptions =
         {
@@ -1017,7 +1032,7 @@ async function validateProject(workspacePath: Uri,
             }
             else
             {
-                const message = "Could not remove the existing compilation database";
+                const message = "Could not remove the existing " + projectDesc;
                 if (projectRootChanged)
                 {
                     throw new Error(message + '.');
@@ -1031,7 +1046,7 @@ async function validateProject(workspacePath: Uri,
         }
         else if (projectRootChanged)
         {
-            throw new Error("The existing compilation database must first be removed.");
+            throw new Error("The existing " + projectDesc + " must first be removed.");
         }
     }
 
