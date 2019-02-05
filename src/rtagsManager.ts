@@ -19,9 +19,8 @@
  */
 
 import { commands, extensions, languages, window, workspace, ConfigurationChangeEvent, Diagnostic,
-         DiagnosticCollection, DiagnosticSeverity, Disposable, Memento, MessageItem, MessageOptions, Range,
-         TextDocument, TextDocumentChangeEvent, TextDocumentWillSaveEvent, Uri, WorkspaceFolder,
-         WorkspaceFoldersChangeEvent } from 'vscode';
+         DiagnosticCollection, DiagnosticSeverity, Disposable, Memento, Range, TextDocument, TextDocumentChangeEvent,
+         TextDocumentWillSaveEvent, Uri, WorkspaceFolder, WorkspaceFoldersChangeEvent } from 'vscode';
 
 import { ChildProcess, SpawnOptions, execFile } from 'child_process';
 
