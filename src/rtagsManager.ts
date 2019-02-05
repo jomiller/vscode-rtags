@@ -997,40 +997,21 @@ async function validateProject(workspacePath: Uri,
             }
         }
 
-        const message = "[RTags] The " + projectDesc + " is changing for workspace folder: " +
-                            workspacePath.fsPath + ". Do you want to remove the existing " + projectDesc +
-                            ": " + projectPath + '?';
+        const message = "[RTags] The " + projectDesc + " is changing for workspace folder: " + workspacePath.fsPath +
+                            ". Do you want to remove the existing " + projectDesc + ": " + projectPath + '?';
 
-        const options: MessageOptions =
-        {
-            modal: true
-        };
+        const removeAction = "Remove";
+        const keepAction = "Keep";
+        const selectedAction = await window.showInformationMessage(message, removeAction, keepAction);
 
-        const removeAction: MessageItem =
-        {
-            title: "Remove"
-        };
-
-        const keepAction: MessageItem =
-        {
-            title: "Keep",
-            isCloseAffordance: true
-        };
-
-        const selectedAction = await window.showInformationMessage(message, options, removeAction, keepAction);
-
-        if (selectedAction && (selectedAction.title === removeAction.title))
+        if (selectedAction === removeAction)
         {
             const projectRemoved = await removeProject(workspacePath,
                                                        projectRootChanged,
                                                        currentCompileInfo,
                                                        currentCompileDirectory);
 
-            if (projectRemoved)
-            {
-                dirtyProjectPaths.delete(workspacePath.fsPath);
-            }
-            else
+            if (!projectRemoved)
             {
                 const message = "Could not remove the existing " + projectDesc;
                 if (projectRootChanged)
@@ -1048,6 +1029,8 @@ async function validateProject(workspacePath: Uri,
         {
             throw new Error("The existing " + projectDesc + " must first be removed.");
         }
+
+        dirtyProjectPaths.delete(workspacePath.fsPath);
     }
 
     return projectLoaded;
