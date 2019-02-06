@@ -1328,7 +1328,7 @@ export class RtagsManager implements Disposable
         {
             const plural = (folders.length > 1) ? 's' : "";
             window.showErrorMessage("[RTags] Could not load the compilation database" + plural +
-                                        " for the opened workspace folder" + plural + '.' +
+                                        " for the opened workspace folder" + plural + ". " +
                                         err.message);
 
             return;
