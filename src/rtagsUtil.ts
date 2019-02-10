@@ -53,9 +53,14 @@ export async function getRdmOptions() : Promise<void>
     }
 }
 
+export function isRtagsRealPathEnabled() : boolean
+{
+    return ((rdmOptions & RdmOption.NoRealPath) === 0);
+}
+
 export function getRtagsRealPathArgument() : string
 {
-    return ((rdmOptions & RdmOption.NoRealPath) ? "--no-realpath" : "");
+    return (isRtagsRealPathEnabled() ? "" : "--no-realpath");
 }
 
 export function getRtagsProjectPathArgument(uri: Uri) : string

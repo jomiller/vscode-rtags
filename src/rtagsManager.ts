@@ -43,8 +43,8 @@ import { Nullable, Optional, addTrailingSlash, removeTrailingSlash, isAbsolutePa
 import { ConfigurationMap, getWorkspaceConfiguration, fromConfigurationPath, isSourceFile, isUnsavedSourceFile,
          isOpenSourceFile, showContribution, hideContribution } from './vscodeUtil';
 
-import { getRdmOptions, getRtagsRealPathArgument, getRtagsProjectPathArgument, fromRtagsPosition, getRcExecutable,
-         runRc } from './rtagsUtil';
+import { getRdmOptions, isRtagsRealPathEnabled, getRtagsRealPathArgument, getRtagsProjectPathArgument,
+         fromRtagsPosition, getRcExecutable, runRc } from './rtagsUtil';
 
 const CompileCommandsFilename = "compile_commands.json";
 const RtagsRepository         = "Andersbakken/rtags";
@@ -772,13 +772,16 @@ async function findProjectRoot(compileCommandsFile: Uri) : Promise<Optional<Uri>
         };
 
     let projectRoot = await runRc(["--no-realpath", "--find-project-root", compileFile], processCallback);
-    if (!projectRoot)
+    if (isRtagsRealPathEnabled())
     {
-        projectRoot = await runRc(["--find-project-root", compileFile], processCallback);
-    }
-    if (projectRoot)
-    {
-        projectRoot = await getRealPath(projectRoot);
+        if (!projectRoot)
+        {
+            projectRoot = await runRc(["--find-project-root", compileFile], processCallback);
+        }
+        if (projectRoot)
+        {
+            projectRoot = await getRealPath(projectRoot);
+        }
     }
     if (!projectRoot)
     {
