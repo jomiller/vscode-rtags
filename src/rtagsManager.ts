@@ -1463,7 +1463,7 @@ export class RtagsManager implements Disposable
         }
 
         const reindex =
-            () =>
+            () : void =>
             {
                 const args =
                 [
