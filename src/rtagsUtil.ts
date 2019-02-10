@@ -46,13 +46,11 @@ export async function getRdmOptions() : Promise<void>
             return parseInt(options[1]);
         };
 
-    const resolveCallback =
-        (options?: number) : number =>
-        {
-            return (options ? options : 0);
-        };
-
-    rdmOptions = await runRc(["--status", "info"], processCallback).then(resolveCallback);
+    const options = await runRc(["--status", "info"], processCallback);
+    if (options)
+    {
+        rdmOptions = options;
+    }
 }
 
 export function getRtagsRealPathArgument() : string

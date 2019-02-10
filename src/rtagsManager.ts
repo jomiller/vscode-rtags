@@ -537,7 +537,13 @@ async function initializeRtags(globalState: Memento) : Promise<boolean>
 
     showRtagsRecommendedVersion(rtagsVersion, globalState);
 
-    return startRdm();
+    const rdmRunning = await startRdm();
+    if (rdmRunning)
+    {
+        await getRdmOptions();
+    }
+
+    return rdmRunning;
 }
 
 function getProjectRoots() : Promise<Optional<Uri[]>>
@@ -1122,7 +1128,6 @@ export class RtagsManager implements Disposable
             this.rtagsInitialized = initializeRtags(globalState);
             if (await this.rtagsInitialized)
             {
-                await getRdmOptions();
                 this.startDiagnostics();
                 this.addProjects(workspace.workspaceFolders);
             }
