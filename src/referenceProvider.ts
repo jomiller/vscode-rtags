@@ -35,9 +35,9 @@ import { Optional } from './nodeUtil';
 
 import { SourceFileSelector, showReferences } from './vscodeUtil';
 
-import { SymbolLocation, SymbolInfo, SymbolBaseCategory, SymbolSubCategory, getRtagsSymbolKinds, isRtagsSymbolKind,
-         toRtagsProjectPath, fromRtagsLocation, fromRtagsSymbolLocation, toRtagsLocation, runRc, getSymbolInfo }
-         from './rtagsUtil';
+import { SymbolLocation, SymbolInfo, SymbolBaseCategory, SymbolSubCategory, getRtagsRealPathArgument,
+         getRtagsProjectPathArgument, getRtagsSymbolKinds, isRtagsSymbolKind, fromRtagsLocation,
+         fromRtagsSymbolLocation, toRtagsLocation, runRc, getSymbolInfo } from './rtagsUtil';
 
 enum ReferenceType
 {
@@ -167,8 +167,9 @@ function getReferencesByName(name: string, projectPath: Uri, queryType: Referenc
 {
     let args =
     [
+        getRtagsRealPathArgument(),
         "--project",
-        toRtagsProjectPath(projectPath),
+        getRtagsProjectPathArgument(projectPath),
         "--references-name",
         name,
         "--all-references",
@@ -526,8 +527,7 @@ export class RtagsReferenceProvider implements
                               _token: CancellationToken) :
         ProviderResult<WorkspaceEdit>
     {
-        const projectPath = this.rtagsMgr.getProjectPath(document.uri);
-        if (!projectPath)
+        if (!this.rtagsMgr.isInProject(document.uri))
         {
             return undefined;
         }

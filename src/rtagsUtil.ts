@@ -26,6 +26,45 @@ import { ConfigurationId, WindowConfiguration } from './constants';
 
 import { Nullable, Optional, addTrailingSlash, parseJson, safeExecFile } from './nodeUtil';
 
+enum RdmOption
+{
+    NoRealPath = (1 << 30)
+}
+
+let rdmOptions: number = 0;
+
+export async function getRdmOptions() : Promise<void>
+{
+    const processCallback =
+        (output: string) : number =>
+        {
+            const options = output.match(/options: (0x[:xdigit:]+)/);
+            if (!options)
+            {
+                return 0;
+            }
+            return parseInt(options[1]);
+        };
+
+    const resolveCallback =
+        (options?: number) : number =>
+        {
+            return (options ? options : 0);
+        };
+
+    rdmOptions = await runRc(["--status", "info"], processCallback).then(resolveCallback);
+}
+
+export function getRtagsRealPathArgument() : string
+{
+    return ((rdmOptions & RdmOption.NoRealPath) ? "--no-realpath" : "");
+}
+
+export function getRtagsProjectPathArgument(uri: Uri) : string
+{
+    return addTrailingSlash(uri.fsPath);
+}
+
 export class SymbolLocation extends Location
 {
     constructor(uri: Uri, rangeOrPosition: Range | Position, kind?: string)
@@ -277,11 +316,6 @@ export function getRtagsSymbolKinds(symbolKindOrCategories?: string | SymbolCate
         return symbolKinds;
     }
     return getRtagsSymbolKindsImpl(symbolKindOrCategories);
-}
-
-export function toRtagsProjectPath(uri: Uri) : string
-{
-    return (addTrailingSlash(uri.fsPath) + '$');
 }
 
 export function fromRtagsPosition(line: string, column: string) : Position

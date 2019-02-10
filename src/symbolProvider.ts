@@ -25,11 +25,11 @@ import { ConfigurationId, ResourceConfiguration } from './constants';
 
 import { RtagsManager } from './rtagsManager';
 
-import { Optional, addTrailingSlash } from './nodeUtil';
+import { Optional } from './nodeUtil';
 
 import { SourceFileSelector } from './vscodeUtil';
 
-import { fromRtagsLocation, runRc } from './rtagsUtil';
+import { getRtagsRealPathArgument, getRtagsProjectPathArgument, fromRtagsLocation, runRc } from './rtagsUtil';
 
 function toSymbolKind(kind: string) : Optional<SymbolKind>
 {
@@ -186,6 +186,7 @@ export class RtagsSymbolProvider implements
 
         const args =
         [
+            getRtagsRealPathArgument(),
             "--current-file",
             document.uri.fsPath,
             "--path-filter",
@@ -227,14 +228,15 @@ export class RtagsSymbolProvider implements
 
         for (const path of this.rtagsMgr.getProjectPaths())
         {
-            const projectPath = addTrailingSlash(path.fsPath);
+            const projectPath = getRtagsProjectPathArgument(path);
             const config = workspace.getConfiguration(ConfigurationId, path);
             const maxSearchResults = config.get<number>(ResourceConfiguration.MiscMaxWorkspaceSearchResults, 50);
 
             const args =
             [
+                getRtagsRealPathArgument(),
                 "--project",
-                projectPath + '$',
+                projectPath,
                 "--path-filter",
                 projectPath,
                 "--max",
