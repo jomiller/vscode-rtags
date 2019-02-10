@@ -38,7 +38,7 @@ export async function getRdmOptions() : Promise<void>
     const processCallback =
         (output: string) : number =>
         {
-            const options = output.match(/options: (0x[:xdigit:]+)/);
+            const options = output.match(/options: (0x[0-9a-f]+)/i);
             if (!options)
             {
                 return 0;
