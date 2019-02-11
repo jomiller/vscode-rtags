@@ -240,7 +240,7 @@ function toDiagnosticSeverity(severity: string) : DiagnosticSeverity
     }
 }
 
-function spawnRc(args: string[], ignoreStdio: boolean = false) : Nullable<ChildProcess>
+function spawnRc(args: ReadonlyArray<string>, ignoreStdio: boolean = false) : Nullable<ChildProcess>
 {
     const options: SpawnOptions =
     {

@@ -86,7 +86,7 @@ function toSymbolKind(kind: string) : Optional<SymbolKind>
     return undefined;
 }
 
-function findSymbols(query: string, args: string[] = [], includeFiles: boolean = false) :
+function findSymbols(query: string, args: ReadonlyArray<string> = [], includeFiles: boolean = false) :
     Promise<Optional<SymbolInformation[]>>
 {
     const localArgs =

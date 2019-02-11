@@ -356,7 +356,9 @@ export function getRcExecutable() : string
     return config.get<string>(WindowConfiguration.RcExecutable, "rc");
 }
 
-export function runRc<T = void>(args: string[], process?: (stdout: string) => T, unsavedFiles: TextDocument[] = []) :
+export function runRc<T = void>(args: ReadonlyArray<string>,
+                                process?: (stdout: string) => T,
+                                unsavedFiles: TextDocument[] = []) :
     Promise<Optional<T>>
 {
     const executorCallback =

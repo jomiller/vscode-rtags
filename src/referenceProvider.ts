@@ -56,7 +56,7 @@ function getBaseSymbolType(symbolType: string) : string
     return baseSymbolType.trim();
 }
 
-function getLocations(args: string[]) : Promise<Optional<SymbolLocation[]>>
+function getLocations(args: ReadonlyArray<string>) : Promise<Optional<SymbolLocation[]>>
 {
     const processCallback =
         (output: string) : SymbolLocation[] =>
