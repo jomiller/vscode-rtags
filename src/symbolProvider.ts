@@ -184,14 +184,12 @@ export class RtagsSymbolProvider implements
             return [];
         }
 
-        const args =
-        [
-            getRtagsRealPathArgument(),
+        const args = getRtagsRealPathArgument();
+        args.push(
             "--current-file",
             document.uri.fsPath,
             "--path-filter",
-            document.uri.fsPath
-        ];
+            document.uri.fsPath);
 
         return findSymbols('*', args);
     }
@@ -232,16 +230,14 @@ export class RtagsSymbolProvider implements
             const config = workspace.getConfiguration(ConfigurationId, path);
             const maxSearchResults = config.get<number>(ResourceConfiguration.MiscMaxWorkspaceSearchResults, 50);
 
-            const args =
-            [
-                getRtagsRealPathArgument(),
+            const args = getRtagsRealPathArgument();
+            args.push(
                 "--project",
                 projectPath,
                 "--path-filter",
                 projectPath,
                 "--max",
-                maxSearchResults.toString()
-            ];
+                maxSearchResults.toString());
 
             const symbols = await findSymbols(query, args, true);
             if (symbols)

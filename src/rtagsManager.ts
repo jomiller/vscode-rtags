@@ -113,14 +113,12 @@ abstract class ProjectTask implements Disposable
             {
                 const timeoutMs = 1000;
 
-                const args =
-                [
-                    getRtagsRealPathArgument(),
+                const args = getRtagsRealPathArgument();
+                args.push(
                     // For backward compatibility with RTags before it supported the path argument
                     "--is-indexing=" + getRtagsProjectPathArgument(this.uri),
                     "--timeout",
-                    timeoutMs.toString()
-                ];
+                    timeoutMs.toString());
 
                 const processCallback =
                     (output: string) : void =>
@@ -204,13 +202,11 @@ class ProjectReindexTask extends ProjectTask
 
     protected execute() : Promise<Optional<boolean>>
     {
-        const args =
-        [
-            getRtagsRealPathArgument(),
+        const args = getRtagsRealPathArgument();
+        args.push(
             "--project",
             getRtagsProjectPathArgument(this.uri),
-            "--reindex"
-        ];
+            "--reindex");
 
         return runRc(args, (_unused) => { return true; }, this.unsavedFiles);
     }
@@ -601,14 +597,12 @@ async function getLoadedCompileCommandsInfo(projectRoots?: Uri[]) :
 
     for (const root of projectRoots)
     {
-        const args =
-        [
-            getRtagsRealPathArgument(),
+        const args = getRtagsRealPathArgument();
+        args.push(
             "--project",
             getRtagsProjectPathArgument(root),
             "--status",
-            "project"
-        ];
+            "project");
 
         const processStatusCallback =
             (output: string) : string[] =>
@@ -793,12 +787,10 @@ async function findProjectRoot(compileCommandsFile: Uri) : Promise<Optional<Uri>
 
 function getProjectRoot(workspacePath: Uri) : Promise<Optional<Uri>>
 {
-    const args =
-    [
-        getRtagsRealPathArgument(),
+    const args = getRtagsRealPathArgument();
+    args.push(
         "--project",
-        getRtagsProjectPathArgument(workspacePath)
-    ];
+        getRtagsProjectPathArgument(workspacePath));
 
     const processCallback =
         (output: string) : Optional<Uri> =>
@@ -833,12 +825,10 @@ async function removeProject(workspacePath: Uri,
 
     if (deleteAllowed)
     {
-        const args =
-        [
-            getRtagsRealPathArgument(),
+        const args = getRtagsRealPathArgument();
+        args.push(
             "--delete-project",
-            projectPath
-        ];
+            projectPath);
 
         projectRemoved = await runRc(args, processCallback);
     }
@@ -847,14 +837,12 @@ async function removeProject(workspacePath: Uri,
     {
         const compileFile = addTrailingSlash(projectCompileDirectory) + CompileCommandsFilename;
 
-        const args =
-        [
-            getRtagsRealPathArgument(),
+        const args = getRtagsRealPathArgument();
+        args.push(
             "--project",
             projectPath,
             "--remove",
-            compileFile
-        ];
+            compileFile);
 
         projectRemoved = await runRc(args, processCallback);
     }
@@ -1070,13 +1058,11 @@ async function validateProject(workspacePath: Uri,
 
 function getSuspendedFilePaths(projectPath: Uri) : Promise<Optional<string[]>>
 {
-    const args =
-    [
-        getRtagsRealPathArgument(),
+    const args = getRtagsRealPathArgument();
+    args.push(
         "--project",
         getRtagsProjectPathArgument(projectPath),
-        "--suspend"
-    ];
+        "--suspend");
 
     const processCallback =
         (output: string) : string[] =>
@@ -1473,12 +1459,10 @@ export class RtagsManager implements Disposable
         const reindex =
             () : void =>
             {
-                const args =
-                [
-                    getRtagsRealPathArgument(),
+                const args = getRtagsRealPathArgument();
+                args.push(
                     reindexArg,
-                    file.uri.fsPath
-                ];
+                    file.uri.fsPath);
 
                 runRc(args, undefined, unsavedFiles);
             };
@@ -1892,7 +1876,7 @@ export class RtagsManager implements Disposable
             const openSourceFiles = this.getOpenSourceFiles(projectPath);
             if (openSourceFiles.length !== 0)
             {
-                let args = [getRtagsRealPathArgument()];
+                let args = getRtagsRealPathArgument();
                 openSourceFiles.forEach((file) => { args.push("--diagnose", file.uri.fsPath); });
                 runRc(args);
             }
@@ -1900,13 +1884,11 @@ export class RtagsManager implements Disposable
         else
         {
             // Resend diagnostics for all files in the project
-            const args =
-            [
-                getRtagsRealPathArgument(),
+            const args = getRtagsRealPathArgument();
+            args.push(
                 "--project",
                 getRtagsProjectPathArgument(projectPath),
-                "--diagnose-all"
-            ];
+                "--diagnose-all");
 
             runRc(args);
         }
@@ -1919,7 +1901,12 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        runRc([getRtagsRealPathArgument(), "--diagnose", file.uri.fsPath]);
+        const args = getRtagsRealPathArgument();
+        args.push(
+            "--diagnose",
+            file.uri.fsPath);
+
+        runRc(args);
     }
 
     private undiagnoseFile(file: TextDocument) : void

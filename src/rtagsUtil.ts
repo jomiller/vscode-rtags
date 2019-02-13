@@ -58,9 +58,9 @@ export function isRtagsRealPathEnabled() : boolean
     return ((rdmOptions & RdmOption.NoRealPath) === 0);
 }
 
-export function getRtagsRealPathArgument() : string
+export function getRtagsRealPathArgument() : string[]
 {
-    return (isRtagsRealPathEnabled() ? "" : "--no-realpath");
+    return (isRtagsRealPathEnabled() ? [] : ["--no-realpath"]);
 }
 
 export function getRtagsProjectPathArgument(uri: Uri) : string

@@ -165,9 +165,8 @@ function getReferences(uri: Uri, position: Position, queryType: ReferenceType, k
 function getReferencesByName(name: string, projectPath: Uri, queryType: ReferenceType, kindFilters?: Set<string>) :
     Promise<Optional<Location[]>>
 {
-    let args =
-    [
-        getRtagsRealPathArgument(),
+    let args = getRtagsRealPathArgument();
+    args.push(
         "--project",
         getRtagsProjectPathArgument(projectPath),
         "--references-name",
@@ -175,8 +174,7 @@ function getReferencesByName(name: string, projectPath: Uri, queryType: Referenc
         "--all-references",
         "--rename",
         "--absolute-path",
-        "--no-context"
-    ];
+        "--no-context");
 
     switch (queryType)
     {
