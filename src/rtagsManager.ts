@@ -43,8 +43,8 @@ import { Nullable, Optional, addTrailingSlash, removeTrailingSlash, isAbsolutePa
 import { ConfigurationMap, getWorkspaceConfiguration, fromConfigurationPath, isSourceFile, isUnsavedSourceFile,
          isOpenSourceFile, showContribution, hideContribution } from './vscodeUtil';
 
-import { getRdmOptions, isRtagsRealPathEnabled, getRtagsRealPathArgument, getRtagsProjectPathArgument,
-         fromRtagsPosition, getRcExecutable, runRc } from './rtagsUtil';
+import { RdmInfo, isRtagsRealPathEnabled, getRtagsRealPathArgument, getRtagsProjectPathArgument, fromRtagsPosition,
+         getRcExecutable, runRc } from './rtagsUtil';
 
 const CompileCommandsFilename = "compile_commands.json";
 const RtagsRepository         = "Andersbakken/rtags";
@@ -536,7 +536,7 @@ async function initializeRtags(globalState: Memento) : Promise<boolean>
     const rdmRunning = await startRdm();
     if (rdmRunning)
     {
-        await getRdmOptions();
+        await RdmInfo.initialize();
     }
 
     return rdmRunning;

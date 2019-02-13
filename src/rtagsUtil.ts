@@ -31,31 +31,39 @@ enum RdmOption
     NoRealPath = (1 << 30)
 }
 
-let rdmOptions: number = 0;
-
-export async function getRdmOptions() : Promise<void>
+export class RdmInfo
 {
-    const processCallback =
-        (output: string) : number =>
-        {
-            const options = output.match(/options: (0x[0-9a-f]+)/i);
-            if (!options)
-            {
-                return 0;
-            }
-            return parseInt(options[1]);
-        };
-
-    const options = await runRc(["--status", "info"], processCallback);
-    if (options)
+    public static async initialize() : Promise<void>
     {
-        rdmOptions = options;
+        const processCallback =
+            (output: string) : number =>
+            {
+                const options = output.match(/options: (0x[0-9a-f]+)/i);
+                if (!options)
+                {
+                    return 0;
+                }
+                return parseInt(options[1]);
+            };
+
+        const options = await runRc(["--status", "info"], processCallback);
+        if (options)
+        {
+            RdmInfo.options = options;
+        }
     }
+
+    public static getOptions() : number
+    {
+        return RdmInfo.options;
+    }
+
+    private static options: number = 0;
 }
 
 export function isRtagsRealPathEnabled() : boolean
 {
-    return ((rdmOptions & RdmOption.NoRealPath) === 0);
+    return ((RdmInfo.getOptions() & RdmOption.NoRealPath) === 0);
 }
 
 export function getRtagsRealPathArgument() : string[]
