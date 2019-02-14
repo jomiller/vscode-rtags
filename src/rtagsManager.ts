@@ -639,7 +639,7 @@ async function getLoadedCompileCommandsInfo(projectRoots?: Uri[]) :
 function getCompileCommandsInfo(workspacePath: Uri) : CompileCommandsInfo
 {
     const config = workspace.getConfiguration(ConfigurationId, workspacePath);
-    const compileDirectory =
+    let compileDirectory =
         fromConfigurationPath(config.get<string>(ResourceConfiguration.MiscCompilationDatabaseDirectory, ""));
 
     let directory: Uri;
@@ -648,10 +648,7 @@ function getCompileCommandsInfo(workspacePath: Uri) : CompileCommandsInfo
     {
         if (!path.isAbsolute(compileDirectory))
         {
-            const compileDirectoryId =
-                makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
-
-            throw new Error("The \"" + compileDirectoryId + "\" setting must be an absolute path.");
+            compileDirectory = path.resolve(workspacePath.fsPath, compileDirectory);
         }
         directory = Uri.file(compileDirectory);
         isConfig = true;
