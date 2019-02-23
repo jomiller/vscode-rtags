@@ -24,7 +24,7 @@ import { ExecFileOptionsWithStringEncoding } from 'child_process';
 
 import { ConfigurationId, WindowConfiguration } from './constants';
 
-import { Nullable, Optional, addTrailingSlash, parseJson, safeExecFile } from './nodeUtil';
+import { Nullable, Optional, addTrailingSeparator, parseJson, safeExecFile } from './nodeUtil';
 
 enum RdmOption
 {
@@ -73,7 +73,7 @@ export function getRtagsRealPathArgument() : string[]
 
 export function getRtagsProjectPathArgument(uri: Uri) : string
 {
-    return addTrailingSlash(uri.fsPath);
+    return addTrailingSeparator(uri.fsPath);
 }
 
 export class SymbolLocation extends Location

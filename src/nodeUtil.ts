@@ -27,7 +27,7 @@ import * as path from 'path';
 export type Nullable<T> = T | null;
 export type Optional<T> = T | undefined;
 
-export function addTrailingSlash(dir: string) : string
+export function addTrailingSeparator(dir: string) : string
 {
     if ((dir.length !== 0) && !dir.endsWith(path.sep))
     {
@@ -36,7 +36,7 @@ export function addTrailingSlash(dir: string) : string
     return dir;
 }
 
-export function removeTrailingSlash(dir: string) : string
+export function removeTrailingSeparator(dir: string) : string
 {
     if ((dir.length > 1) && dir.endsWith(path.sep))
     {
@@ -55,9 +55,9 @@ export function isAbsolutePathOrFilename(filePath: string) : boolean
     return ((parsedPath.dir.length === 0) && (parsedPath.base !== '.') && (parsedPath.base !== ".."));
 }
 
-export function isParentDirectory(parent: string, sub: string) : boolean
+export function isContainingDirectory(parent: string, sub: string) : boolean
 {
-    return sub.startsWith(addTrailingSlash(parent));
+    return sub.startsWith(addTrailingSeparator(parent));
 }
 
 export function fileExists(file: string) : Promise<boolean>
@@ -66,6 +66,15 @@ export function fileExists(file: string) : Promise<boolean>
         (resolve, _reject) =>
         {
             fs.access(file, fs.constants.F_OK, (err) => { resolve(!err); });
+        });
+}
+
+export function isSymbolicLink(path: string) : Promise<boolean>
+{
+    return new Promise<boolean>(
+        (resolve, _reject) =>
+        {
+            fs.lstat(path, (err, stats) => { resolve(!err && stats.isSymbolicLink()); });
         });
 }
 

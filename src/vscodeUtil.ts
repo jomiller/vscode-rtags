@@ -25,7 +25,7 @@ import * as path from 'path';
 
 import { ConfigurationId, VsCodeCommand, ResourceConfiguration } from './constants';
 
-import { removeTrailingSlash } from './nodeUtil';
+import { removeTrailingSeparator } from './nodeUtil';
 
 export interface Locatable
 {
@@ -66,7 +66,7 @@ export function fromConfigurationPath(dir: string) : string
     {
         normalizedPath = path.normalize(normalizedPath);
     }
-    return removeTrailingSlash(normalizedPath);
+    return removeTrailingSeparator(normalizedPath);
 }
 
 export const SourceFileSelector: DocumentFilter[] =

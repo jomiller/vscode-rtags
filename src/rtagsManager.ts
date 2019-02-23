@@ -37,8 +37,8 @@ import * as util from 'util';
 import { ExtensionId, VsCodeCommand, RtagsCommand, ConfigurationId, WindowConfiguration, ResourceConfiguration,
          makeConfigurationId } from './constants';
 
-import { Nullable, Optional, addTrailingSlash, removeTrailingSlash, isAbsolutePathOrFilename, isParentDirectory,
-         fileExists, getRealPath, parseJson, safeSpawn } from './nodeUtil';
+import { Nullable, Optional, addTrailingSeparator, removeTrailingSeparator, isAbsolutePathOrFilename,
+         isContainingDirectory, fileExists, isSymbolicLink, getRealPath, parseJson, safeSpawn } from './nodeUtil';
 
 import { ConfigurationMap, getWorkspaceConfiguration, fromConfigurationPath, isSourceFile, isUnsavedSourceFile,
          isOpenSourceFile, showContribution, hideContribution } from './vscodeUtil';
@@ -554,7 +554,7 @@ function getProjectRoots() : Promise<Optional<Uri[]>>
             }
 
             const paths = trimmedOutput.split('\n');
-            return paths.map((p) => { return Uri.file(removeTrailingSlash(p.replace(" <=", "").trim())); });
+            return paths.map((p) => { return Uri.file(removeTrailingSeparator(p.replace(" <=", "").trim())); });
         };
 
     return runRc(["--project"], processCallback);
@@ -562,7 +562,7 @@ function getProjectRoots() : Promise<Optional<Uri[]>>
 
 function validateProjectRoot(parentRoot: string, subRoot: string) : void
 {
-    if ((parentRoot !== subRoot) && isParentDirectory(parentRoot, addTrailingSlash(subRoot)))
+    if ((parentRoot !== subRoot) && isContainingDirectory(parentRoot, addTrailingSeparator(subRoot)))
     {
         throw new Error("Nested project roots are not supported. Project root " + subRoot +
                             " is a subdirectory of project root " + parentRoot);
@@ -759,7 +759,7 @@ async function findProjectRoot(compileCommandsFile: Uri) : Promise<Optional<Uri>
         (output: string) : Optional<string> =>
         {
             const projectRoot = output.match(/=> \[(.*)\]/);
-            return (projectRoot ? removeTrailingSlash(projectRoot[1]) : undefined);
+            return (projectRoot ? removeTrailingSeparator(projectRoot[1]) : undefined);
         };
 
     let projectRoot = await runRc(["--no-realpath", "--find-project-root", compileFile], processCallback);
@@ -796,7 +796,7 @@ function getProjectRoot(workspacePath: Uri) : Promise<Optional<Uri>>
             {
                 return undefined;
             }
-            return Uri.file(removeTrailingSlash(output.trim()));
+            return Uri.file(removeTrailingSeparator(output.trim()));
         };
 
     return runRc(args, processCallback);
@@ -832,7 +832,7 @@ async function removeProject(workspacePath: Uri,
 
     if (!projectRemoved && !deleteRequired && projectCompileDirectory)
     {
-        const compileFile = addTrailingSlash(projectCompileDirectory) + CompileCommandsFilename;
+        const compileFile = addTrailingSeparator(projectCompileDirectory) + CompileCommandsFilename;
 
         const args = getRtagsRealPathArgument();
         args.push(
@@ -854,6 +854,12 @@ async function validateProject(workspacePath: Uri,
                                loadedCompileInfo?: Map<string, CompileCommandsInfo[]>) :
     Promise<boolean>
 {
+    if (isRtagsRealPathEnabled() && (await isSymbolicLink(workspacePath.fsPath)))
+    {
+        throw new Error("The workspace path must not be a symbolic link when the server is configured to follow " +
+                            "symbolic links. Start the server with the --no-realpath option.");
+    }
+
     const currentProjectRoot = await getProjectRoot(workspacePath);
 
     const targetCompileDirectory = workspaceCompileInfo.directory;
@@ -872,7 +878,7 @@ async function validateProject(workspacePath: Uri,
                 "Unable to find the project root path from the compilation database: " + compileCommandsFile.fsPath);
         }
 
-        if (!isParentDirectory(targetProjectRoot.fsPath, addTrailingSlash(workspacePath.fsPath)))
+        if (!isContainingDirectory(targetProjectRoot.fsPath, addTrailingSeparator(workspacePath.fsPath)))
         {
             throw new Error(
                 "The workspace folder must be within the target project root: " + targetProjectRoot.fsPath);
@@ -1003,7 +1009,7 @@ async function validateProject(workspacePath: Uri,
         let projectPath = "";
         if (currentCompileDirectory)
         {
-            projectPath = addTrailingSlash(currentCompileDirectory) + CompileCommandsFilename;
+            projectPath = addTrailingSeparator(currentCompileDirectory) + CompileCommandsFilename;
         }
         if (projectRootChanged)
         {
@@ -1030,7 +1036,7 @@ async function validateProject(workspacePath: Uri,
 
             if (!projectRemoved)
             {
-                const message = "Could not remove the existing " + projectDesc;
+                const message = "Unable to remove the existing " + projectDesc;
                 if (projectRootChanged)
                 {
                     throw new Error(message + '.');
@@ -1220,7 +1226,7 @@ export class RtagsManager implements Disposable
     public getProjectPath(uri: Uri) : Optional<Uri>
     {
         const candidatePaths =
-            this.projectPaths.filter((p) => { return isParentDirectory(p.fsPath, uri.fsPath); });
+            this.projectPaths.filter((p) => { return isContainingDirectory(p.fsPath, uri.fsPath); });
 
         let projectPath = candidatePaths.pop();
         for (const path of candidatePaths)
@@ -1245,7 +1251,7 @@ export class RtagsManager implements Disposable
         let candidateTasks: ProjectTask[] = [];
         for (const task of this.projectTasks.values())
         {
-            if ((task.getType() === TaskType.Load) && isParentDirectory(task.uri.fsPath, uri.fsPath))
+            if ((task.getType() === TaskType.Load) && isContainingDirectory(task.uri.fsPath, uri.fsPath))
             {
                 candidateTasks.push(task);
             }
@@ -1364,7 +1370,7 @@ export class RtagsManager implements Disposable
                 const workspaceCompileInfo = getCompileCommandsInfo(workspacePath);
 
                 const compileCommandsFile =
-                    Uri.file(addTrailingSlash(workspaceCompileInfo.directory.fsPath) + CompileCommandsFilename);
+                    Uri.file(addTrailingSeparator(workspaceCompileInfo.directory.fsPath) + CompileCommandsFilename);
 
                 const projectLoaded = await validateProject(workspacePath,
                                                             workspaceCompileInfo,
