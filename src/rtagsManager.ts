@@ -50,7 +50,7 @@ const CompileCommandsFilename = "compile_commands.json";
 const RtagsRepository         = "Andersbakken/rtags";
 const RtagsMinimumVersion     = "2.18";
 const RtagsRecommendedVersion = "2.21";
-const RtagsRecommendedCommit  = "f3c59dcb6fd066f2d5ce67ae350d38fe038e4049";
+const RtagsRecommendedCommit  = "0051597a96f993a2fae0413c19034d9fbd5c7a84";
 const RtagsCommitAbbrevLength = 7;
 
 interface RtagsVersionInfo
