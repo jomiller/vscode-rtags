@@ -27,7 +27,7 @@ import { RtagsManager } from './rtagsManager';
 
 import { SourceFileSelector } from './vscodeUtil';
 
-import { fromRtagsPosition, runRc } from './rtagsUtil';
+import { getRtagsRealPathArgument, fromRtagsPosition, runRc } from './rtagsUtil';
 
 export class RtagsCodeActionProvider implements
     CodeActionProvider,
@@ -67,13 +67,12 @@ export class RtagsCodeActionProvider implements
 
         const timeoutMs = 5000;
 
-        const args =
-        [
+        const args = getRtagsRealPathArgument();
+        args.push(
             "--fixits",
             document.uri.fsPath,
             "--timeout",
-            timeoutMs.toString()
-        ];
+            timeoutMs.toString());
 
         const processCallback =
             (output: string) : CodeAction[] =>
