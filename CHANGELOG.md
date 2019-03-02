@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.0] - 2019-03-02
+
+### Added
+- Separate declaration provider invoked through the `Go to Declaration` and `Peek Declaration` commands.
+- Validate the currently installed RTags version against the minimum version required by the extension.
+- Show the recommended RTags version after the extension has been upgraded.
+- Validate the associated compilation database when opening a workspace folder.
+
+### Changed
+- Update the minimum VS Code version to 1.30.0.
+- Allow multiple workspace folders to be loaded or reindexed concurrently.
+- When loading a new compilation database for a given workspace folder, prompt the user before deleting the current compilation database.
+
+### Removed
+- Support for nested projects (as RTags does not support them well).
+
+### Fixed
+- Issue [#26](https://github.com/jomiller/vscode-rtags/issues/26): Renaming class name removes '~' in destructor.
+- Issue [#27](https://github.com/jomiller/vscode-rtags/issues/27): Setting `rtags.misc.compilationDatabaseDirectory` does not support relative paths.
+- `rc` always followed symbolic links regardless of whether `rdm` was configured to follow symbolic links (as determined by the `--no-realpath` option).
+- A message prompting to reload the window was erroneously shown when a workspace folder was closed.
+
 ## [0.4.3] - 2018-12-30
 
 ### Changed
@@ -128,6 +150,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 Initial release
 
+[0.5.0]: https://github.com/jomiller/vscode-rtags/compare/v0.4.3...v0.5.0
 [0.4.3]: https://github.com/jomiller/vscode-rtags/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/jomiller/vscode-rtags/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/jomiller/vscode-rtags/compare/v0.4.0...v0.4.1
