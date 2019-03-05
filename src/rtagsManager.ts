@@ -1649,7 +1649,7 @@ export class RtagsManager implements Disposable
                         return true;
                     };
 
-                return runRc(["--suspend", path], processCallback);
+                return runRc(["--suspend", path, "off"], processCallback);
             };
 
         return getSuspendedFilePaths(projectPath).then(resolveCallback);
