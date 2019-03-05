@@ -49,8 +49,8 @@ import { RdmInfo, isRtagsRealPathEnabled, getRtagsRealPathArgument, getRtagsProj
 const CompileCommandsFilename = "compile_commands.json";
 const RtagsRepository         = "Andersbakken/rtags";
 const RtagsMinimumVersion     = "2.18";
-const RtagsRecommendedVersion = "2.21";
-const RtagsRecommendedCommit  = "e4db42ea90bf7c814d9ef3f56f974e0c95cd0697";
+const RtagsRecommendedVersion = "2.22";
+const RtagsRecommendedCommit  = "";
 const RtagsCommitAbbrevLength = 7;
 
 interface RtagsVersionInfo
