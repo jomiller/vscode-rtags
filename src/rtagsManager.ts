@@ -732,7 +732,7 @@ async function findProjectRoot(compileCommandsFile: Uri) : Promise<Optional<Uri>
     }
 
     const compileCommandArray = parseJson(compileCommandString);
-    if (!compileCommandArray)
+    if (!Array.isArray(compileCommandArray))
     {
         return undefined;
     }
