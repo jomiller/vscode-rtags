@@ -22,6 +22,8 @@ import { ChildProcess, ExecFileOptionsWithStringEncoding, SpawnOptions, execFile
 
 import * as fs from 'fs';
 
+import * as glob from 'glob';
+
 import * as path from 'path';
 
 export type Nullable<T> = T | null;
@@ -60,12 +62,23 @@ export function isContainingDirectory(parent: string, sub: string) : boolean
     return sub.startsWith(addTrailingSeparator(parent));
 }
 
-export function fileExists(file: string) : Promise<boolean>
+export function findFiles(path: string, includePattern: string, excludePattern?: string | ReadonlyArray<string>) :
+    Promise<string[]>
 {
-    return new Promise<boolean>(
+    return new Promise<string[]>(
         (resolve, _reject) =>
         {
-            fs.access(file, fs.constants.F_OK, (err) => { resolve(!err); });
+            const options: glob.IOptions =
+            {
+                cwd: path,
+                ignore: excludePattern,
+                absolute: true,
+                nodir: true,
+                nonull: false,
+                silent: true
+            };
+
+            glob(includePattern, options, (err, matches) => { resolve(err ? [] : matches); });
         });
 }
 

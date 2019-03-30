@@ -38,7 +38,7 @@ import { ExtensionId, VsCodeCommand, RtagsCommand, ConfigurationId, WindowConfig
          makeConfigurationId } from './constants';
 
 import { Nullable, Optional, addTrailingSeparator, removeTrailingSeparator, isAbsolutePathOrFilename,
-         isContainingDirectory, fileExists, isSymbolicLink, getRealPath, parseJson, safeSpawn } from './nodeUtil';
+         isContainingDirectory, findFiles, isSymbolicLink, getRealPath, parseJson, safeSpawn } from './nodeUtil';
 
 import { ConfigurationMap, getWorkspaceConfiguration, fromConfigurationPath, isSourceFile, isUnsavedSourceFile,
          isOpenSourceFile, showContribution, hideContribution } from './vscodeUtil';
@@ -65,6 +65,14 @@ interface CompileCommandsInfo
     directory: Uri;
     isConfig?: boolean;
 }
+
+enum CompileCommandsState
+{
+    Loaded,
+    Unloaded
+}
+
+type CompileCommandsDirectories = [Uri[], Uri[]];
 
 enum TaskType
 {
@@ -102,8 +110,8 @@ abstract class ProjectTask implements Disposable
         const action = this.getAction();
         const actionCapital = action.charAt(0).toUpperCase() + action.slice(1);
 
-        window.showInformationMessage("[RTags] " + actionCapital + " the project for workspace folder: " +
-                                      this.uri.fsPath);
+        window.showInformationMessage(
+            "[RTags] " + actionCapital + " the project for workspace folder: " + this.uri.fsPath);
 
         onStart(this);
 
@@ -128,8 +136,8 @@ abstract class ProjectTask implements Disposable
                         {
                             onStop(this);
 
-                            window.showInformationMessage("[RTags] Finished " + action +
-                                                          " the project for workspace folder: " + this.uri.fsPath);
+                            window.showInformationMessage("[RTags] Finished " + action + " the project for " +
+                                                              "workspace folder: " + this.uri.fsPath);
                         }
                     };
 
@@ -387,8 +395,8 @@ function showRtagsRecommendedVersion(currentVersion: string, globalState: Mement
     else
     {
         message += "A newer version of RTags is recommended" +
-                   ". Installed version: v" + currentVersion +
-                   ". Recommended version: " + recommendedVersionInfo.version + " or later.";
+                       ". Installed version: v" + currentVersion +
+                       ". Recommended version: " + recommendedVersionInfo.version + " or later.";
     }
 
     showRtagsVersionMessage(recommendedVersionInfo, message);
@@ -409,7 +417,7 @@ async function startRdm() : Promise<boolean>
     {
         const rdmAutoLaunchId = makeConfigurationId(WindowConfiguration.RdmAutoLaunch);
         window.showErrorMessage("[RTags] The server is not running and auto-launch is disabled. " +
-                                "Launch the server manually or enable the \"" + rdmAutoLaunchId + "\" setting.");
+                                    "Launch the server manually or enable the \"" + rdmAutoLaunchId + "\" setting.");
         return false;
     }
 
@@ -418,7 +426,7 @@ async function startRdm() : Promise<boolean>
     if (!isAbsolutePathOrFilename(rdmExecutable))
     {
         window.showErrorMessage("[RTags] The \"" + rdmExecutableId + "\" setting must be an absolute path or an " +
-                                "executable name (in the PATH).");
+                                    "executable name (in the PATH).");
         return false;
     }
 
@@ -487,8 +495,8 @@ async function startRdm() : Promise<boolean>
     else
     {
         const rdmArgumentsId = makeConfigurationId(WindowConfiguration.RdmArguments);
-        window.showErrorMessage("[RTags] Could not start the server. " +
-                                "Check the \"" + rdmExecutableId + "\" and \"" + rdmArgumentsId + "\" settings.");
+        window.showErrorMessage("[RTags] Could not start the server. Check the \"" + rdmExecutableId + "\" and \"" +
+                                    rdmArgumentsId + "\" settings.");
     }
 
     return rcStatus;
@@ -501,7 +509,7 @@ async function initializeRtags(globalState: Memento) : Promise<boolean>
     if (!isAbsolutePathOrFilename(getRcExecutable()))
     {
         window.showErrorMessage("[RTags] The \"" + rcExecutableId + "\" setting must be an absolute path or an " +
-                                "executable name (in the PATH).");
+                                    "executable name (in the PATH).");
         return false;
     }
 
@@ -522,9 +530,9 @@ async function initializeRtags(globalState: Memento) : Promise<boolean>
         const recommendedVersionInfo = getRtagsRecommendedVersionInfo();
 
         const message = "[RTags] A newer version of RTags is required" +
-                        ". Installed version: v" + rtagsVersion +
-                        ". Minimum version: v" + RtagsMinimumVersion +
-                        ". Recommended version: " + recommendedVersionInfo.version + " or later.";
+                            ". Installed version: v" + rtagsVersion +
+                            ". Minimum version: v" + RtagsMinimumVersion +
+                            ". Recommended version: " + recommendedVersionInfo.version + " or later.";
 
         showRtagsVersionMessage(recommendedVersionInfo, message, true);
 
@@ -608,11 +616,11 @@ async function getLoadedCompileCommandsInfo(projectRoots?: Uri[]) :
             (output: string) : string[] =>
             {
                 let dirs: string[] = [];
-                const regex = new RegExp("File: (.*)/" + CompileCommandsFilename.replace('.', "\\."), 'g');
-                let dir: Nullable<RegExpExecArray>;
-                while ((dir = regex.exec(output)) !== null)
+                let file: Nullable<RegExpExecArray>;
+                let regex = /File: (.*)/g;
+                while ((file = regex.exec(output)) !== null)
                 {
-                    dirs.push(dir[1]);
+                    dirs.push(file[1].replace(path.sep + CompileCommandsFilename, "").trim());
                 }
                 return dirs;
             };
@@ -803,14 +811,12 @@ function getProjectRoot(workspacePath: Uri) : Promise<Optional<Uri>>
 }
 
 async function removeProject(workspacePath: Uri,
-                             deleteRequired: boolean,
-                             projectCompileInfo?: CompileCommandsInfo[],
-                             projectCompileDirectory?: string) :
+                             projectCompileDirectories: Uri[],
+                             deleteAllowed: boolean,
+                             deleteRequired: boolean) :
     Promise<Optional<boolean>>
 {
     let projectRemoved: Optional<boolean> = false;
-
-    const deleteAllowed = projectCompileInfo ? (projectCompileInfo.length <= 1) : false;
 
     const projectPath = getRtagsProjectPathArgument(workspacePath);
 
@@ -830,18 +836,28 @@ async function removeProject(workspacePath: Uri,
         projectRemoved = await runRc(args, processCallback);
     }
 
-    if (!projectRemoved && !deleteRequired && projectCompileDirectory)
+    if (!projectRemoved && !deleteRequired)
     {
-        const compileFile = addTrailingSeparator(projectCompileDirectory) + CompileCommandsFilename;
+        let compileRemoved: Optional<boolean>[] = [];
 
-        const args = getRtagsRealPathArgument();
-        args.push(
-            "--project",
-            projectPath,
-            "--remove",
-            compileFile);
+        for (const dir of projectCompileDirectories)
+        {
+            const compileFile = addTrailingSeparator(dir.fsPath) + CompileCommandsFilename;
 
-        projectRemoved = await runRc(args, processCallback);
+            const args = getRtagsRealPathArgument();
+            args.push(
+                "--project",
+                projectPath,
+                "--remove",
+                compileFile);
+
+            compileRemoved.push(await runRc(args, processCallback));
+        }
+
+        if (compileRemoved.length !== 0)
+        {
+            projectRemoved = compileRemoved.every((removed) => { return (removed === true); });
+        }
     }
 
     return projectRemoved;
@@ -849,10 +865,9 @@ async function removeProject(workspacePath: Uri,
 
 async function validateProject(workspacePath: Uri,
                                workspaceCompileInfo: CompileCommandsInfo,
-                               compileCommandsFile: Uri,
                                dirtyProjectPaths: Map<string, string>,
                                loadedCompileInfo?: Map<string, CompileCommandsInfo[]>) :
-    Promise<boolean>
+    Promise<CompileCommandsDirectories>
 {
     if (isRtagsRealPathEnabled() && (await isSymbolicLink(workspacePath.fsPath)))
     {
@@ -860,40 +875,63 @@ async function validateProject(workspacePath: Uri,
                             "symbolic links. Start the server with the --no-realpath option.");
     }
 
+    const config = workspace.getConfiguration(ConfigurationId, workspacePath);
+    const compileRecursiveSearch =
+        config.get<boolean>(ResourceConfiguration.MiscCompilationDatabaseRecursiveSearch, false);
+
     const currentProjectRoot = await getProjectRoot(workspacePath);
 
-    const targetCompileDirectory = workspaceCompileInfo.directory;
+    const targetCompileBaseDirectory = workspaceCompileInfo.directory;
 
-    // Find and validate the project root path from the target compilation database
+    // Find and validate the project root path from the target compilation databases
 
     let targetProjectRoot: Optional<Uri> = undefined;
 
-    const compileFileExists = await fileExists(compileCommandsFile.fsPath);
-    if (compileFileExists)
+    let compileCommandsPattern = "";
+    if (compileRecursiveSearch)
     {
-        targetProjectRoot = await findProjectRoot(compileCommandsFile);
+        compileCommandsPattern += "**" + path.sep;
+    }
+    compileCommandsPattern += CompileCommandsFilename;
+
+    const targetCompileFiles = await findFiles(targetCompileBaseDirectory.fsPath, compileCommandsPattern);
+
+    for (const file of targetCompileFiles)
+    {
+        const projectRoot = await findProjectRoot(Uri.file(file));
+        if (!projectRoot)
+        {
+            throw new Error("Unable to find the project root path from the compilation database: " + file);
+        }
+
         if (!targetProjectRoot)
         {
-            throw new Error(
-                "Unable to find the project root path from the compilation database: " + compileCommandsFile.fsPath);
-        }
+            targetProjectRoot = projectRoot;
 
-        if (!isContainingDirectory(targetProjectRoot.fsPath, addTrailingSeparator(workspacePath.fsPath)))
-        {
-            throw new Error(
-                "The workspace folder must be within the target project root: " + targetProjectRoot.fsPath);
-        }
-
-        if (loadedCompileInfo)
-        {
-            for (const root of loadedCompileInfo.keys())
+            if (!isContainingDirectory(targetProjectRoot.fsPath, addTrailingSeparator(workspacePath.fsPath)))
             {
-                if (!currentProjectRoot || (root !== currentProjectRoot.fsPath))
+                throw new Error(
+                    "The workspace folder must be within the target project root: " + targetProjectRoot.fsPath);
+            }
+
+            if (loadedCompileInfo)
+            {
+                for (const root of loadedCompileInfo.keys())
                 {
-                    validateProjectRoot(root, targetProjectRoot.fsPath);
-                    validateProjectRoot(targetProjectRoot.fsPath, root);
+                    if (!currentProjectRoot || (root !== currentProjectRoot.fsPath))
+                    {
+                        validateProjectRoot(root, targetProjectRoot.fsPath);
+                        validateProjectRoot(targetProjectRoot.fsPath, root);
+                    }
                 }
             }
+        }
+
+        if (projectRoot.fsPath !== targetProjectRoot.fsPath)
+        {
+            throw new Error("The compilation database " + file + " has a different project root than others in the " +
+                                "same directory: " + targetCompileBaseDirectory.fsPath + ". All compilation " +
+                                "databases in the directory must have the same project root.");
         }
     }
 
@@ -903,79 +941,93 @@ async function validateProject(workspacePath: Uri,
         projectRootChanged = true;
     }
 
-    // Check whether the target compilation database is already loaded at the current or any other project root
+    // Check whether the target compilation databases are already loaded at the current or any other project root
 
-    let currentCompileInfo: Optional<CompileCommandsInfo[]> = undefined;
-
-    let projectLoaded = false;
+    let targetCompileDirectories: CompileCommandsDirectories = [[], []];
 
     if (loadedCompileInfo)
     {
-        let targetCompileLoaded = false;
+        for (const file of targetCompileFiles)
+        {
+            const targetCompileDirectory = Uri.file(file.replace(path.sep + CompileCommandsFilename, ""));
 
-        if (currentProjectRoot)
-        {
-            currentCompileInfo = loadedCompileInfo.get(currentProjectRoot.fsPath);
-            if (currentCompileInfo)
-            {
-                targetCompileLoaded = currentCompileInfo.some(
-                    (info) => { return (info.directory.fsPath === targetCompileDirectory.fsPath); });
-            }
-        }
+            let targetCompileLoaded = false;
 
-        if (targetCompileLoaded)
-        {
-            if (!projectRootChanged)
-            {
-                projectLoaded = true;
-            }
-        }
-        else
-        {
             for (const [root, compileInfo] of loadedCompileInfo)
             {
-                const compileLoaded = compileInfo.some(
-                    (info) => { return (info.directory.fsPath === targetCompileDirectory.fsPath); });
+                const compileLoaded =
+                    compileInfo.some((info) => { return (info.directory.fsPath === targetCompileDirectory.fsPath); });
 
                 if (compileLoaded)
                 {
-                    throw new Error("The compilation database is already loaded at another project root: " + root);
+                    if (!currentProjectRoot || (root !== currentProjectRoot.fsPath))
+                    {
+                        throw new Error("The compilation database is already loaded at another project root: " + root);
+                    }
+
+                    targetCompileLoaded = true;
                 }
             }
+
+            const compileState = (targetCompileLoaded && !projectRootChanged) ?
+                                     CompileCommandsState.Loaded : CompileCommandsState.Unloaded;
+
+            targetCompileDirectories[compileState].push(targetCompileDirectory);
         }
     }
 
-    // Check whether the current compilation database must be removed before loading the target one
+    // Check whether the current compilation databases must be removed before loading the target ones
 
     if (!currentProjectRoot)
     {
         dirtyProjectPaths.delete(workspacePath.fsPath);
     }
 
-    let currentCompileDirectory = dirtyProjectPaths.get(workspacePath.fsPath);
+    const currentCompileBaseDirectoryString = dirtyProjectPaths.get(workspacePath.fsPath);
 
-    if (currentCompileDirectory !== undefined)
+    let currentCompileBaseDirectory: Optional<Uri> = undefined;
+    if (currentCompileBaseDirectoryString !== undefined)
     {
-        if (currentCompileDirectory.length === 0)
-        {
-            currentCompileDirectory = workspacePath.fsPath;
-        }
+        currentCompileBaseDirectory = (currentCompileBaseDirectoryString.length !== 0) ?
+                                          Uri.file(currentCompileBaseDirectoryString) : workspacePath;
+    }
 
-        if (currentCompileInfo)
-        {
-            const compileLoaded = currentCompileInfo.some(
-                (info) => { return (info.directory.fsPath === currentCompileDirectory); });
+    let currentCompileInfo: Optional<CompileCommandsInfo[]> = undefined;
+    if (loadedCompileInfo && currentProjectRoot)
+    {
+        currentCompileInfo = loadedCompileInfo.get(currentProjectRoot.fsPath);
+    }
 
-            if (!compileLoaded)
+    let currentCompileDirectories: Uri[] = [];
+    let currentCompileOutsideDirectoryExists = false;
+
+    if (currentCompileInfo && currentCompileBaseDirectory)
+    {
+        for (const info of currentCompileInfo)
+        {
+            const compileDirectoryInside =
+                isContainingDirectory(currentCompileBaseDirectory.fsPath, addTrailingSeparator(info.directory.fsPath));
+
+            if ((compileRecursiveSearch && compileDirectoryInside) ||
+                (info.directory.fsPath === currentCompileBaseDirectory.fsPath))
             {
-                currentCompileDirectory = undefined;
-                dirtyProjectPaths.delete(workspacePath.fsPath);
+                currentCompileDirectories.push(info.directory);
+            }
+            else
+            {
+                currentCompileOutsideDirectoryExists = true;
             }
         }
     }
 
+    if (currentCompileDirectories.length === 0)
+    {
+        currentCompileBaseDirectory = undefined;
+        dirtyProjectPaths.delete(workspacePath.fsPath);
+    }
+
     let compileDirectoryChanged = false;
-    if (currentCompileDirectory && (currentCompileDirectory !== targetCompileDirectory.fsPath))
+    if (currentCompileBaseDirectory && (currentCompileBaseDirectory.fsPath !== targetCompileBaseDirectory.fsPath))
     {
         compileDirectoryChanged = true;
     }
@@ -984,7 +1036,8 @@ async function validateProject(workspacePath: Uri,
 
     if (!targetProjectRoot)
     {
-        if (!projectLoaded || projectDirty || workspaceCompileInfo.isConfig)
+        if ((targetCompileDirectories[CompileCommandsState.Loaded].length === 0) || projectDirty ||
+            workspaceCompileInfo.isConfig)
         {
             let message: Optional<string> = undefined;
 
@@ -993,8 +1046,9 @@ async function validateProject(workspacePath: Uri,
                 const compileDirectoryId =
                     makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
 
-                message = "Unable to find the compilation database: " + compileCommandsFile.fsPath +
-                              ". Check the \"" + compileDirectoryId + "\" setting.";
+                message = "Unable to find a compilation database in the directory: " +
+                              targetCompileBaseDirectory.fsPath + ". Check the \"" + compileDirectoryId +
+                              "\" setting.";
             }
 
             throw new Error(message);
@@ -1003,13 +1057,13 @@ async function validateProject(workspacePath: Uri,
 
     if (projectDirty)
     {
-        // Prompt the user to remove the current project root or compilation database
+        // Prompt the user to remove the current project root or compilation databases
 
         let projectDesc = "compilation database";
         let projectPath = "";
-        if (currentCompileDirectory)
+        if (currentCompileBaseDirectory)
         {
-            projectPath = addTrailingSeparator(currentCompileDirectory) + CompileCommandsFilename;
+            projectPath = currentCompileBaseDirectory.fsPath;
         }
         if (projectRootChanged)
         {
@@ -1030,9 +1084,9 @@ async function validateProject(workspacePath: Uri,
         if (selectedAction === removeAction)
         {
             const projectRemoved = await removeProject(workspacePath,
-                                                       projectRootChanged,
-                                                       currentCompileInfo,
-                                                       currentCompileDirectory);
+                                                       currentCompileDirectories,
+                                                       currentCompileOutsideDirectoryExists,
+                                                       projectRootChanged);
 
             if (!projectRemoved)
             {
@@ -1056,7 +1110,7 @@ async function validateProject(workspacePath: Uri,
         dirtyProjectPaths.delete(workspacePath.fsPath);
     }
 
-    return projectLoaded;
+    return targetCompileDirectories;
 }
 
 function getSuspendedFilePaths(projectPath: Uri) : Promise<Optional<string[]>>
@@ -1297,11 +1351,15 @@ export class RtagsManager implements Disposable
 
     private addProjectPath(uri: Uri) : void
     {
-        this.projectPaths.push(uri);
-
-        if (this.projectPaths.length > 1)
+        const projectExists = this.projectPaths.some((p) => { return (p.fsPath === uri.fsPath); });
+        if (!projectExists)
         {
-            showContribution(RtagsCommand.ReindexActiveFolder);
+            this.projectPaths.push(uri);
+
+            if (this.projectPaths.length > 1)
+            {
+                showContribution(RtagsCommand.ReindexActiveFolder);
+            }
         }
     }
 
@@ -1311,11 +1369,11 @@ export class RtagsManager implements Disposable
         if (index !== -1)
         {
             this.projectPaths.splice(index, 1);
-        }
 
-        if (this.projectPaths.length <= 1)
-        {
-            hideContribution(RtagsCommand.ReindexActiveFolder);
+            if (this.projectPaths.length <= 1)
+            {
+                hideContribution(RtagsCommand.ReindexActiveFolder);
+            }
         }
     }
 
@@ -1369,23 +1427,22 @@ export class RtagsManager implements Disposable
             {
                 const workspaceCompileInfo = getCompileCommandsInfo(workspacePath);
 
-                const compileCommandsFile =
-                    Uri.file(addTrailingSeparator(workspaceCompileInfo.directory.fsPath) + CompileCommandsFilename);
+                const compileDirectories = await validateProject(workspacePath,
+                                                                 workspaceCompileInfo,
+                                                                 dirtyProjectPaths,
+                                                                 loadedCompileInfo);
 
-                const projectLoaded = await validateProject(workspacePath,
-                                                            workspaceCompileInfo,
-                                                            compileCommandsFile,
-                                                            dirtyProjectPaths,
-                                                            loadedCompileInfo);
-
-                if (projectLoaded)
+                if (compileDirectories[CompileCommandsState.Loaded].length !== 0)
                 {
                     this.addProjectPath(workspacePath);
                     this.diagnoseProject(workspacePath);
                 }
-                else
+
+                for (const dir of compileDirectories[CompileCommandsState.Unloaded])
                 {
-                    await this.startProjectTask(new ProjectLoadTask(workspacePath, compileCommandsFile));
+                    const compileFile = Uri.file(addTrailingSeparator(dir.fsPath) + CompileCommandsFilename);
+
+                    await this.startProjectTask(new ProjectLoadTask(workspacePath, compileFile));
                 }
             }
             catch (err)

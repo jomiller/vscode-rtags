@@ -66,9 +66,10 @@ export enum WindowConfiguration
 
 export enum ResourceConfiguration
 {
-    CompletionMaxResults             = "completion.maxResults",
-    MiscCompilationDatabaseDirectory = "misc.compilationDatabaseDirectory",
-    MiscMaxWorkspaceSearchResults    = "misc.maxWorkspaceSearchResults"
+    CompletionMaxResults                   = "completion.maxResults",
+    MiscCompilationDatabaseDirectory       = "misc.compilationDatabaseDirectory",
+    MiscCompilationDatabaseRecursiveSearch = "misc.compilationDatabaseRecursiveSearch",
+    MiscMaxWorkspaceSearchResults          = "misc.maxWorkspaceSearchResults"
 }
 
 export function makeConfigurationId(name: string) : string
