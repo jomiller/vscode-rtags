@@ -63,7 +63,8 @@ interface RtagsVersionInfo
 interface CompileCommandsInfo
 {
     directory: Uri;
-    isConfig?: boolean;
+    isDirectoryFromConfig?: boolean;
+    recursiveSearchEnabled?: boolean;
 }
 
 enum CompileCommandsState
@@ -647,11 +648,15 @@ async function getLoadedCompileCommandsInfo(projectRoots?: Uri[]) :
 function getCompileCommandsInfo(workspacePath: Uri) : CompileCommandsInfo
 {
     const config = workspace.getConfiguration(ConfigurationId, workspacePath);
+
     let compileDirectory =
         fromConfigurationPath(config.get<string>(ResourceConfiguration.MiscCompilationDatabaseDirectory, ""));
 
+    const recursiveSearchEnabled =
+        config.get<boolean>(ResourceConfiguration.MiscCompilationDatabaseRecursiveSearch, false);
+
     let directory: Uri;
-    let isConfig: boolean;
+    let isDirectoryFromConfig: boolean;
     if (compileDirectory.length !== 0)
     {
         if (!path.isAbsolute(compileDirectory))
@@ -659,18 +664,19 @@ function getCompileCommandsInfo(workspacePath: Uri) : CompileCommandsInfo
             compileDirectory = path.resolve(workspacePath.fsPath, compileDirectory);
         }
         directory = Uri.file(compileDirectory);
-        isConfig = true;
+        isDirectoryFromConfig = true;
     }
     else
     {
         directory = workspacePath;
-        isConfig = false;
+        isDirectoryFromConfig = false;
     }
 
     const info: CompileCommandsInfo =
     {
         directory: directory,
-        isConfig: isConfig
+        isDirectoryFromConfig: isDirectoryFromConfig,
+        recursiveSearchEnabled: recursiveSearchEnabled
     };
     return info;
 }
@@ -864,7 +870,6 @@ async function removeProject(workspacePath: Uri,
 }
 
 async function validateProject(workspacePath: Uri,
-                               workspaceCompileInfo: CompileCommandsInfo,
                                dirtyProjectPaths: Map<string, string>,
                                loadedCompileInfo?: Map<string, CompileCommandsInfo[]>) :
     Promise<CompileCommandsDirectories>
@@ -875,20 +880,18 @@ async function validateProject(workspacePath: Uri,
                             "symbolic links. Start the server with the --no-realpath option.");
     }
 
-    const config = workspace.getConfiguration(ConfigurationId, workspacePath);
-    const compileRecursiveSearch =
-        config.get<boolean>(ResourceConfiguration.MiscCompilationDatabaseRecursiveSearch, false);
-
-    const currentProjectRoot = await getProjectRoot(workspacePath);
+    const workspaceCompileInfo = getCompileCommandsInfo(workspacePath);
 
     const targetCompileBaseDirectory = workspaceCompileInfo.directory;
 
     // Find and validate the project root path from the target compilation databases
 
+    const currentProjectRoot = await getProjectRoot(workspacePath);
+
     let targetProjectRoot: Optional<Uri> = undefined;
 
     let compileCommandsPattern = "";
-    if (compileRecursiveSearch)
+    if (workspaceCompileInfo.recursiveSearchEnabled)
     {
         compileCommandsPattern += "**" + path.sep;
     }
@@ -1008,7 +1011,7 @@ async function validateProject(workspacePath: Uri,
             const compileDirectoryInside =
                 isContainingDirectory(currentCompileBaseDirectory.fsPath, addTrailingSeparator(info.directory.fsPath));
 
-            if ((compileRecursiveSearch && compileDirectoryInside) ||
+            if ((workspaceCompileInfo.recursiveSearchEnabled && compileDirectoryInside) ||
                 (info.directory.fsPath === currentCompileBaseDirectory.fsPath))
             {
                 currentCompileDirectories.push(info.directory);
@@ -1037,11 +1040,11 @@ async function validateProject(workspacePath: Uri,
     if (!targetProjectRoot)
     {
         if ((targetCompileDirectories[CompileCommandsState.Loaded].length === 0) || projectDirty ||
-            workspaceCompileInfo.isConfig)
+            workspaceCompileInfo.isDirectoryFromConfig)
         {
             let message: Optional<string> = undefined;
 
-            if (currentProjectRoot || projectDirty || workspaceCompileInfo.isConfig)
+            if (currentProjectRoot || projectDirty || workspaceCompileInfo.isDirectoryFromConfig)
             {
                 const compileDirectoryId =
                     makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
@@ -1425,10 +1428,7 @@ export class RtagsManager implements Disposable
 
             try
             {
-                const workspaceCompileInfo = getCompileCommandsInfo(workspacePath);
-
                 const compileDirectories = await validateProject(workspacePath,
-                                                                 workspaceCompileInfo,
                                                                  dirtyProjectPaths,
                                                                  loadedCompileInfo);
 
