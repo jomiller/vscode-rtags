@@ -61,11 +61,16 @@ interface RtagsVersionInfo
     linkText: string;
 }
 
-interface CompileCommandsInfo
+class CompileCommandsInfo
 {
-    directory: Uri;
-    isDirectoryFromConfig?: boolean;
-    recursiveSearchEnabled?: boolean;
+    constructor(directory: string | Uri)
+    {
+        this.directory = (typeof directory === "string") ? Uri.file(directory) : directory;
+    }
+
+    public directory: Uri;
+    public isDirectoryFromConfig?: boolean;
+    public recursiveSearchEnabled?: boolean;
 }
 
 enum CompileCommandsState
@@ -633,11 +638,7 @@ async function getLoadedCompileCommandsInfo(projectRoots?: Uri[]) :
             let compileInfo: CompileCommandsInfo[] = [];
             for (const dir of directories)
             {
-                const info: CompileCommandsInfo =
-                {
-                    directory: Uri.file(dir)
-                };
-                compileInfo.push(info);
+                compileInfo.push(new CompileCommandsInfo(dir));
             }
             loadedCompileInfo.set(root.fsPath, compileInfo);
         }
@@ -653,29 +654,22 @@ function getCompileCommandsInfo(workspacePath: Uri) : CompileCommandsInfo
     const compileDirectory =
         fromConfigurationPath(config.get<string>(ResourceConfiguration.MiscCompilationDatabaseDirectory, ""));
 
-    const recursiveSearchEnabled =
-        config.get<boolean>(ResourceConfiguration.MiscCompilationDatabaseRecursiveSearch, false);
-
-    let directory: Uri;
-    let isDirectoryFromConfig: boolean;
+    let compileInfo: CompileCommandsInfo;
     if (compileDirectory.length !== 0)
     {
-        directory = Uri.file(makeAbsolutePath(workspacePath.fsPath, compileDirectory));
-        isDirectoryFromConfig = true;
+        compileInfo = new CompileCommandsInfo(makeAbsolutePath(workspacePath.fsPath, compileDirectory));
+        compileInfo.isDirectoryFromConfig = true;
     }
     else
     {
-        directory = workspacePath;
-        isDirectoryFromConfig = false;
+        compileInfo = new CompileCommandsInfo(workspacePath);
+        compileInfo.isDirectoryFromConfig = false;
     }
 
-    const info: CompileCommandsInfo =
-    {
-        directory: directory,
-        isDirectoryFromConfig: isDirectoryFromConfig,
-        recursiveSearchEnabled: recursiveSearchEnabled
-    };
-    return info;
+    compileInfo.recursiveSearchEnabled =
+        config.get<boolean>(ResourceConfiguration.MiscCompilationDatabaseRecursiveSearch, false);
+
+    return compileInfo;
 }
 
 function readFirstCompileCommand(compileCommandsFile: Uri) : Promise<Optional<string>>
