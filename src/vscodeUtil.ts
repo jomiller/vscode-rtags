@@ -59,9 +59,9 @@ export function getWorkspaceConfiguration() : Map<string, ConfigurationMap>
     return configCache;
 }
 
-export function fromConfigurationPath(dir: string) : string
+export function fromConfigurationPath(fsPath: string) : string
 {
-    let normalizedPath = dir.trim();
+    let normalizedPath = fsPath.trim();
     if (normalizedPath.length !== 0)
     {
         normalizedPath = path.normalize(normalizedPath);

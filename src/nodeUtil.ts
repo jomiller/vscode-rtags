@@ -29,32 +29,41 @@ import * as path from 'path';
 export type Nullable<T> = T | null;
 export type Optional<T> = T | undefined;
 
-export function addTrailingSeparator(dir: string) : string
+export function addTrailingSeparator(fsPath: string) : string
 {
-    if ((dir.length !== 0) && !dir.endsWith(path.sep))
+    if ((fsPath.length !== 0) && !fsPath.endsWith(path.sep))
     {
-        return (dir + path.sep);
+        return (fsPath + path.sep);
     }
-    return dir;
+    return fsPath;
 }
 
-export function removeTrailingSeparator(dir: string) : string
+export function removeTrailingSeparator(fsPath: string) : string
 {
-    if ((dir.length > 1) && dir.endsWith(path.sep))
+    if ((fsPath.length > 1) && fsPath.endsWith(path.sep))
     {
-        return dir.slice(0, -1);
+        return fsPath.slice(0, -1);
     }
-    return dir;
+    return fsPath;
 }
 
-export function isAbsolutePathOrFilename(filePath: string) : boolean
+export function isAbsolutePathOrFilename(fsPath: string) : boolean
 {
-    if (path.isAbsolute(filePath))
+    if (path.isAbsolute(fsPath))
     {
         return true;
     }
-    const parsedPath = path.parse(filePath);
+    const parsedPath = path.parse(fsPath);
     return ((parsedPath.dir.length === 0) && (parsedPath.base !== '.') && (parsedPath.base !== ".."));
+}
+
+export function makeAbsolutePath(base: string, fsPath: string) : string
+{
+    if (path.isAbsolute(fsPath))
+    {
+        return fsPath;
+    }
+    return path.resolve(base, fsPath);
 }
 
 export function isContainingDirectory(parent: string, sub: string) : boolean

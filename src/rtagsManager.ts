@@ -38,7 +38,8 @@ import { ExtensionId, VsCodeCommand, RtagsCommand, ConfigurationId, WindowConfig
          makeConfigurationId } from './constants';
 
 import { Nullable, Optional, addTrailingSeparator, removeTrailingSeparator, isAbsolutePathOrFilename,
-         isContainingDirectory, findFiles, isSymbolicLink, getRealPath, parseJson, safeSpawn } from './nodeUtil';
+         makeAbsolutePath, isContainingDirectory, findFiles, isSymbolicLink, getRealPath, parseJson, safeSpawn }
+         from './nodeUtil';
 
 import { ConfigurationMap, getWorkspaceConfiguration, fromConfigurationPath, isSourceFile, isUnsavedSourceFile,
          isOpenSourceFile, showContribution, hideContribution } from './vscodeUtil';
@@ -649,7 +650,7 @@ function getCompileCommandsInfo(workspacePath: Uri) : CompileCommandsInfo
 {
     const config = workspace.getConfiguration(ConfigurationId, workspacePath);
 
-    let compileDirectory =
+    const compileDirectory =
         fromConfigurationPath(config.get<string>(ResourceConfiguration.MiscCompilationDatabaseDirectory, ""));
 
     const recursiveSearchEnabled =
@@ -659,11 +660,7 @@ function getCompileCommandsInfo(workspacePath: Uri) : CompileCommandsInfo
     let isDirectoryFromConfig: boolean;
     if (compileDirectory.length !== 0)
     {
-        if (!path.isAbsolute(compileDirectory))
-        {
-            compileDirectory = path.resolve(workspacePath.fsPath, compileDirectory);
-        }
-        directory = Uri.file(compileDirectory);
+        directory = Uri.file(makeAbsolutePath(workspacePath.fsPath, compileDirectory));
         isDirectoryFromConfig = true;
     }
     else
@@ -763,11 +760,7 @@ async function findProjectRoot(compileCommandsFile: Uri) : Promise<Optional<Uri>
         return undefined;
     }
 
-    let compileFile: string = compileCommand.file;
-    if (!path.isAbsolute(compileFile))
-    {
-        compileFile = path.resolve(compileCommand.directory, compileFile);
-    }
+    const compileFile = makeAbsolutePath(compileCommand.directory, compileCommand.file);
 
     const processCallback =
         (output: string) : Optional<string> =>
@@ -1026,7 +1019,6 @@ async function validateProject(workspacePath: Uri,
     if (currentCompileDirectories.length === 0)
     {
         currentCompileBaseDirectory = undefined;
-        dirtyProjectPaths.delete(workspacePath.fsPath);
     }
 
     let compileDirectoryChanged = false;
@@ -1109,9 +1101,9 @@ async function validateProject(workspacePath: Uri,
         {
             throw new Error("The existing " + projectDesc + " must first be removed.");
         }
-
-        dirtyProjectPaths.delete(workspacePath.fsPath);
     }
+
+    dirtyProjectPaths.delete(workspacePath.fsPath);
 
     return targetCompileDirectories;
 }
@@ -1216,10 +1208,14 @@ export class RtagsManager implements Disposable
                         continue;
                     }
 
-                    const cachedCompileDirectory = fromConfigurationPath(
-                        cachedConfig[ResourceConfiguration.MiscCompilationDatabaseDirectory]);
-                    const newCompileDirectory = fromConfigurationPath(
-                        newConfig[ResourceConfiguration.MiscCompilationDatabaseDirectory]);
+                    const cachedCompileDirectoryConfig =
+                        fromConfigurationPath(cachedConfig[ResourceConfiguration.MiscCompilationDatabaseDirectory]);
+
+                    const newCompileDirectoryConfig =
+                        fromConfigurationPath(newConfig[ResourceConfiguration.MiscCompilationDatabaseDirectory]);
+
+                    const cachedCompileDirectory = makeAbsolutePath(workspacePath, cachedCompileDirectoryConfig);
+                    const newCompileDirectory = makeAbsolutePath(workspacePath, newCompileDirectoryConfig);
 
                     if (cachedCompileDirectory !== newCompileDirectory)
                     {
