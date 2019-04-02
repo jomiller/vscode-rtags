@@ -63,9 +63,11 @@ interface RtagsVersionInfo
 
 class CompileCommandsInfo
 {
-    constructor(directory: string | Uri)
+    constructor(directory: string | Uri, isDirectoryFromConfig?: boolean, recursiveSearchEnabled?: boolean)
     {
         this.directory = (typeof directory === "string") ? Uri.file(directory) : directory;
+        this.isDirectoryFromConfig = isDirectoryFromConfig;
+        this.recursiveSearchEnabled = recursiveSearchEnabled;
     }
 
     public directory: Uri;
@@ -657,13 +659,11 @@ function getCompileCommandsInfo(workspacePath: Uri) : CompileCommandsInfo
     let compileInfo: CompileCommandsInfo;
     if (compileDirectory.length !== 0)
     {
-        compileInfo = new CompileCommandsInfo(makeAbsolutePath(workspacePath.fsPath, compileDirectory));
-        compileInfo.isDirectoryFromConfig = true;
+        compileInfo = new CompileCommandsInfo(makeAbsolutePath(workspacePath.fsPath, compileDirectory), true);
     }
     else
     {
-        compileInfo = new CompileCommandsInfo(workspacePath);
-        compileInfo.isDirectoryFromConfig = false;
+        compileInfo = new CompileCommandsInfo(workspacePath, false);
     }
 
     compileInfo.recursiveSearchEnabled =
@@ -857,7 +857,7 @@ async function removeProject(workspacePath: Uri,
 }
 
 async function validateProject(workspacePath: Uri,
-                               dirtyProjectPaths: Map<string, string>,
+                               dirtyWorkspaceInfo: Map<string, CompileCommandsInfo>,
                                loadedCompileInfo?: Map<string, CompileCommandsInfo[]>) :
     Promise<CompileCommandsDirectories>
 {
@@ -867,9 +867,9 @@ async function validateProject(workspacePath: Uri,
                             "symbolic links. Start the server with the --no-realpath option.");
     }
 
-    const workspaceCompileInfo = getCompileCommandsInfo(workspacePath);
+    const targetWorkspaceCompileInfo = getCompileCommandsInfo(workspacePath);
 
-    const targetCompileBaseDirectory = workspaceCompileInfo.directory;
+    const targetCompileBaseDirectory = targetWorkspaceCompileInfo.directory;
 
     // Find and validate the project root path from the target compilation databases
 
@@ -878,7 +878,7 @@ async function validateProject(workspacePath: Uri,
     let targetProjectRoot: Optional<Uri> = undefined;
 
     let compileCommandsPattern = "";
-    if (workspaceCompileInfo.recursiveSearchEnabled)
+    if (targetWorkspaceCompileInfo.recursiveSearchEnabled)
     {
         compileCommandsPattern += "**" + path.sep;
     }
@@ -970,49 +970,37 @@ async function validateProject(workspacePath: Uri,
 
     if (!currentProjectRoot)
     {
-        dirtyProjectPaths.delete(workspacePath.fsPath);
+        dirtyWorkspaceInfo.delete(workspacePath.fsPath);
     }
 
-    const currentCompileBaseDirectoryString = dirtyProjectPaths.get(workspacePath.fsPath);
+    const currentWorkspaceCompileInfo = dirtyWorkspaceInfo.get(workspacePath.fsPath);
 
-    let currentCompileBaseDirectory: Optional<Uri> = undefined;
-    if (currentCompileBaseDirectoryString !== undefined)
-    {
-        currentCompileBaseDirectory = (currentCompileBaseDirectoryString.length !== 0) ?
-                                          Uri.file(currentCompileBaseDirectoryString) : workspacePath;
-    }
+    const currentCompileBaseDirectory =
+        currentWorkspaceCompileInfo ? currentWorkspaceCompileInfo.directory : undefined;
 
-    let currentCompileInfo: Optional<CompileCommandsInfo[]> = undefined;
-    if (loadedCompileInfo && currentProjectRoot)
-    {
-        currentCompileInfo = loadedCompileInfo.get(currentProjectRoot.fsPath);
-    }
+    const currentLoadedCompileInfo =
+        (loadedCompileInfo && currentProjectRoot) ? loadedCompileInfo.get(currentProjectRoot.fsPath) : undefined;
 
     let currentCompileDirectories: Uri[] = [];
-    let currentCompileOutsideDirectoryExists = false;
+    let currentExternalCompileDirectoryExists = false;
 
-    if (currentCompileInfo && currentCompileBaseDirectory)
+    if (currentLoadedCompileInfo && currentCompileBaseDirectory)
     {
-        for (const info of currentCompileInfo)
+        for (const info of currentLoadedCompileInfo)
         {
-            const compileDirectoryInside =
+            const isInternalCompileDirectory =
+                currentWorkspaceCompileInfo && currentWorkspaceCompileInfo.recursiveSearchEnabled &&
                 isContainingDirectory(currentCompileBaseDirectory.fsPath, addTrailingSeparator(info.directory.fsPath));
 
-            if ((workspaceCompileInfo.recursiveSearchEnabled && compileDirectoryInside) ||
-                (info.directory.fsPath === currentCompileBaseDirectory.fsPath))
+            if (isInternalCompileDirectory || (info.directory.fsPath === currentCompileBaseDirectory.fsPath))
             {
                 currentCompileDirectories.push(info.directory);
             }
             else
             {
-                currentCompileOutsideDirectoryExists = true;
+                currentExternalCompileDirectoryExists = true;
             }
         }
-    }
-
-    if (currentCompileDirectories.length === 0)
-    {
-        currentCompileBaseDirectory = undefined;
     }
 
     let compileDirectoryChanged = false;
@@ -1021,16 +1009,41 @@ async function validateProject(workspacePath: Uri,
         compileDirectoryChanged = true;
     }
 
-    const projectDirty = (projectRootChanged || compileDirectoryChanged);
+    let recursiveSearchChanged = false;
+    if (currentWorkspaceCompileInfo && currentWorkspaceCompileInfo.recursiveSearchEnabled &&
+        !targetWorkspaceCompileInfo.recursiveSearchEnabled)
+    {
+        recursiveSearchChanged = true;
+    }
+
+    if (recursiveSearchChanged && !compileDirectoryChanged)
+    {
+        const index = currentCompileDirectories.findIndex(
+            (p) => { return ((currentCompileBaseDirectory !== undefined) &&
+                             (p.fsPath === currentCompileBaseDirectory.fsPath)); });
+
+        if (index !== -1)
+        {
+            currentCompileDirectories.splice(index, 1);
+        }
+    }
+
+    if (currentCompileDirectories.length === 0)
+    {
+        compileDirectoryChanged = false;
+        recursiveSearchChanged = false;
+    }
+
+    const projectDirty = (projectRootChanged || compileDirectoryChanged || recursiveSearchChanged);
 
     if (!targetProjectRoot)
     {
         if ((targetCompileDirectories[CompileCommandsState.Loaded].length === 0) || projectDirty ||
-            workspaceCompileInfo.isDirectoryFromConfig)
+            targetWorkspaceCompileInfo.isDirectoryFromConfig)
         {
             let message: Optional<string> = undefined;
 
-            if (currentProjectRoot || projectDirty || workspaceCompileInfo.isDirectoryFromConfig)
+            if (currentProjectRoot || projectDirty || targetWorkspaceCompileInfo.isDirectoryFromConfig)
             {
                 const compileDirectoryId =
                     makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
@@ -1074,7 +1087,7 @@ async function validateProject(workspacePath: Uri,
         {
             const projectRemoved = await removeProject(workspacePath,
                                                        currentCompileDirectories,
-                                                       currentCompileOutsideDirectoryExists,
+                                                       currentExternalCompileDirectoryExists,
                                                        projectRootChanged);
 
             if (!projectRemoved)
@@ -1097,7 +1110,7 @@ async function validateProject(workspacePath: Uri,
         }
     }
 
-    dirtyProjectPaths.delete(workspacePath.fsPath);
+    dirtyWorkspaceInfo.delete(workspacePath.fsPath);
 
     return targetCompileDirectories;
 }
@@ -1190,9 +1203,9 @@ export class RtagsManager implements Disposable
 
                 const newWorkspaceConfig = getWorkspaceConfiguration();
 
-                let dirtyProjectPaths = this.getDirtyProjectPaths();
+                let dirtyWorkspaceInfo = this.getDirtyWorkspaceInfo();
 
-                const origProjectPathCount = dirtyProjectPaths.size;
+                const origDirtyWorkspaceInfoSize = dirtyWorkspaceInfo.size;
 
                 for (const [workspacePath, newConfig] of newWorkspaceConfig)
                 {
@@ -1211,17 +1224,32 @@ export class RtagsManager implements Disposable
                     const cachedCompileDirectory = makeAbsolutePath(workspacePath, cachedCompileDirectoryConfig);
                     const newCompileDirectory = makeAbsolutePath(workspacePath, newCompileDirectoryConfig);
 
-                    if (cachedCompileDirectory !== newCompileDirectory)
+                    const cachedRecursiveSearch: boolean =
+                        cachedConfig[ResourceConfiguration.MiscCompilationDatabaseRecursiveSearch];
+
+                    const newRecursiveSearch: boolean =
+                        newConfig[ResourceConfiguration.MiscCompilationDatabaseRecursiveSearch];
+
+                    if ((cachedCompileDirectory !== newCompileDirectory) ||
+                        (cachedRecursiveSearch !== newRecursiveSearch))
                     {
                         reloadWindow = true;
 
                         const projectExists = this.projectPaths.some((p) => { return (p.fsPath === workspacePath); });
-                        if (projectExists)
+                        if (projectExists && !dirtyWorkspaceInfo.has(workspacePath))
                         {
-                            if (!dirtyProjectPaths.has(workspacePath))
+                            let compileInfo: CompileCommandsInfo;
+                            if (cachedCompileDirectory.length !== 0)
                             {
-                                dirtyProjectPaths.set(workspacePath, cachedCompileDirectory);
+                                compileInfo = new CompileCommandsInfo(cachedCompileDirectory, true);
                             }
+                            else
+                            {
+                                compileInfo = new CompileCommandsInfo(workspacePath, false);
+                            }
+                            compileInfo.recursiveSearchEnabled = cachedRecursiveSearch;
+
+                            dirtyWorkspaceInfo.set(workspacePath, compileInfo);
                         }
                     }
                 }
@@ -1233,9 +1261,9 @@ export class RtagsManager implements Disposable
                     return;
                 }
 
-                if (dirtyProjectPaths.size !== origProjectPathCount)
+                if (dirtyWorkspaceInfo.size !== origDirtyWorkspaceInfoSize)
                 {
-                    await this.setDirtyProjectPaths(dirtyProjectPaths);
+                    await this.setDirtyWorkspaceInfo(dirtyWorkspaceInfo);
                 }
 
                 const reloadAction = "Reload Now";
@@ -1370,15 +1398,15 @@ export class RtagsManager implements Disposable
         }
     }
 
-    private getDirtyProjectPaths() : Map<string, string>
+    private getDirtyWorkspaceInfo() : Map<string, CompileCommandsInfo>
     {
-        return new Map<string, string>(
-            this.workspaceState.get<ReadonlyArray<[string, string]>>("rtags.dirtyProjectPaths", []));
+        return new Map<string, CompileCommandsInfo>(
+            this.workspaceState.get<ReadonlyArray<[string, CompileCommandsInfo]>>("rtags.dirtyWorkspaceInfo", []));
     }
 
-    private setDirtyProjectPaths(paths: Map<string, string>) : Thenable<void>
+    private setDirtyWorkspaceInfo(paths: Map<string, CompileCommandsInfo>) : Thenable<void>
     {
-        return this.workspaceState.update("rtags.dirtyProjectPaths", (paths.size !== 0) ? [...paths] : undefined);
+        return this.workspaceState.update("rtags.dirtyWorkspaceInfo", (paths.size !== 0) ? [...paths] : undefined);
     }
 
     private async addProjects(folders?: WorkspaceFolder[]) : Promise<void>
@@ -1388,9 +1416,9 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        let dirtyProjectPaths = this.getDirtyProjectPaths();
+        let dirtyWorkspaceInfo = this.getDirtyWorkspaceInfo();
 
-        const origProjectPathCount = dirtyProjectPaths.size;
+        const origDirtyWorkspaceInfoSize = dirtyWorkspaceInfo.size;
 
         const projectRoots = await getProjectRoots();
 
@@ -1419,7 +1447,7 @@ export class RtagsManager implements Disposable
             try
             {
                 const compileDirectories = await validateProject(workspacePath,
-                                                                 dirtyProjectPaths,
+                                                                 dirtyWorkspaceInfo,
                                                                  loadedCompileInfo);
 
                 if (compileDirectories[CompileCommandsState.Loaded].length !== 0)
@@ -1445,9 +1473,9 @@ export class RtagsManager implements Disposable
             }
         }
 
-        if (dirtyProjectPaths.size !== origProjectPathCount)
+        if (dirtyWorkspaceInfo.size !== origDirtyWorkspaceInfoSize)
         {
-            await this.setDirtyProjectPaths(dirtyProjectPaths);
+            await this.setDirtyWorkspaceInfo(dirtyWorkspaceInfo);
         }
     }
 
