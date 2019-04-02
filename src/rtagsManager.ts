@@ -1087,7 +1087,7 @@ async function validateProject(workspacePath: Uri,
         {
             const projectRemoved = await removeProject(workspacePath,
                                                        currentCompileDirectories,
-                                                       currentExternalCompileDirectoryExists,
+                                                       !currentExternalCompileDirectoryExists,
                                                        projectRootChanged);
 
             if (!projectRemoved)
