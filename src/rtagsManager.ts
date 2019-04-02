@@ -1404,9 +1404,9 @@ export class RtagsManager implements Disposable
             this.workspaceState.get<ReadonlyArray<[string, CompileCommandsInfo]>>("rtags.dirtyWorkspaceInfo", []));
     }
 
-    private setDirtyWorkspaceInfo(paths: Map<string, CompileCommandsInfo>) : Thenable<void>
+    private setDirtyWorkspaceInfo(info: Map<string, CompileCommandsInfo>) : Thenable<void>
     {
-        return this.workspaceState.update("rtags.dirtyWorkspaceInfo", (paths.size !== 0) ? [...paths] : undefined);
+        return this.workspaceState.update("rtags.dirtyWorkspaceInfo", (info.size !== 0) ? [...info] : undefined);
     }
 
     private async addProjects(folders?: WorkspaceFolder[]) : Promise<void>
