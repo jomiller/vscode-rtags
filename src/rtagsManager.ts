@@ -925,10 +925,10 @@ async function validateProject(workspacePath: Uri,
         }
     }
 
-    let projectRootChanged = false;
+    let projectRootDirty = false;
     if (currentProjectRoot && targetProjectRoot && (currentProjectRoot.fsPath !== targetProjectRoot.fsPath))
     {
-        projectRootChanged = true;
+        projectRootDirty = true;
     }
 
     // Check whether the target compilation databases are already loaded at the current or any other project root
@@ -959,7 +959,7 @@ async function validateProject(workspacePath: Uri,
                 }
             }
 
-            const compileState = (targetCompileLoaded && !projectRootChanged) ?
+            const compileState = (targetCompileLoaded && !projectRootDirty) ?
                                      CompileCommandsState.Loaded : CompileCommandsState.Unloaded;
 
             targetCompileDirectories[compileState].push(targetCompileDirectory);
@@ -1003,20 +1003,20 @@ async function validateProject(workspacePath: Uri,
         }
     }
 
-    let compileDirectoryChanged = false;
+    let compileDirectoryDirty = false;
     if (currentCompileBaseDirectory && (currentCompileBaseDirectory.fsPath !== targetCompileBaseDirectory.fsPath))
     {
-        compileDirectoryChanged = true;
+        compileDirectoryDirty = true;
     }
 
-    let recursiveSearchChanged = false;
+    let recursiveSearchDirty = false;
     if (currentWorkspaceCompileInfo && currentWorkspaceCompileInfo.recursiveSearchEnabled &&
         !targetWorkspaceCompileInfo.recursiveSearchEnabled)
     {
-        recursiveSearchChanged = true;
+        recursiveSearchDirty = true;
     }
 
-    if (recursiveSearchChanged && !compileDirectoryChanged)
+    if (recursiveSearchDirty && !compileDirectoryDirty)
     {
         const index = currentCompileDirectories.findIndex(
             (p) => { return ((currentCompileBaseDirectory !== undefined) &&
@@ -1030,20 +1030,22 @@ async function validateProject(workspacePath: Uri,
 
     if (currentCompileDirectories.length === 0)
     {
-        compileDirectoryChanged = false;
-        recursiveSearchChanged = false;
+        compileDirectoryDirty = false;
+        recursiveSearchDirty = false;
     }
 
-    const projectDirty = (projectRootChanged || compileDirectoryChanged || recursiveSearchChanged);
+    const projectDirty = (projectRootDirty || compileDirectoryDirty || recursiveSearchDirty);
 
     if (!targetProjectRoot)
     {
-        if ((targetCompileDirectories[CompileCommandsState.Loaded].length === 0) || projectDirty ||
-            targetWorkspaceCompileInfo.isDirectoryFromConfig)
+        const workspaceModified = (projectDirty || targetWorkspaceCompileInfo.isDirectoryFromConfig ||
+                                  targetWorkspaceCompileInfo.recursiveSearchEnabled);
+
+        if ((targetCompileDirectories[CompileCommandsState.Loaded].length === 0) || workspaceModified)
         {
             let message: Optional<string> = undefined;
 
-            if (currentProjectRoot || projectDirty || targetWorkspaceCompileInfo.isDirectoryFromConfig)
+            if (currentProjectRoot || workspaceModified)
             {
                 const compileDirectoryId =
                     makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
@@ -1067,7 +1069,7 @@ async function validateProject(workspacePath: Uri,
         {
             projectPath = currentCompileBaseDirectory.fsPath;
         }
-        if (projectRootChanged)
+        if (projectRootDirty)
         {
             projectDesc = "project root";
             if (currentProjectRoot)
@@ -1088,12 +1090,12 @@ async function validateProject(workspacePath: Uri,
             const projectRemoved = await removeProject(workspacePath,
                                                        currentCompileDirectories,
                                                        !currentExternalCompileDirectoryExists,
-                                                       projectRootChanged);
+                                                       projectRootDirty);
 
             if (!projectRemoved)
             {
                 const message = "Unable to remove the existing " + projectDesc;
-                if (projectRootChanged)
+                if (projectRootDirty)
                 {
                     throw new Error(message + '.');
                 }
@@ -1104,7 +1106,7 @@ async function validateProject(workspacePath: Uri,
                 }
             }
         }
-        else if (projectRootChanged)
+        else if (projectRootDirty)
         {
             throw new Error("The existing " + projectDesc + " must first be removed.");
         }
