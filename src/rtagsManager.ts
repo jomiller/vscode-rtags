@@ -579,7 +579,7 @@ function getProjectRoots() : Promise<Optional<Uri[]>>
 
 function validateProjectRoot(parentRoot: string, subRoot: string) : void
 {
-    if ((parentRoot !== subRoot) && isContainingDirectory(parentRoot, addTrailingSeparator(subRoot)))
+    if (isContainingDirectory(parentRoot, subRoot))
     {
         throw new Error("Nested project roots are not supported. Project root " + subRoot +
                             " is a subdirectory of project root " + parentRoot);
@@ -898,7 +898,7 @@ async function validateProject(workspacePath: Uri,
         {
             targetProjectRoot = projectRoot;
 
-            if (!isContainingDirectory(targetProjectRoot.fsPath, addTrailingSeparator(workspacePath.fsPath)))
+            if (!isContainingDirectory(targetProjectRoot.fsPath, workspacePath.fsPath, true))
             {
                 throw new Error(
                     "The workspace folder must be within the target project root: " + targetProjectRoot.fsPath);
@@ -990,11 +990,16 @@ async function validateProject(workspacePath: Uri,
         {
             const isInternalCompileDirectory =
                 currentWorkspaceCompileInfo && currentWorkspaceCompileInfo.recursiveSearchEnabled &&
-                isContainingDirectory(currentCompileBaseDirectory.fsPath, addTrailingSeparator(info.directory.fsPath));
+                isContainingDirectory(currentCompileBaseDirectory.fsPath, info.directory.fsPath);
 
             if (isInternalCompileDirectory || (info.directory.fsPath === currentCompileBaseDirectory.fsPath))
             {
                 currentCompileDirectories.push(info.directory);
+
+                if (isInternalCompileDirectory && !targetWorkspaceCompileInfo.recursiveSearchEnabled)
+                {
+                    currentExternalCompileDirectoryExists = true;
+                }
             }
             else
             {
