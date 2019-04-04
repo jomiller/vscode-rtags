@@ -36,7 +36,7 @@ The commands are available through both the editor context menu and the command 
 
 `rtags.rdm.executable`: Path to the `rdm` executable (default assumes the executable is in the `PATH`).
 
-`rtags.rdm.arguments`: Array containing arguments to pass to the `rdm` executable, if it is launched automatically. If `-j`/`--job-count` is not present in the array, then `--job-count=max(1, logicalCpuCount / 2)` will be added by default.
+`rtags.rdm.arguments`: Array containing arguments to pass to the `rdm` executable, if it is launched automatically. If the argument `-j`/`--job-count` is not already present in the array, then it will be set to 50% of the logical CPU cores by default.
 
 `rtags.diagnostics.enabled`: If true, diagnostics will be enabled.
 
@@ -51,6 +51,8 @@ The commands are available through both the editor context menu and the command 
 `rtags.highlighting.enabled`: If true, document symbol highlighting will be enabled.
 
 `rtags.misc.compilationDatabaseDirectory`: If not empty, the compilation database directory to use instead of the workspace root.
+
+`rtags.misc.compilationDatabaseRecursiveSearch`: If true, find all compilation databases, recursively, in the specified compilation database directory.
 
 `rtags.misc.maxWorkspaceSearchResults`: Maximum number of global search (i.e., `Ctrl+T + #foo`) results to report.
 
