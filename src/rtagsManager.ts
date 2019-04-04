@@ -120,7 +120,7 @@ abstract class ProjectTask implements Disposable
         const actionCapital = action.charAt(0).toUpperCase() + action.slice(1);
 
         window.showInformationMessage(
-            "[RTags] " + actionCapital + " the project for workspace folder: " + this.uri.fsPath);
+            "[RTags] " + actionCapital + " for workspace folder: " + this.uri.fsPath);
 
         onStart(this);
 
@@ -145,8 +145,8 @@ abstract class ProjectTask implements Disposable
                         {
                             onStop(this);
 
-                            window.showInformationMessage("[RTags] Finished " + action + " the project for " +
-                                                              "workspace folder: " + this.uri.fsPath);
+                            window.showInformationMessage(
+                                "[RTags] Finished " + action + " for workspace folder: " + this.uri.fsPath);
                         }
                     };
 
@@ -188,7 +188,7 @@ class ProjectLoadTask extends ProjectTask
 
     protected getAction() : string
     {
-        return "loading";
+        return ("loading the compilation database " + this.compileFile.fsPath);
     }
 
     protected execute() : Promise<Optional<boolean>>
@@ -214,7 +214,7 @@ class ProjectReindexTask extends ProjectTask
 
     protected getAction() : string
     {
-        return "reindexing";
+        return "reindexing the project";
     }
 
     protected execute() : Promise<Optional<boolean>>
