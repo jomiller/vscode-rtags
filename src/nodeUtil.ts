@@ -70,7 +70,7 @@ export function isContainingDirectory(parent: string, path: string, orEqual: boo
 {
     const dir = addTrailingSeparator(parent);
     const isEqual = (addTrailingSeparator(path) === dir);
-    return ((!orEqual && path.startsWith(dir) && !isEqual) || (orEqual && isEqual));
+    return ((path.startsWith(dir) && !isEqual) || (orEqual && isEqual));
 }
 
 export function findFiles(path: string, includePattern: string, excludePattern?: string | ReadonlyArray<string>) :
