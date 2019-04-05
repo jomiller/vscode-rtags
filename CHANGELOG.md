@@ -4,10 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.1] - 2019-04-XX
+
+### Added
+- Add `rtags.misc.compilationDatabaseRecursiveSearch` configuration setting for finding all compilation databases, recursively, in the specified compilation database directory.
+
+### Changed
+- Update the recommended RTags version to v2.22 or later.
+
+### Fixed
+- Fix issue [#28](https://github.com/jomiller/vscode-rtags/issues/28): Support multiple `compile_commands.json` file entries in `rtags.misc.compilationDatabaseDirectory`.
+- A message prompting to reload the window was shown when the value of the `rtags.compilationDatabaseDirectory` setting changed but still resolved to the same absolute path (without following symbolic links).
+
 ## [0.5.0] - 2019-03-02
 
 ### Added
-- Separate declaration provider invoked through the `Go to Declaration` and `Peek Declaration` commands.
+- Add `Go to Declaration` and `Peek Declaration` commands for finding declarations separately from definitions.
 - Validate the currently installed RTags version against the minimum version required by the extension.
 - Show the recommended RTags version after the extension has been upgraded.
 - Validate the associated compilation database when opening a workspace folder.
@@ -18,11 +30,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - When loading a new compilation database for a given workspace folder, prompt the user before deleting the current compilation database.
 
 ### Removed
-- Support for nested projects (as RTags does not support them well).
+- Remove support for nested project roots (as RTags does not support them well).
 
 ### Fixed
-- Issue [#26](https://github.com/jomiller/vscode-rtags/issues/26): Renaming class name removes '~' in destructor.
-- Issue [#27](https://github.com/jomiller/vscode-rtags/issues/27): Setting `rtags.misc.compilationDatabaseDirectory` does not support relative paths.
+- Fix issue [#26](https://github.com/jomiller/vscode-rtags/issues/26): Renaming class name removes '~' in destructor.
+- Fix issue [#27](https://github.com/jomiller/vscode-rtags/issues/27): Setting `rtags.misc.compilationDatabaseDirectory` does not support relative paths.
 - `rc` always followed symbolic links regardless of whether `rdm` was configured to follow symbolic links (as determined by the `--no-realpath` option).
 - A message prompting to reload the window was erroneously shown when a workspace folder was closed.
 
@@ -34,16 +46,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Restart the `rdm` process if it was killed, and initially auto-launched.
 
 ### Fixed
-- Incorrect highlighting of macro expansions and definitions of variables of constructible types under certain circumstances. 
+- Macro expansions and definitions of variables of constructible types were highlighted incorrectly under certain circumstances.
 - When the value of the `rtags.compilationDatabaseDirectory` setting changed, the new compilation database was never loaded if the `Reload Now` button in the `Settings` editor was not clicked.
 - The diagnostics child process was not restarted if it was killed via `SIGTERM`.
 
 ## [0.4.2] - 2018-12-13
 
 ### Added
-- Support for highlighting all occurrences of a symbol within a document.
-- `rtags.highlighting.enabled` configuration setting for enabling symbol highlighting (default: `false`).
-- `rtags.codeActions.enabled` configuration setting for enabling code actions (default: `true`).
+- Add support for highlighting all occurrences of a symbol within a document.
+- Add `rtags.highlighting.enabled` configuration setting for enabling symbol highlighting (default: `false`).
+- Add `rtags.codeActions.enabled` configuration setting for enabling code actions (default: `true`).
 
 ### Changed
 - Improve accuracy and speed of `Go to Type Definition` and `Show Variables` commands when invoked for type symbols.
@@ -65,8 +77,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Reduce the debouncing timeout to 500 ms for reindexing changed files.
 
 ### Fixed
-- Issue [#19](https://github.com/jomiller/vscode-rtags/issues/19): event-stream NPM package security issue.
-- Issue [#15](https://github.com/jomiller/vscode-rtags/issues/15): Unsaved changes to other files are lost when re-saving a file that has no unsaved changes.
+- Fix issue [#19](https://github.com/jomiller/vscode-rtags/issues/19): event-stream NPM package security issue.
+- Fix issue [#15](https://github.com/jomiller/vscode-rtags/issues/15): Unsaved changes to other files are lost when re-saving a file that has no unsaved changes.
 - Make the fix for issue [#21](https://github.com/jomiller/vscode-rtags/issues/21) more robust.
 - Fix-it hints could be displayed in contexts intended only for code actions other than quick fix actions.
 - Code completion was triggered on `>` and `:` even when those characters were not part of complete operators.
@@ -74,7 +86,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ## [0.4.0] - 2018-11-16
 
 ### Added
-- `rtags.diagnostics.openFilesOnly` configuration setting for reporting diagnostics only for open files.
+- Add `rtags.diagnostics.openFilesOnly` configuration setting for reporting diagnostics only for open files.
 
 ### Changed
 - Enable code completion by default (`rtags.completion.enabled` setting is set to `true`).
@@ -83,11 +95,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Include file symbols in workspace symbol search results.
 
 ### Removed
-- `Show Variables` command from the context menu for C source files.
+- Remove `Show Variables` command from the context menu for C source files.
 
 ### Fixed
-- Issue [#1](https://github.com/jomiller/vscode-rtags/issues/1): Signature help did not work when function arguments contained nested signatures.
-- Issue [#21](https://github.com/jomiller/vscode-rtags/issues/21): Saving a file may trigger false positive diagnostic messages in other unsaved files.
+- Fix issue [#1](https://github.com/jomiller/vscode-rtags/issues/1): Signature help did not work when function arguments contained nested signatures.
+- Fix issue [#21](https://github.com/jomiller/vscode-rtags/issues/21): Saving a file may trigger false positive diagnostic messages in other unsaved files.
 - Workspace symbol search only matched the pattern against the beginning of symbol names.
 - Symbol searches did not return results for class/function templates or type aliases.
 - Warning and information diagnostic messages were treated as errors.
@@ -98,10 +110,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ## [0.3.2] - 2018-10-21
 
 ### Added
-- Support for C source files to `Call Hierarchy`, `Show Variables` and `Show Callers` commands.
+- Add support for C source files to `Call Hierarchy`, `Show Variables` and `Show Callers` commands.
 
 ### Changed
-- If `--job-count` is not present in the `rdm.arguments` setting, then set it to half the number of logical CPUs available.
+- If `--job-count` is not present in the `rdm.arguments` setting, then set it to 50% of the logical CPU cores.
 
 ### Fixed
 - Show an error message if the auto-launched `rdm` process exited immediately due to an error.
@@ -109,25 +121,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ## [0.3.1] - 2018-08-14
 
 ### Fixed
-- GNU GPL v3.0 licensing information.
+- Fix GNU GPL v3.0 licensing information.
 - `Show Callers`, `Show Base`, `Show Variables` and `Show Virtuals` commands did not provide user feedback in certain cases when they returned no results.
-- Incomplete hover information when the context field in the results of the `rc --follow-location` command contained tabs.
-- Incorrect/missing hover information, inheritance hierarchy and symbol search results when the results of `rc` commands contained multiple tabs between fields.
+- Hover information was incomplete when the context field in the results of the `rc --follow-location` command contained tabs.
+- Hover information, inheritance hierarchy and symbol search results were incorrect or missing when the results of `rc` commands contained multiple tabs between fields.
 
 ## [0.3.0] - 2018-08-11
 
 ### Added
-- `rtags.misc.compilationDatabaseDirectory` configuration setting for specifying the compilation database directory to use instead of the workspace root.
+- Add `rtags.misc.compilationDatabaseDirectory` configuration setting for specifying the compilation database directory to use instead of the workspace root.
 - Load the new compilation database when the `rtags.misc.compilationDatabaseDirectory` setting changes and the window is reloaded to apply the new configuration.
 
 ### Changed
 - Rename all configuration settings using dot separators.
 
 ### Removed
-- Information message shown when a project was enqueued for loading/reindexing.
+- Remove information message shown when a project was enqueued for loading/reindexing.
 
 ### Fixed
-- Issue [#6](https://github.com/jomiller/vscode-rtags/issues/6): Diagnostic child process tries to connect to rdm before rdm is ready.
+- Fix issue [#6](https://github.com/jomiller/vscode-rtags/issues/6): Diagnostic child process tries to connect to rdm before rdm is ready.
 - Remaining entries in the project indexing queue were not processed if the current entry failed to be loaded/reindexed.
 - Files were potentially identified as belonging to the wrong project when multiple project directory names started with the same string.
 - When folders were removed from the workspace, the corresponding projects were not removed from the indexing queue.
@@ -135,7 +147,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ## [0.2.0] - 2018-08-03
 
 ### Added
-- `Reindex Workspace` command to reindex all workspace folders.
+- Add `Reindex Workspace` command to reindex all workspace folders.
 
 ### Changed
 - Rename `Freshen Index` command to `Reindex Active Workspace Folder`.
