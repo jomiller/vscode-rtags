@@ -69,8 +69,8 @@ export function makeAbsolutePath(base: string, fsPath: string) : string
 export function isContainingDirectory(parent: string, path: string, orEqual: boolean = false) : boolean
 {
     const dir = addTrailingSeparator(parent);
-    const isEqual = (addTrailingSeparator(path) === dir);
-    return ((path.startsWith(dir) && !isEqual) || (orEqual && isEqual));
+    return ((path.startsWith(dir) && (path.length !== dir.length)) ||
+            (orEqual && (addTrailingSeparator(path) === dir)));
 }
 
 export function findFiles(path: string, includePattern: string, excludePattern?: string | ReadonlyArray<string>) :
