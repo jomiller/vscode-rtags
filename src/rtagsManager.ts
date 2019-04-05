@@ -981,33 +981,6 @@ async function validateProject(workspacePath: Uri,
     const currentLoadedCompileInfo =
         (loadedCompileInfo && currentProjectRoot) ? loadedCompileInfo.get(currentProjectRoot.fsPath) : undefined;
 
-    let currentCompileDirectories: Uri[] = [];
-    let currentExternalCompileDirectoryExists = false;
-
-    if (currentLoadedCompileInfo && currentCompileBaseDirectory)
-    {
-        for (const info of currentLoadedCompileInfo)
-        {
-            const isInternalCompileDirectory =
-                currentWorkspaceCompileInfo && currentWorkspaceCompileInfo.recursiveSearchEnabled &&
-                isContainingDirectory(currentCompileBaseDirectory.fsPath, info.directory.fsPath);
-
-            if (isInternalCompileDirectory || (info.directory.fsPath === currentCompileBaseDirectory.fsPath))
-            {
-                currentCompileDirectories.push(info.directory);
-
-                if (isInternalCompileDirectory && !targetWorkspaceCompileInfo.recursiveSearchEnabled)
-                {
-                    currentExternalCompileDirectoryExists = true;
-                }
-            }
-            else
-            {
-                currentExternalCompileDirectoryExists = true;
-            }
-        }
-    }
-
     let compileDirectoryDirty = false;
     if (currentCompileBaseDirectory && (currentCompileBaseDirectory.fsPath !== targetCompileBaseDirectory.fsPath))
     {
@@ -1021,19 +994,22 @@ async function validateProject(workspacePath: Uri,
         recursiveSearchDirty = true;
     }
 
-    if (recursiveSearchDirty && !compileDirectoryDirty)
-    {
-        const index = currentCompileDirectories.findIndex(
-            (p) => { return ((currentCompileBaseDirectory !== undefined) &&
-                             (p.fsPath === currentCompileBaseDirectory.fsPath)); });
+    let currentInternalCompileDirectories: Uri[] = [];
 
-        if (index !== -1)
+    if (currentLoadedCompileInfo && currentCompileBaseDirectory)
+    {
+        const orEqual = (projectRootDirty || compileDirectoryDirty || !recursiveSearchDirty);
+
+        for (const info of currentLoadedCompileInfo)
         {
-            currentCompileDirectories.splice(index, 1);
+            if (isContainingDirectory(currentCompileBaseDirectory.fsPath, info.directory.fsPath, orEqual))
+            {
+                currentInternalCompileDirectories.push(info.directory);
+            }
         }
     }
 
-    if (currentCompileDirectories.length === 0)
+    if (currentInternalCompileDirectories.length === 0)
     {
         compileDirectoryDirty = false;
         recursiveSearchDirty = false;
@@ -1092,8 +1068,12 @@ async function validateProject(workspacePath: Uri,
 
         if (selectedAction === removeAction)
         {
+            const currentExternalCompileDirectoryExists =
+                (!currentLoadedCompileInfo ||
+                 (currentInternalCompileDirectories.length !== currentLoadedCompileInfo.length));
+
             const projectRemoved = await removeProject(workspacePath,
-                                                       currentCompileDirectories,
+                                                       currentInternalCompileDirectories,
                                                        !currentExternalCompileDirectoryExists,
                                                        projectRootDirty);
 
