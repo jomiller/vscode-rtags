@@ -1031,9 +1031,12 @@ async function validateProject(workspacePath: Uri,
                 const compileDirectoryId =
                     makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseDirectory);
 
+                const recursiveSearchId =
+                    makeConfigurationId(ResourceConfiguration.MiscCompilationDatabaseRecursiveSearch);
+
                 message = "Unable to find a compilation database in the directory: " +
                               targetCompileBaseDirectory.fsPath + ". Check the \"" + compileDirectoryId +
-                              "\" setting.";
+                              "\" and \"" + recursiveSearchId + "\" settings.";
             }
 
             throw new Error(message);
@@ -1235,6 +1238,11 @@ export class RtagsManager implements Disposable
                                 compileInfo = new CompileCommandsInfo(workspacePath, false);
                             }
                             compileInfo.recursiveSearchEnabled = cachedRecursiveSearch;
+
+                            // The fsPath property is generated on demand
+                            // Force it to be generated so that it will be serialized
+                            // tslint:disable-next-line: no-unused-expression
+                            compileInfo.directory.fsPath;
 
                             dirtyWorkspaceInfo.set(workspacePath, compileInfo);
                         }
