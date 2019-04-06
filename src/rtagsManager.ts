@@ -1062,7 +1062,7 @@ async function validateProject(workspacePath: Uri,
         {
             projectDesc = "compilation database";
             projectPath = currentInternalCompileDirectories.map(
-                (dir) => { return (addTrailingSeparator(dir.fsPath) + CompileCommandsFilename); }).join();
+                (dir) => { return (addTrailingSeparator(dir.fsPath) + CompileCommandsFilename); }).join(", ");
         }
 
         const message = "[RTags] The " + projectDesc + " is changing for workspace folder: " + workspacePath.fsPath +
@@ -1265,8 +1265,8 @@ export class RtagsManager implements Disposable
                 }
 
                 const reloadAction = "Reload Now";
-                const selectedAction =
-                    await window.showInformationMessage("Reload to apply the configuration change.", reloadAction);
+                const selectedAction = await window.showInformationMessage("Please reload the window to apply the " +
+                                                                               "configuration change.", reloadAction);
 
                 if (selectedAction === reloadAction)
                 {
