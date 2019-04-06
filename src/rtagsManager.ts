@@ -952,7 +952,8 @@ async function validateProject(workspacePath: Uri,
                 {
                     if (!currentProjectRoot || (root !== currentProjectRoot.fsPath))
                     {
-                        throw new Error("The compilation database is already loaded at another project root: " + root);
+                        throw new Error("The compilation database " + file + " is already loaded at another project " +
+                                            "root: " + root);
                     }
 
                     targetCompileLoaded = true;
@@ -1047,12 +1048,8 @@ async function validateProject(workspacePath: Uri,
     {
         // Prompt the user to remove the current project root or compilation databases
 
-        let projectDesc = "compilation database";
+        let projectDesc = "";
         let projectPath = "";
-        if (currentCompileBaseDirectory)
-        {
-            projectPath = currentCompileBaseDirectory.fsPath;
-        }
         if (projectRootDirty)
         {
             projectDesc = "project root";
@@ -1060,6 +1057,12 @@ async function validateProject(workspacePath: Uri,
             {
                 projectPath = currentProjectRoot.fsPath;
             }
+        }
+        else
+        {
+            projectDesc = "compilation database";
+            projectPath = currentInternalCompileDirectories.map(
+                (dir) => { return (addTrailingSeparator(dir.fsPath) + CompileCommandsFilename); }).join();
         }
 
         const message = "[RTags] The " + projectDesc + " is changing for workspace folder: " + workspacePath.fsPath +
