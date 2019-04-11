@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [0.5.1] - 2019-04-XX
+## [0.5.2] - 2019-04-11
 
 ### Added
 - Add `rtags.misc.compilationDatabaseRecursiveSearch` configuration setting for finding all compilation databases, recursively, in the specified compilation database directory.
@@ -162,6 +162,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 Initial release
 
+[0.5.2]: https://github.com/jomiller/vscode-rtags/compare/v0.5.0...v0.5.2
 [0.5.0]: https://github.com/jomiller/vscode-rtags/compare/v0.4.3...v0.5.0
 [0.4.3]: https://github.com/jomiller/vscode-rtags/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/jomiller/vscode-rtags/compare/v0.4.1...v0.4.2
