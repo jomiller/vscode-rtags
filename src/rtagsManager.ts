@@ -1177,9 +1177,8 @@ export class RtagsManager implements Disposable
         const changeConfigCallback =
             async (event: ConfigurationChangeEvent) : Promise<void> =>
             {
-                // FIXME: See https://github.com/Microsoft/vscode/issues/66246
-                // The onDidChangeConfiguration event fires before workspace.workspaceFolders has been updated
-                // Allow workspace.workspaceFolders to be updated before proceeding
+                // FIXME: The onDidChangeWorkspaceFolders event fires before the onDidChangeConfiguration event
+                // Allow the cached workspace configuration to be updated before proceeding
                 await Promise.resolve();
 
                 let reloadWindow = false;
@@ -1500,10 +1499,11 @@ export class RtagsManager implements Disposable
 
     private async updateProjects(event: WorkspaceFoldersChangeEvent) : Promise<void>
     {
-        this.cachedWorkspaceConfig = getWorkspaceConfiguration();
-
+        // FIXME: The onDidChangeWorkspaceFolders event fires before the workspace configuration has been updated
+        // Allow the workspace configuration to be updated before proceeding
         if (await this.rtagsInitialized)
         {
+            this.cachedWorkspaceConfig = getWorkspaceConfiguration();
             this.removeProjects(event.removed);
             this.addProjects(event.added);
         }
