@@ -14,7 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 - Fix issue [#28](https://github.com/jomiller/vscode-rtags/issues/28): Support multiple `compile_commands.json` file entries in `rtags.misc.compilationDatabaseDirectory`.
-- A message prompting to reload the window was shown when the value of the `rtags.compilationDatabaseDirectory` setting changed but still resolved to the same absolute path (without following symbolic links).
+- A message prompting to reload the window was shown when the value of the `rtags.misc.compilationDatabaseDirectory` setting changed but still resolved to the same absolute path (without following symbolic links).
 
 ## [0.5.0] - 2019-03-02
 
@@ -47,7 +47,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Fixed
 - Macro expansions and definitions of variables of constructible types were highlighted incorrectly under certain circumstances.
-- When the value of the `rtags.compilationDatabaseDirectory` setting changed, the new compilation database was never loaded if the `Reload Now` button in the `Settings` editor was not clicked.
+- When the value of the `rtags.misc.compilationDatabaseDirectory` setting changed, the new compilation database was never loaded if the `Reload Now` button in the `Settings` editor was not clicked.
 - The diagnostics child process was not restarted if it was killed via `SIGTERM`.
 
 ## [0.4.2] - 2018-12-13
