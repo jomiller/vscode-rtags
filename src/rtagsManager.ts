@@ -1776,17 +1776,17 @@ export class RtagsManager implements Disposable
             (task: ProjectTask) : void =>
             {
                 this.projectTasks.set(task.id, task);
+
+                if (task.getType() === TaskType.Load)
+                {
+                    this.addProjectPath(task.uri);
+                }
             };
 
         const stopCallback =
             (task: ProjectTask) : void =>
             {
                 this.stopProjectTask(task);
-
-                if (task.getType() === TaskType.Load)
-                {
-                    this.addProjectPath(task.uri);
-                }
             };
 
         return task.start(startCallback, stopCallback);
