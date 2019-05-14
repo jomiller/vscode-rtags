@@ -1318,43 +1318,6 @@ export class RtagsManager implements Disposable
         return (projectPath ? (path === projectPath) : (path !== undefined));
     }
 
-    public isInLoadingProject(uri: Uri) : boolean
-    {
-        let candidateTasks: ProjectTask[] = [];
-        for (const task of this.projectTasks.values())
-        {
-            if ((task.getType() === TaskType.Load) && isContainingDirectory(task.uri.fsPath, uri.fsPath))
-            {
-                candidateTasks.push(task);
-            }
-        }
-
-        let projectTask = candidateTasks.pop();
-        for (const task of candidateTasks)
-        {
-            // Assume that the URI belongs to the project with the deepest path
-            if (projectTask && (task.uri.fsPath.length > projectTask.uri.fsPath.length))
-            {
-                projectTask = task;
-            }
-        }
-        if (!projectTask)
-        {
-            return false;
-        }
-
-        const loadingProjectPath = projectTask.uri;
-
-        const projectPath = this.getProjectPath(uri);
-        if (!projectPath)
-        {
-            return true;
-        }
-
-        // Assume that the URI belongs to the project with the deepest path
-        return (loadingProjectPath.fsPath.length > projectPath.fsPath.length);
-    }
-
     public getOpenSourceFiles(projectPath?: Uri) : TextDocument[]
     {
         return workspace.textDocuments.filter(
@@ -1899,7 +1862,7 @@ export class RtagsManager implements Disposable
 
             const uri = Uri.file(file);
 
-            if (!this.isInProject(uri) && !this.isInLoadingProject(uri))
+            if (!this.isInProject(uri))
             {
                 continue;
             }
@@ -1972,7 +1935,7 @@ export class RtagsManager implements Disposable
 
     private diagnoseFile(file: TextDocument) : void
     {
-        if (!isSourceFile(file) || (!this.isInProject(file.uri) && !this.isInLoadingProject(file.uri)))
+        if (!isSourceFile(file) || !this.isInProject(file.uri))
         {
             return;
         }
@@ -1987,7 +1950,7 @@ export class RtagsManager implements Disposable
 
     private undiagnoseFile(file: TextDocument) : void
     {
-        if (!isSourceFile(file) || (!this.isInProject(file.uri) && !this.isInLoadingProject(file.uri)))
+        if (!isSourceFile(file) || !this.isInProject(file.uri))
         {
             return;
         }
