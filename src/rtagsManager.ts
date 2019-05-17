@@ -231,12 +231,6 @@ class ProjectReindexTask extends ProjectTask
     private unsavedFiles: TextDocument[];
 }
 
-interface ResumeTimerInfo
-{
-    file: TextDocument;
-    timer: NodeJS.Timer;
-}
-
 function toDiagnosticSeverity(severity: string) : DiagnosticSeverity
 {
     switch (severity)
@@ -1177,7 +1171,8 @@ export class RtagsManager implements Disposable
         const changeConfigCallback =
             async (event: ConfigurationChangeEvent) : Promise<void> =>
             {
-                // FIXME: The onDidChangeWorkspaceFolders event fires before the onDidChangeConfiguration event
+                // FIXME: See https://github.com/microsoft/vscode/issues/73353
+                // The onDidChangeWorkspaceFolders event fires before the onDidChangeConfiguration event
                 // Allow the cached workspace configuration to be updated before proceeding
                 await Promise.resolve();
 
@@ -1462,7 +1457,8 @@ export class RtagsManager implements Disposable
 
     private async updateProjects(event: WorkspaceFoldersChangeEvent) : Promise<void>
     {
-        // FIXME: The onDidChangeWorkspaceFolders event fires before the workspace configuration has been updated
+        // FIXME: See https://github.com/microsoft/vscode/issues/73353
+        // The onDidChangeWorkspaceFolders event fires before the workspace configuration has been updated
         // Allow the workspace configuration to be updated before proceeding
         if (await this.rtagsInitialized)
         {
@@ -1524,9 +1520,7 @@ export class RtagsManager implements Disposable
             return;
         }
 
-        const projectPath = this.getProjectPath(event.document.uri);
-
-        if (!isSourceFile(event.document) || !projectPath)
+        if (!isSourceFile(event.document) || !this.isInProject(event.document.uri))
         {
             return;
         }
@@ -1544,8 +1538,6 @@ export class RtagsManager implements Disposable
             {
                 this.reindexDelayTimers.delete(path);
 
-                await Promise.all(this.resumeDelayedFileWatches(projectPath));
-
                 this.reindexFile(event.document, true);
             };
 
@@ -1554,14 +1546,10 @@ export class RtagsManager implements Disposable
 
     private async reindexSavedFile(file: TextDocument) : Promise<void>
     {
-        const projectPath = this.getProjectPath(file.uri);
-
-        if (!isSourceFile(file) || !projectPath)
+        if (!isSourceFile(file) || !this.isInProject(file.uri))
         {
             return;
         }
-
-        await Promise.all(this.resumeDelayedFileWatches(projectPath));
 
         // Force reindexing if the file was suspended
         // Checking whether reindexing is needed does not work for files that were suspended
@@ -1625,26 +1613,6 @@ export class RtagsManager implements Disposable
         // Block the event loop to ensure that the file is suspended before it is saved
         // Use a timeout because VS Code imposes a time budget on subscribers to the onWillSaveTextDocument event
         event.waitUntil(runRc(args, processCallback));
-
-        if (!event.document.isDirty)
-        {
-            // FIXME: See https://github.com/Microsoft/vscode/issues/66338
-            // The onDidSaveTextDocument event will not fire for clean files
-            // Delay until the file has been saved, and then manually resume the file watch
-            const timeoutCallback =
-                () : void =>
-                {
-                    this.resumeDelayTimers.delete(path);
-                    this.resumeFileWatch(event.document);
-                };
-
-            const timerInfo: ResumeTimerInfo =
-            {
-                file: event.document,
-                timer: setTimeout(timeoutCallback, 2000)
-            };
-            this.resumeDelayTimers.set(path, timerInfo);
-        }
     }
 
     private resumeFileWatch(file: TextDocument) : Promise<Optional<boolean>>
@@ -1689,22 +1657,6 @@ export class RtagsManager implements Disposable
             };
 
         return getSuspendedFilePaths(projectPath).then(resolveCallback);
-    }
-
-    private resumeDelayedFileWatches(projectPath: Uri) : Promise<Optional<boolean>>[]
-    {
-        // Resume files early so that they may be reindexed if necessary
-        let promises: Promise<Optional<boolean>>[] = [];
-        for (const info of this.resumeDelayTimers.values())
-        {
-            if (this.isInProject(info.file.uri, projectPath))
-            {
-                clearTimeout(info.timer);
-                this.resumeDelayTimers.delete(info.file.uri.fsPath);
-                promises.push(this.resumeFileWatch(info.file));
-            }
-        }
-        return promises;
     }
 
     private reindexActiveProject() : void
@@ -1973,6 +1925,5 @@ export class RtagsManager implements Disposable
     private unprocessedDiagnostics: string = "";
     private reindexDelayTimers = new Map<string, NodeJS.Timer>();
     private suspendedFilePaths = new Set<string>();
-    private resumeDelayTimers = new Map<string, ResumeTimerInfo>();
     private disposables: Disposable[] = [];
 }

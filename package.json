@@ -19,7 +19,7 @@
         "url": "https://github.com/jomiller/vscode-rtags"
     },
     "engines": {
-        "vscode": "^1.32.0"
+        "vscode": "^1.35.0"
     },
     "categories": [
         "Programming Languages"
