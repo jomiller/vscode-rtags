@@ -2,7 +2,7 @@ import { extensions } from 'vscode';
 
 import * as assert from 'assert';
 
-import { ExtensionId } from '../constants';
+import { ExtensionId } from '../../constants';
 
 suite("Extension Tests", function()
 {

@@ -47,9 +47,8 @@ export function getWorkspaceConfiguration() : Map<string, ConfigurationMap>
         {
             const folderConfig = workspace.getConfiguration(ConfigurationId, folder.uri);
             let folderCache: ConfigurationMap = {};
-            for (const key in ResourceConfiguration)
+            for (const val of Object.values(ResourceConfiguration))
             {
-                const val = ResourceConfiguration[key];
                 folderCache[val] = folderConfig.get(val);
             }
             configCache.set(folder.uri.fsPath, folderCache);

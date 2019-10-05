@@ -1178,9 +1178,8 @@ export class RtagsManager implements Disposable
 
                 let reloadWindow = false;
 
-                for (const key in WindowConfiguration)
+                for (const val of Object.values(WindowConfiguration))
                 {
-                    const val = WindowConfiguration[key];
                     if (event.affectsConfiguration(makeConfigurationId(val)))
                     {
                         reloadWindow = true;
@@ -1364,7 +1363,7 @@ export class RtagsManager implements Disposable
         return this.workspaceState.update("rtags.dirtyWorkspaceInfo", (info.size !== 0) ? [...info] : undefined);
     }
 
-    private async addProjects(folders?: WorkspaceFolder[]) : Promise<void>
+    private async addProjects(folders?: ReadonlyArray<WorkspaceFolder>) : Promise<void>
     {
         if (!folders || (folders.length === 0))
         {
@@ -1434,7 +1433,7 @@ export class RtagsManager implements Disposable
         }
     }
 
-    private removeProjects(folders?: WorkspaceFolder[]) : void
+    private removeProjects(folders?: ReadonlyArray<WorkspaceFolder>) : void
     {
         if (!folders)
         {
